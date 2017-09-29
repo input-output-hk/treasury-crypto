@@ -1,6 +1,3 @@
-import java.math.BigInteger
-
-import supertagged.TaggedType
 
 package object signatures {
 
