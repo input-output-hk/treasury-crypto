@@ -82,10 +82,16 @@ class EllipticCurveCryptosystem extends Cryptosystem {
 
   /* Solve discrete logarithm for m*G */
   private def reconstructMessage(plaintextPoint: ECPoint): Message = {
-    val G = ecSpec.getG
+    var P = ecSpec.getG
+
+    if(P.equals(plaintextPoint))
+      return 1
+
     /* msg is allowed in range 1 .. 2^31-1 */
-    for (msg <- 1 to 2147483647) {
-      if (G.multiply(BigInteger.valueOf(msg)).equals(plaintextPoint))
+    for (msg <- 2 to Integer.MAX_VALUE)
+    {
+      P = P.add(ecSpec.getG)
+      if(P.equals(plaintextPoint))
         return msg
     }
     -1
