@@ -16,4 +16,6 @@ trait Cryptosystem {
   def decrypt(sk: PrivKey, ciphertext: Ciphertext): Message
 
   def getRand(): Randomness
+
+  def multiply(arg1: Ciphertext, arg2: Ciphertext): Ciphertext
 }
