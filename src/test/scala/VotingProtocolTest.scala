@@ -16,7 +16,7 @@ class VotingProtocolTest extends FunSuite {
 
     val votersBallots =
       for (voterId <- 11 to 20) yield {
-        new RegularVoter(cs, voterId, expertsNum, pubKey)
+        new RegularVoter(cs, voterId, expertsNum, pubKey, 5)
           .produceVote(proposalID, 0, if(voterId % 2 == 0) VoteCases.Yes else VoteCases.No)
       }
 
@@ -29,7 +29,7 @@ class VotingProtocolTest extends FunSuite {
     val ballots = votersBallots ++ expertsBallots
 
     // Obtaining results by an arbitrary voter
-    val voter = new RegularVoter(cs, 11, expertsNum, pubKey)
+    val voter = new RegularVoter(cs, 11, expertsNum, pubKey, 5)
     voter.tallyVotes(ballots, privKey)
   }
 }

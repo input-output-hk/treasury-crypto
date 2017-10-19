@@ -72,6 +72,14 @@ class EllipticCurveCryptosystem extends Cryptosystem {
     reconstructMessage(plaintext)
   }
 
+  def getRand(): Randomness = {
+    // takes a priv key from the key pair as random element from Zp
+    // TODO: implement generation of a random element from Zp directly
+    val pair: KeyPair = keyPairGenerator.generateKeyPair
+    val privateKey = pair.getPrivate.asInstanceOf[ECPrivateKey]
+    privateKey.getD.toByteArray
+  }
+
   /* TODO: Conversion algorithm (msg -> ECPoint) should be implemented.
    * Currently it is a stub that returns a constant point on the curve. */
   private def msgToPoint(msg: Message): ECPoint = {

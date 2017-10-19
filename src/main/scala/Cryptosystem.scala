@@ -14,4 +14,6 @@ trait Cryptosystem {
   * Decrypts ciphertext and solve DLP for g^m to extract message
   */
   def decrypt(sk: PrivKey, ciphertext: Ciphertext): Message
+
+  def getRand(): Randomness
 }
