@@ -8,7 +8,8 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.jce.spec.ECParameterSpec
 import org.bouncycastle.math.ec.{ECCurve, ECPoint}
 import org.bouncycastle.util.encoders.Hex
-import signatures._
+
+import common._
 
 /**
   * Created by lpsun on 27.09.17.

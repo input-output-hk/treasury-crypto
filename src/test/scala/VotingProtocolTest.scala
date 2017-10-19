@@ -1,4 +1,6 @@
+import common.VoteCases
 import org.scalatest.FunSuite
+
 import scala.collection.mutable.ArrayBuffer
 
 class VotingProtocolTest extends FunSuite {
@@ -19,14 +21,14 @@ class VotingProtocolTest extends FunSuite {
     // Simulating the set of experts and voters
     for (voterId <- 1 to 20) // assume the IDs lower or equal to expertsNum (from 1 to 10) - are experts
     {
-      val voter = new Voter(voterId, expertsNum, pubKey)
-      val voterBallot = voter.produceVote(proposalID, if(voterId % 2 == 0) VoteCases.Yes else VoteCases.No)
+      val voter = new Voter(cs, voterId, expertsNum, pubKey)
+      val voterBallot = voter.produceVote(proposalID, 0, if(voterId % 2 == 0) VoteCases.Yes else VoteCases.No)
 
       sharedBallotsList += voterBallot
     }
 
     // Obtaining results by an arbitrary voter
-    val voter = new Voter(0, expertsNum, pubKey)
+    val voter = new Voter(cs, 0, expertsNum, pubKey)
     voter.tallyVotes(sharedBallotsList, privKey)
   }
 }

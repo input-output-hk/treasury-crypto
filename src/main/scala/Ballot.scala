@@ -1,5 +1,5 @@
+import common.Ciphertext
 import org.json.JSONObject
-import signatures._
 
 // The data structure for storing of the individual voter's/expert's choice
 class Ballot {

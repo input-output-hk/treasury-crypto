@@ -1,6 +1,5 @@
 import java.security.SecureRandom
-
-import signatures._
+import common._
 
 trait Cryptosystem {
 
