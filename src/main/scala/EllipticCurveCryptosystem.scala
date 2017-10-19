@@ -80,9 +80,24 @@ class EllipticCurveCryptosystem extends Cryptosystem {
     privateKey.getD.toByteArray
   }
 
-  def add(arg1: Ciphertext, arg2: Ciphertext): Ciphertext = ???
+  def add(cipherText1: Ciphertext, cipherText2: Ciphertext): Ciphertext = {
+    val C1_1 = curve.decodePoint(cipherText1._1)
+    val C1_2 = curve.decodePoint(cipherText1._2)
 
-  def multiply(arg1: Element, arg2: Ciphertext): Ciphertext = ???
+    val C2_1 = curve.decodePoint(cipherText2._1)
+    val C2_2 = curve.decodePoint(cipherText2._2)
+
+    (C1_1.add(C2_1).getEncoded(true), C1_2.add(C2_2).getEncoded(true))
+  }
+
+  def multiply(cipherText: Ciphertext, scalar: Array[Byte]): Ciphertext = {
+
+    val C_1 = curve.decodePoint(cipherText._1)
+    val C_2 = curve.decodePoint(cipherText._2)
+
+    val scalarBigInt = new BigInteger(1, scalar)
+    (C_1.multiply(scalarBigInt).getEncoded(true), C_2.multiply(scalarBigInt).getEncoded(true))
+  }
 
   /* TODO: Conversion algorithm (msg -> ECPoint) should be implemented.
    * Currently it is a stub that returns a constant point on the curve. */

@@ -1,4 +1,6 @@
+import java.math.BigInteger
 import java.security.SecureRandom
+
 import common._
 
 trait Cryptosystem {
@@ -17,7 +19,7 @@ trait Cryptosystem {
 
   def getRand(): Randomness
 
-  def add(arg1: Ciphertext, arg2: Ciphertext): Ciphertext
+  def add(cipherText1: Ciphertext, cipherText2: Ciphertext): Ciphertext
 
-  def multiply(arg1: Element, arg2: Ciphertext): Ciphertext
+  def multiply(cipherText: Ciphertext, scalar: Array[Byte]): Ciphertext
 }
