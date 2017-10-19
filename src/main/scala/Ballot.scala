@@ -2,8 +2,12 @@ import common.Ciphertext
 import org.json.JSONObject
 
 // The data structure for storing of the individual voter's/expert's choice
-sealed trait Ballot {
+trait Ballot {
   final val VOTER_CHOISES_NUM = 3
+
+  val issuerId: Int
+  val proposalId: Int
+  val unitVector: Array[Ciphertext]
 
   // Imports ballot from binary array (parses the binary data, sets the id of issuer, the number of experts and creates unitVector of necessary size and fills it)
   def importJSON(jsonBallot: JSONObject): Unit = ???
@@ -18,18 +22,18 @@ sealed trait Ballot {
   def exportBin(): Array[Byte] = ???
 }
 
-case class VoterBallot(val issuerId: Int,
-                       val propodalId: Int,
+case class VoterBallot(override val issuerId: Int,
+                       override val proposalId: Int,
                        val expertsNum: Int,
-                       val stake: Int) extends Ballot {
+                       val stake: Array[Byte]) extends Ballot {
   // Unit vector of expertsNum + voterChoisesNum elements
-  val unitVector: Array[Ciphertext] = new Array(expertsNum + VOTER_CHOISES_NUM)
+  override val unitVector: Array[Ciphertext] = new Array(expertsNum + VOTER_CHOISES_NUM)
 
 //  var unitNizks: Array[UnitNIZK] = null
 //  var unitsSumNizk: UnitsSumNIZK = new UnitsSumNIZK
 }
 
-case class ExpertBallot(val issuerId: Int,
-                        val propodalId: Int) extends Ballot {
-  val unitVector: Array[Ciphertext] = new Array(VOTER_CHOISES_NUM)
+case class ExpertBallot(override val issuerId: Int,
+                        override val proposalId: Int) extends Ballot {
+  override val unitVector: Array[Ciphertext] = new Array(VOTER_CHOISES_NUM)
 }
