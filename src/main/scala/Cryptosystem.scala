@@ -17,5 +17,7 @@ trait Cryptosystem {
 
   def getRand(): Randomness
 
-  def multiply(arg1: Ciphertext, arg2: Ciphertext): Ciphertext
+  def add(arg1: Ciphertext, arg2: Ciphertext): Ciphertext
+
+  def multiply(arg1: Element, arg2: Ciphertext): Ciphertext
 }
