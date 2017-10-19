@@ -30,7 +30,7 @@ class EllipticCurveCryptosystem extends Cryptosystem {
 //  val G = curve.decodePoint(Hex.decode("036b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296"))
 //  val ecSpec = new ECParameterSpec(curve, G, n);
 
-  private val ecSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec("secp256r1");
+  private val ecSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec("secp256k1");
   private lazy val curve = ecSpec.getCurve
 
   private val keyPairGenerator: KeyPairGenerator = {

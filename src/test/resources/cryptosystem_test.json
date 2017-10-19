@@ -1,24 +1,24 @@
 {
 	"encryption": {
 		"input": {
-			"pubkey": "02ed736e549d20dcfcaeaa9d8584f239c6fdad2839932d384549dc64c6ff41de53",
+			"pubkey": "02381392dfc97af3ef1e9bb75a7816d0f1c436e72309519b00113e6192327d85d9	",
 			"randomness": "64",
 			"message": "400"
 		},
 		"output": {
 			"ciphertext": {
-				"c1": "02490a19531f168d5c3a5ae6100839bb2d1d920d78e6aeac3f7da81966c0f72170",
-				"c2": "02c78c838684d81c03b4c52c84f8eee8c7afcb96b62ebf7f6a491a4b792d3003d8"
+				"c1": "02ed3bace23c5e17652e174c835fb72bf53ee306b3406a26890221b4cef7500f88",
+				"c2": "027bc80e0a4286b1921ca5246a685cebdd6fdac790c3776f5e4dbc4d6870fe98c4"
 			}
 		}
 	},
 
 	"decryption": {
 		"input": {
-			"privkey": "00ef321585021d280045ab5d366a9d3744f53f498d3806812d99f6c919e2cdcf82",
+			"privkey": "00840147e7d2db673c94b005b10f84a2435eb701cc03bf49af97c93dfcc05ba876",
 			"ciphertext": {
-				"c1": "02490a19531f168d5c3a5ae6100839bb2d1d920d78e6aeac3f7da81966c0f72170",
-				"c2": "02c78c838684d81c03b4c52c84f8eee8c7afcb96b62ebf7f6a491a4b792d3003d8"
+				"c1": "02ed3bace23c5e17652e174c835fb72bf53ee306b3406a26890221b4cef7500f88",
+				"c2": "027bc80e0a4286b1921ca5246a685cebdd6fdac790c3776f5e4dbc4d6870fe98c4"
 			}
 		},
 		"output": {
