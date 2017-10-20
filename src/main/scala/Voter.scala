@@ -77,115 +77,136 @@ sealed trait Voter {
   def tallyVotesV2(ballots: Seq[Ballot], privateKey: PrivKey): TallyResult = {
 
     var expertsNum = 0
-    var unitVectorSize = 0
+    var regularUvDelegationsSize = 0
+    var regularUvChoiceSize = 0
     var expertUnitVectorSize = 0
 
     // Checking the sizes of all ballots for identity
     //
-//    for(i <- 0 until ballots.size) {
-//      ballots(i) match {
-//        case voterBallot: VoterBallot =>
-//          if(expertsNum == 0){
-//            expertsNum = voterBallot.expertsNum
-//          }
-//          if(unitVectorSize == 0){
-//            unitVectorSize = voterBallot.unitVector.size
-//          }
-//
-//          if(expertsNum != 0 && expertsNum != voterBallot.expertsNum ||
-//             unitVectorSize != 0 && unitVectorSize != voterBallot.unitVector.size)
-//            return TallyResult(0,0,0)
-//
-//        case expertBallot: ExpertBallot =>
-//          if(expertUnitVectorSize == 0){
-//            expertUnitVectorSize = expertBallot.unitVector.size
-//          }
-//          if(expertUnitVectorSize != 0 && expertUnitVectorSize != expertBallot.unitVector.size)
-//            return TallyResult(0,0,0)
-//      }
-//    }
-//
-//    // Exponentiation of the regular voters votes to the power of their stake
-//    //
-//    for(i <- 0 until ballots.size ) {
-//      for(j <- 0 until unitVectorSize ){
-//
-//        ballots(i) match {
-//          case voterBallot: VoterBallot => voterBallot.unitVector(j) = cs.multiply(voterBallot.unitVector(j), voterBallot.stake)
-//          case _ =>
-//        }
-//      }
-//    }
-//
-//    // Unit-wise summation of the weighted regular voters votes
-//    //
-//    var votesSum = new Array[Ciphertext](unitVectorSize)
-//
-//    for(i <- 0 until votesSum.size ) {
-//      for(j <- 0 until ballots.size ){
-//        ballots(j) match {
-//          case voterBallot: VoterBallot =>
-//            if(votesSum(i) == null)
-//              votesSum(i) = voterBallot.unitVector(i)
-//            else
-//              votesSum(i) = cs.add(voterBallot.unitVector(i), votesSum(i))
-//          case _ =>
-//        }
-//      }
-//    }
-//
-//    // Decryption of the summed ballots of the regular voters
-//    //
-//    var votesResult = new Array[Message](unitVectorSize)
-//
-//    for(i <- 0 until unitVectorSize ) {
-//      votesResult(i) = cs.decrypt(privateKey, votesSum(i))
-//    }
-//
-//    // Exponentiation of the experts votes to the power of the delegated voters stake sum
-//    //
-//    for(i <- 0 until ballots.size ) {
-//      for(j <- 0 until expertUnitVectorSize ){
-//        ballots(i) match {
-//          case expertBallot: ExpertBallot => expertBallot.unitVector(j) = cs.multiply(expertBallot.unitVector(j), ByteBuffer.allocate(4).putInt(votesResult(expertBallot.issuerId - 1)).array())
-//          case _ =>
-//        }
-//      }
-//    }
-//
-//    // Unit-wise summation of the weighted experts votes
-//    //
-//    var expertVotesSum = new Array[Ciphertext](expertUnitVectorSize)
-//
-//    for(i <- 0 until expertVotesSum.size ) {
-//      for(j <- 0 until ballots.size ){
-//        ballots(j) match {
-//          case expertBallot: ExpertBallot =>
-//            if(expertVotesSum(i) == null)
-//              expertVotesSum(i) = expertBallot.unitVector(i)
-//            else
-//              expertVotesSum(i) = cs.add(expertBallot.unitVector(i), expertVotesSum(i))
-//          case _ =>
-//        }
-//      }
-//    }
-//
-//    // Decryption of the summed ballots of the experts
-//    //
-//    var expertVotesResult = new Array[Message](expertUnitVectorSize)
-//
-//    for(i <- 0 until expertUnitVectorSize ) {
-//      expertVotesResult(i) = cs.decrypt(privateKey, expertVotesSum(i))
-//    }
-//
-//    // Total sum of regular voters and experts votes
-//    //
-//    TallyResult(
-//      expertVotesResult(0) + votesResult(expertsNum),
-//      expertVotesResult(1) + votesResult(expertsNum + 1),
-//      expertVotesResult(2) + votesResult(expertsNum + 2)
-//    )
-    TallyResult(0,0,0)
+    for(i <- 0 until ballots.size)
+    {
+      ballots(i) match
+      {
+        case voterBallot: VoterBallot =>
+
+          if(expertsNum == 0)
+            expertsNum = voterBallot.expertsNum
+
+          if(regularUvDelegationsSize == 0)
+            regularUvDelegationsSize = voterBallot.uvDelegations.size
+
+          if(regularUvChoiceSize == 0)
+            regularUvChoiceSize = voterBallot.uvChoice.size
+
+          if(expertsNum != 0 && expertsNum != voterBallot.expertsNum ||
+            regularUvDelegationsSize != 0 && regularUvDelegationsSize != voterBallot.uvDelegations.size ||
+            regularUvChoiceSize != 0 && regularUvChoiceSize != voterBallot.uvChoice.size)
+            return TallyResult(0,0,0)
+
+        case expertBallot: ExpertBallot =>
+
+          if(expertUnitVectorSize == 0)
+            expertUnitVectorSize = expertBallot.unitVector.size
+
+          if(expertUnitVectorSize != 0 && expertUnitVectorSize != expertBallot.unitVector.size)
+            return TallyResult(0,0,0)
+      }
+    }
+
+    var regularVotersBallots  = ballots.filter(_.isInstanceOf[VoterBallot]).map(_.asInstanceOf[VoterBallot])
+    var expertsBallots        = ballots.filter(_.isInstanceOf[ExpertBallot]).map(_.asInstanceOf[ExpertBallot])
+
+    // Exponentiation of the regular voters ddelegations and votes to the power of their stake
+    //
+    for(i <- 0 until regularVotersBallots.size)
+    {
+      for(j <- 0 until regularUvDelegationsSize )
+        regularVotersBallots(i).uvDelegations(j) = cs.multiply(regularVotersBallots(i).uvDelegations(j), regularVotersBallots(i).stake)
+
+      for(j <- 0 until regularUvChoiceSize )
+        regularVotersBallots(i).uvChoice(j) = cs.multiply(regularVotersBallots(i).uvChoice(j), regularVotersBallots(i).stake)
+    }
+
+    // Unit-wise summation of the weighted regular voters delegations
+    //
+    var delegationsSum  = new Array[Ciphertext](regularUvDelegationsSize)
+
+    for(i <- 0 until delegationsSum.size)
+    {
+      for(j <- 0 until regularVotersBallots.size)
+      {
+            if(delegationsSum(i) == null)
+              delegationsSum(i) = regularVotersBallots(j).uvDelegations(i)
+            else
+              delegationsSum(i) = cs.add(regularVotersBallots(j).uvDelegations(i), delegationsSum(i))
+      }
+    }
+
+    // Unit-wise summation of the weighted regular voters votes
+    //
+    var regularVotesSum = new Array[Ciphertext](regularUvChoiceSize)
+
+    for(i <- 0 until regularVotesSum.size)
+    {
+      for(j <- 0 until regularVotersBallots.size)
+      {
+        if(regularVotesSum(i) == null)
+          regularVotesSum(i) = regularVotersBallots(j).uvChoice(i)
+        else
+          regularVotesSum(i) = cs.add(regularVotersBallots(j).uvChoice(i), regularVotesSum(i))
+      }
+    }
+
+    // Decryption of the summed delegations of the regular voters
+    //
+    var delegationsResult = new Array[Message](regularUvDelegationsSize)
+
+    for(i <- 0 until regularUvDelegationsSize)
+      delegationsResult(i) = cs.decrypt(privateKey, delegationsSum(i))
+
+    // Decryption of the summed votes of the regular voters
+    //
+    var regularVotesResult = new Array[Message](regularUvChoiceSize)
+
+    for(i <- 0 until regularUvChoiceSize)
+      regularVotesResult(i) = cs.decrypt(privateKey, regularVotesSum(i))
+
+    // Exponentiation of the experts votes to the power of the delegated voters stake sum
+    //
+    for(i <- 0 until expertsBallots.size)
+      for(j <- 0 until expertUnitVectorSize )
+        expertsBallots(i).unitVector(j) = cs.multiply(expertsBallots(i).unitVector(j), ByteBuffer.allocate(4).putInt(delegationsResult(expertsBallots(i).issuerId)).array())
+
+    // Unit-wise summation of the weighted experts votes
+    //
+    var expertVotesSum = new Array[Ciphertext](expertUnitVectorSize)
+
+    for(i <- 0 until expertVotesSum.size)
+    {
+      for(j <- 0 until expertsBallots.size)
+      {
+        if(expertVotesSum(i) == null)
+          expertVotesSum(i) = expertsBallots(j).unitVector(i)
+        else
+          expertVotesSum(i) = cs.add(expertsBallots(j).unitVector(i), expertVotesSum(i))
+      }
+    }
+
+    // Decryption of the summed ballots of the experts
+    //
+    var expertVotesResult = new Array[Message](expertUnitVectorSize)
+
+    for(i <- 0 until expertUnitVectorSize ) {
+      expertVotesResult(i) = cs.decrypt(privateKey, expertVotesSum(i))
+    }
+
+    // Total sum of regular voters and experts votes
+    //
+    TallyResult(
+      expertVotesResult(0) + regularVotesResult(0),
+      expertVotesResult(1) + regularVotesResult(1),
+      expertVotesResult(2) + regularVotesResult(2)
+    )
   }
 }
 

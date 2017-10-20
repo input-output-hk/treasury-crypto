@@ -36,6 +36,12 @@ class VotingProtocolTest extends FunSuite {
     assert(tallyRes.yes == 6)
     assert(tallyRes.no == 0)
     assert(tallyRes.abstain == 0)
+
+    val tallyRes2 = voter.tallyVotesV2(ballots, privKey)
+
+    assert(tallyRes2.yes == 6)
+    assert(tallyRes2.no == 0)
+    assert(tallyRes2.abstain == 0)
   }
 
   test("voting2") {
@@ -43,11 +49,13 @@ class VotingProtocolTest extends FunSuite {
     val cs = new EllipticCurveCryptosystem
     val (privKey, pubKey) = cs.createKeyPair()
 
+    val MULTIPLIER = 10
+
     // The parameters of specific voting round
     val proposalID = 1
-    val votersNum = 10
-    val votersDelegatedNum = 20
-    val expertsNum = 5
+    val votersNum = 10 * MULTIPLIER
+    val votersDelegatedNum = 20 * MULTIPLIER
+    val expertsNum = 5 * MULTIPLIER
 
     val votersBallots =
       for (voterId <- (expertsNum ) until (expertsNum + votersNum)) yield {
@@ -69,18 +77,39 @@ class VotingProtocolTest extends FunSuite {
 
     val ballots = votersBallots ++ votersDelegatedBallots ++ expertsBallots
 
+    def time[R](block: => R): R = {
+      val t0 = System.nanoTime()
+      val result = block    // call-by-name
+      val t1 = System.nanoTime()
+      println("Elapsed time: " + (t1 - t0).toFloat / 1000000000 + " sec")
+      result
+    }
+
     // Obtaining results by an arbitrary voter
     val voter = new RegularVoter(cs, 11, expertsNum, pubKey, Array(1))
-    val tallyRes = voter.tallyVotes(ballots, privKey)
 
-    assert(tallyRes.yes == 15)
-    assert(tallyRes.no == 40)
-    assert(tallyRes.abstain == 15)
+    println("Tally started")
+//    val tallyRes = voter.tallyVotes(ballots, privKey)
+    val tallyRes = time(voter.tallyVotes(ballots, privKey))
 
-    val tallyRes2 = voter.tallyVotesV2(ballots, privKey)
+    assert(tallyRes.yes == 15 * MULTIPLIER)
+    assert(tallyRes.no == 40 * MULTIPLIER)
+    assert(tallyRes.abstain == 15 * MULTIPLIER)
 
-    assert(tallyRes2.yes == 15)
-    assert(tallyRes2.no == 40)
-    assert(tallyRes2.abstain == 15)
+//    val tallyRes2 = voter.tallyVotesV2(ballots, privKey)
+    val tallyRes2 = time(voter.tallyVotesV2(ballots, privKey))
+
+    assert(tallyRes2.yes == 15 * MULTIPLIER)
+    assert(tallyRes2.no == 40 * MULTIPLIER)
+    assert(tallyRes2.abstain == 15 * MULTIPLIER)
+
+//    MULTIPLIER = 30
+//    Elapsed time: 39.1 sec
+//
+//    MULTIPLIER = 20
+//    Elapsed time: 17.1 sec
+//
+//    MULTIPLIER = 10
+//    Elapsed time: 4.5 sec
   }
 }
