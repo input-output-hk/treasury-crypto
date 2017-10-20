@@ -7,7 +7,7 @@ trait Ballot {
 
   val issuerId: Int
   val proposalId: Int
-  val unitVector: Array[Ciphertext]
+  //val unitVector: Array[Ciphertext]
 
   // Imports ballot from binary array (parses the binary data, sets the id of issuer, the number of experts and creates unitVector of necessary size and fills it)
   def importJSON(jsonBallot: JSONObject): Unit = ???
@@ -27,7 +27,8 @@ case class VoterBallot(override val issuerId: Int,
                        val expertsNum: Int,
                        val stake: Array[Byte]) extends Ballot {
   // Unit vector of expertsNum + voterChoisesNum elements
-  override val unitVector: Array[Ciphertext] = new Array(expertsNum + VOTER_CHOISES_NUM)
+  val uvDelegations: Array[Ciphertext] = new Array(expertsNum)
+  val uvChoice: Array[Ciphertext] = new Array(VOTER_CHOISES_NUM)
 
 //  var unitNizks: Array[UnitNIZK] = null
 //  var unitsSumNizk: UnitsSumNIZK = new UnitsSumNIZK
@@ -35,5 +36,5 @@ case class VoterBallot(override val issuerId: Int,
 
 case class ExpertBallot(override val issuerId: Int,
                         override val proposalId: Int) extends Ballot {
-  override val unitVector: Array[Ciphertext] = new Array(VOTER_CHOISES_NUM)
+  val unitVector: Array[Ciphertext] = new Array(VOTER_CHOISES_NUM)
 }
