@@ -38,7 +38,7 @@ class VotingProtocolTest extends FunSuite {
     assert(tallyRes.abstain == 0)
   }
 
-  test("voting") {
+  test("voting2") {
     // Simulating the shared public and private keys of committees
     val cs = new EllipticCurveCryptosystem
     val (privKey, pubKey) = cs.createKeyPair()
