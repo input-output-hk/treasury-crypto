@@ -16,13 +16,13 @@ class VotingProtocolTest extends FunSuite {
     val expertsNum = 2
 
     val votersBallots =
-      for (voterId <- (expertsNum + 1) to (expertsNum + votersNum)) yield {
+      for (voterId <- expertsNum until (expertsNum + votersNum)) yield {
         new RegularVoter(cs, voterId, expertsNum, pubKey, Array(3))
           .produceVote(proposalID, 1, VoteCases.Yes)
       }
 
     val expertsBallots =
-      for (expertId <- 1 to expertsNum) yield {
+      for (expertId <- 0 until expertsNum) yield {
         new Expert(cs, expertId, expertsNum, pubKey)
           .produceVote(proposalID, 0, VoteCases.Yes)
       }
@@ -50,19 +50,19 @@ class VotingProtocolTest extends FunSuite {
     val expertsNum = 5
 
     val votersBallots =
-      for (voterId <- (expertsNum + 1) to (expertsNum + votersNum)) yield {
+      for (voterId <- (expertsNum ) until (expertsNum + votersNum)) yield {
         new RegularVoter(cs, voterId, expertsNum, pubKey, Array(3))
           .produceVote(proposalID, -1, if (voterId % 2 == 1) VoteCases.Yes else VoteCases.Abstain)
       }
 
     val votersDelegatedBallots =
-      for (voterId <- (expertsNum + votersNum + 1) to (expertsNum + votersNum + votersDelegatedNum)) yield {
+      for (voterId <- (expertsNum + votersNum) until (expertsNum + votersNum + votersDelegatedNum)) yield {
         new RegularVoter(cs, voterId, expertsNum, pubKey, Array(2))
           .produceVote(proposalID, 0, VoteCases.Abstain)
       }
 
     val expertsBallots =
-      for (expertId <- 1 to expertsNum) yield {
+      for (expertId <- 0 until expertsNum) yield {
         new Expert(cs, expertId, expertsNum, pubKey)
           .produceVote(proposalID, 0, VoteCases.No)
       }

@@ -38,9 +38,9 @@ sealed trait Voter {
     val expertsChoices = ballots.filter(_.isInstanceOf[ExpertBallot]).map {
       (ballot) => {
         val expertChoice = ballot.asInstanceOf[ExpertBallot].unitVector
-        assert(expertChoice.size == 3)
+        assert(expertChoice.size == Ballot.VOTER_CHOISES_NUM)
 
-        val delegatedStake = cs.decrypt(privateKey, delegations(ballot.issuerId - 1))
+        val delegatedStake = cs.decrypt(privateKey, delegations(ballot.issuerId))
         expertChoice.map(c => cs.multiply(c, BigInt(delegatedStake).toByteArray))
       }
     }
@@ -48,24 +48,24 @@ sealed trait Voter {
     // Sum up all choice vectors from experts
     val expertsRes = expertsChoices.tail.foldLeft(expertsChoices.head) {
       (acc, choice) => {
-        for (i <- 0 until 3)
+        for (i <- 0 until Ballot.VOTER_CHOISES_NUM)
           acc(i) = cs.add(acc(i), choice(i))
         acc
       }
     }
-    assert(expertsRes.size == 3)
+    assert(expertsRes.size == Ballot.VOTER_CHOISES_NUM)
 
     // Sum up all choice vectors from voters (taking into account their stake)
     val totalRes = votersBallots.foldLeft(expertsRes) {
       (acc, ballot) => {
-        for (i <- 0 until 3) {
+        for (i <- 0 until Ballot.VOTER_CHOISES_NUM) {
           val v = cs.multiply(ballot.uvChoice(i), ballot.stake)
           acc(i) = cs.add(acc(i), v)
         }
         acc
       }
     }
-    assert(totalRes.size == 3)
+    assert(totalRes.size == Ballot.VOTER_CHOISES_NUM)
 
     TallyResult(
       cs.decrypt(privateKey, totalRes(0)),
