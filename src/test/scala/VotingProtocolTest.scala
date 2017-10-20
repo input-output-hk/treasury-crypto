@@ -45,12 +45,9 @@ class VotingProtocolTest extends FunSuite {
 
     // The parameters of specific voting round
     val proposalID = 1
-//    val votersNum = 10
-//    val votersDelegatedNum = 20
-//    val expertsNum = 5
-    val votersNum = 2
-    val votersDelegatedNum = 3
-    val expertsNum = 2
+    val votersNum = 10
+    val votersDelegatedNum = 20
+    val expertsNum = 5
 
     val votersBallots =
       for (voterId <- (expertsNum + 1) to (expertsNum + votersNum)) yield {

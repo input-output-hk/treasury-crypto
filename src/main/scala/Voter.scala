@@ -15,12 +15,14 @@ sealed trait Voter {
   def tallyVotes(ballots: Seq[Ballot], privateKey: PrivKey): TallyResult = {
     val votersBallots = ballots.filter(_.isInstanceOf[VoterBallot])
 
-    val acc = votersBallots.head.unitVector.slice(0, expertsNum)
+    val acc = votersBallots.head.unitVector.slice(0, expertsNum).map {
+      c => cs.multiply(c, votersBallots.head.asInstanceOf[VoterBallot].stake)
+    }
     val delegations = votersBallots.tail.foldLeft(acc) {
       (acc, ballot) => {
         for (i <- 0 until expertsNum) {
-          acc(i) = cs.add(acc(i), ballot.unitVector(i))
-          acc(i) = cs.multiply(acc(i), ballot.asInstanceOf[VoterBallot].stake)
+          val Ci = cs.multiply(ballot.unitVector(i), ballot.asInstanceOf[VoterBallot].stake)
+          acc(i) = cs.add(acc(i), Ci)
         }
         acc
       }
