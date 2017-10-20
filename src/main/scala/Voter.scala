@@ -18,7 +18,7 @@ sealed trait Voter {
     val acc = votersBallots.head.unitVector.slice(0, expertsNum)
     val delegations = votersBallots.tail.foldLeft(acc) {
       (acc, ballot) => {
-        for (i <- 0 to expertsNum) {
+        for (i <- 0 until expertsNum) {
           acc(i) = cs.add(acc(i), ballot.unitVector(i))
           acc(i) = cs.multiply(acc(i), ballot.asInstanceOf[VoterBallot].stake)
         }
@@ -31,7 +31,7 @@ sealed trait Voter {
         val expertChoice = ballot.asInstanceOf[ExpertBallot].unitVector
         assert(expertChoice.size == 3)
 
-        expertChoice.map(c => cs.add(c, delegations(ballot.issuerId)))
+        expertChoice.map(c => cs.add(c, delegations(ballot.issuerId - 1)))
       }
     }
 

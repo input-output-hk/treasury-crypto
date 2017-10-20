@@ -12,24 +12,29 @@ class VotingProtocolTest extends FunSuite {
 
     // The parameters of specific voting round
     val proposalID = 1
-    val expertsNum = 10
+    val votersNum = 2
+    val expertsNum = 2
 
     val votersBallots =
-      for (voterId <- 11 to 20) yield {
-        new RegularVoter(cs, voterId, expertsNum, pubKey, Array(5))
-          .produceVote(proposalID, expertsNum, if(voterId % 2 == 0) VoteCases.Yes else VoteCases.No)
+      for (voterId <- (expertsNum + 1) to (expertsNum + votersNum)) yield {
+        new RegularVoter(cs, voterId, expertsNum, pubKey, Array(2))
+          .produceVote(proposalID, 0, VoteCases.Yes)
       }
 
     val expertsBallots =
-      for (expertId <- 1 to 10) yield {
+      for (expertId <- 1 to expertsNum) yield {
         new Expert(cs, expertId, expertsNum, pubKey)
-          .produceVote(proposalID, 0, if(expertId % 2 == 0) VoteCases.Yes else VoteCases.No)
+          .produceVote(proposalID, 0, VoteCases.Yes)
       }
 
     val ballots = votersBallots ++ expertsBallots
 
     // Obtaining results by an arbitrary voter
-    val voter = new RegularVoter(cs, 11, expertsNum, pubKey, Array(5))
-    voter.tallyVotesV2(ballots, privKey)
+    val voter = new RegularVoter(cs, 11, expertsNum, pubKey, Array(1))
+    val tallyRes = voter.tallyVotes(ballots, privKey)
+
+    assert(tallyRes.yes == 6)
+    assert(tallyRes.no == 0)
+    assert(tallyRes.abstain == 0)
   }
 }

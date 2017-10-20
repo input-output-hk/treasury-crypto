@@ -112,6 +112,9 @@ class EllipticCurveCryptosystem extends Cryptosystem {
   private def reconstructMessage(plaintextPoint: ECPoint): Message = {
     var P = ecSpec.getG
 
+    if (P.multiply(new BigInteger("0")).equals(plaintextPoint))
+      return 0
+
     if(P.equals(plaintextPoint))
       return 1
 
