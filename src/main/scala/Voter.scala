@@ -119,7 +119,7 @@ sealed trait Voter {
       for(j <- 0 until ballots.size ){
         ballots(j) match {
           case voterBallot: VoterBallot =>
-            if(j == 0)
+            if(votesSum(i) == null)
               votesSum(i) = voterBallot.unitVector(i)
             else
               votesSum(i) = cs.add(voterBallot.unitVector(i), votesSum(i))
@@ -147,7 +147,6 @@ sealed trait Voter {
       }
     }
 
-
     // Unit-wise summation of the weighted experts votes
     //
     var expertVotesSum = new Array[Ciphertext](expertUnitVectorSize)
@@ -156,7 +155,7 @@ sealed trait Voter {
       for(j <- 0 until ballots.size ){
         ballots(j) match {
           case expertBallot: ExpertBallot =>
-            if(j == 0)
+            if(expertVotesSum(i) == null)
               expertVotesSum(i) = expertBallot.unitVector(i)
             else
               expertVotesSum(i) = cs.add(expertBallot.unitVector(i), expertVotesSum(i))
@@ -173,6 +172,8 @@ sealed trait Voter {
       expertVotesResult(i) = cs.decrypt(privateKey, expertVotesSum(i))
     }
 
+    // Total sum of regular voters and experts votes
+    //
     TallyResult(
       expertVotesResult(0) + votesResult(expertsNum),
       expertVotesResult(1) + votesResult(expertsNum + 1),
