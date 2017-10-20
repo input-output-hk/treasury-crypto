@@ -31,7 +31,8 @@ sealed trait Voter {
         val expertChoice = ballot.asInstanceOf[ExpertBallot].unitVector
         assert(expertChoice.size == 3)
 
-        expertChoice.map(c => cs.add(c, delegations(ballot.issuerId - 1)))
+        val delegatedStake = cs.decrypt(privateKey, delegations(ballot.issuerId - 1))
+        expertChoice.map(c => cs.multiply(c, BigInt(delegatedStake).toByteArray))
       }
     }
 
