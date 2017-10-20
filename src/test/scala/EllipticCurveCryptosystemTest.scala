@@ -55,4 +55,54 @@ class EllipticCurveCryptosystemTest extends FunSuite {
 
     assert(message == messageToCheck)
   }
+
+  test("add") {
+    val inputObj = jsonObj.getJSONObject("add").getJSONObject("input")
+    val cipher1Obj = inputObj.getJSONObject("ciphertext1")
+    val cipher2Obj = inputObj.getJSONObject("ciphertext2")
+    val cipherOutObj = jsonObj.getJSONObject("add").getJSONObject("output").getJSONObject("ciphertext")
+
+    val outToCheck = (Hex.decode(cipherOutObj.getString("c1")), Hex.decode(cipherOutObj.getString("c2")))
+
+    val ciphertext1 = (Hex.decode(cipher1Obj.getString("c1")), Hex.decode(cipher1Obj.getString("c2")))
+    val ciphertext2 = (Hex.decode(cipher2Obj.getString("c1")), Hex.decode(cipher2Obj.getString("c2")))
+
+    val cs = new EllipticCurveCryptosystem
+    val out = cs.add(ciphertext1, ciphertext2)
+
+    assert(util.Arrays.equals(outToCheck._1, out._1))
+    assert(util.Arrays.equals(outToCheck._2, out._2))
+  }
+
+  test("multiply") {
+    val inputObj = jsonObj.getJSONObject("multiply").getJSONObject("input")
+    val cipherObj = inputObj.getJSONObject("ciphertext")
+    val scalar = inputObj.getString("scalar")
+    val outputObj = jsonObj.getJSONObject("multiply").getJSONObject("output").getJSONObject("ciphertext")
+    val outToCheck = (Hex.decode(outputObj.getString("c1")), Hex.decode(outputObj.getString("c2")))
+
+    val ciphertext = (Hex.decode(cipherObj.getString("c1")), Hex.decode(cipherObj.getString("c2")))
+
+    val cs = new EllipticCurveCryptosystem
+    val out = cs.multiply(ciphertext, Hex.decode(scalar))
+
+    assert(util.Arrays.equals(outToCheck._1, out._1))
+    assert(util.Arrays.equals(outToCheck._2, out._2))
+  }
+
+  test("multiply2") {
+    val inputObj = jsonObj.getJSONObject("multiply2").getJSONObject("input")
+    val cipherObj = inputObj.getJSONObject("ciphertext")
+    val scalar = inputObj.getString("scalar")
+    val outputObj = jsonObj.getJSONObject("multiply2").getJSONObject("output").getJSONObject("ciphertext")
+    val outToCheck = (Hex.decode(outputObj.getString("c1")), Hex.decode(outputObj.getString("c2")))
+
+    val ciphertext = (Hex.decode(cipherObj.getString("c1")), Hex.decode(cipherObj.getString("c2")))
+
+    val cs = new EllipticCurveCryptosystem
+    val out = cs.multiply(ciphertext, Hex.decode(scalar))
+
+    assert(util.Arrays.equals(outToCheck._1, out._1))
+    assert(util.Arrays.equals(outToCheck._2, out._2))
+  }
 }

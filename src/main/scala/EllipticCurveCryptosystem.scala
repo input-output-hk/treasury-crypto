@@ -95,7 +95,7 @@ class EllipticCurveCryptosystem extends Cryptosystem {
     val C_1 = curve.decodePoint(cipherText._1)
     val C_2 = curve.decodePoint(cipherText._2)
 
-    val scalarBigInt = new BigInteger(1, scalar)
+    val scalarBigInt = new BigInteger(scalar)
     (C_1.multiply(scalarBigInt).getEncoded(true), C_2.multiply(scalarBigInt).getEncoded(true))
   }
 
