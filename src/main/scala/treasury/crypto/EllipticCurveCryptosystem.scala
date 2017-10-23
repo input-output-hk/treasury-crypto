@@ -1,15 +1,13 @@
+package treasury.crypto
+
 import java.math.BigInteger
 import java.security.{KeyPair, KeyPairGenerator, SecureRandom, Security}
 
 import org.bouncycastle.jce.ECNamedCurveTable
-import org.bouncycastle.jce.interfaces.ECPublicKey
-import org.bouncycastle.jce.interfaces.ECPrivateKey
+import org.bouncycastle.jce.interfaces.{ECPrivateKey, ECPublicKey}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.jce.spec.ECParameterSpec
-import org.bouncycastle.math.ec.{ECCurve, ECPoint}
-import org.bouncycastle.util.encoders.Hex
-
-import common._
+import org.bouncycastle.math.ec.ECPoint
 
 /**
   * Created by lpsun on 27.09.17.

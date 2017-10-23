@@ -1,4 +1,5 @@
-import common._
+package treasury.crypto
+
 import java.nio.ByteBuffer
 
 sealed trait Voter {

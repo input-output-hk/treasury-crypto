@@ -1,7 +1,6 @@
-import common.VoteCases
-import org.scalatest.FunSuite
+package treasury.crypto
 
-import scala.collection.mutable.ArrayBuffer
+import org.scalatest.FunSuite
 
 class VotingProtocolTest extends FunSuite {
 
@@ -77,27 +76,19 @@ class VotingProtocolTest extends FunSuite {
 
     val ballots = votersBallots ++ votersDelegatedBallots ++ expertsBallots
 
-    def time[R](block: => R): R = {
-      val t0 = System.nanoTime()
-      val result = block    // call-by-name
-      val t1 = System.nanoTime()
-      println("Elapsed time: " + (t1 - t0).toFloat / 1000000000 + " sec")
-      result
-    }
-
     // Obtaining results by an arbitrary voter
     val voter = new RegularVoter(cs, 11, expertsNum, pubKey, Array(1))
 
     println("Tally started")
 //    val tallyRes = voter.tallyVotes(ballots, privKey)
-    val tallyRes = time(voter.tallyVotes(ballots, privKey))
+    val tallyRes = Utils.time("Tally V1 time: ", voter.tallyVotes(ballots, privKey))
 
     assert(tallyRes.yes == 15 * MULTIPLIER)
     assert(tallyRes.no == 40 * MULTIPLIER)
     assert(tallyRes.abstain == 15 * MULTIPLIER)
 
 //    val tallyRes2 = voter.tallyVotesV2(ballots, privKey)
-    val tallyRes2 = time(voter.tallyVotesV2(ballots, privKey))
+    val tallyRes2 = Utils.time("Tally V2 time: ", voter.tallyVotesV2(ballots, privKey))
 
     assert(tallyRes2.yes == 15 * MULTIPLIER)
     assert(tallyRes2.no == 40 * MULTIPLIER)

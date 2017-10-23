@@ -1,7 +1,4 @@
-import java.math.BigInteger
-import java.security.SecureRandom
-
-import common._
+package treasury.crypto
 
 trait Cryptosystem {
 

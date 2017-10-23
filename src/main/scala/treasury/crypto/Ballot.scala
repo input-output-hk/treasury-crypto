@@ -1,4 +1,5 @@
-import common.Ciphertext
+package treasury.crypto
+
 import org.json.JSONObject
 
 // The data structure for storing of the individual voter's/expert's choice

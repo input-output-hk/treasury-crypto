@@ -1,5 +1,7 @@
+package treasury
 
-package object common {
+
+package object crypto {
 
   type PrivKey = Array[Byte]
   type PubKey = Array[Byte]
@@ -19,7 +21,7 @@ package object common {
       val t0 = System.nanoTime()
       val result = block
       val t1 = System.nanoTime()
-      println("Elapsed time: " + (t1-t0)/1000000 + " ms")
+      println("Elapsed time: " + (t1-t0)/1000000000 + " sec")
       result
     }
 
@@ -27,7 +29,7 @@ package object common {
       val t0 = System.nanoTime()
       val result = block
       val t1 = System.nanoTime()
-      println(msg + " " + (t1-t0)/1000000 + " ms")
+      println(msg + " " + (t1-t0)/1000000000 + " sec")
       result
     }
   }

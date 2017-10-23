@@ -1,5 +1,4 @@
-import java.math.BigInteger
-import java.security.Security
+package treasury.crypto
 
 object Main {
   def main(args: Array[String]) {
