@@ -32,5 +32,13 @@ package object crypto {
       println(msg + " " + (t1-t0)/1000000000 + " sec")
       result
     }
+
+    def time_ms[R](msg: String, block: => R): R = {
+      val t0 = System.nanoTime()
+      val result = block
+      val t1 = System.nanoTime()
+      println(msg + " " + (t1-t0)/1000000 + " ms")
+      result
+    }
   }
 }
