@@ -2,6 +2,10 @@ package treasury.crypto
 
 import java.nio.ByteBuffer
 
+import treasury.crypto.nizk.shvzk.SHVZKGen
+
+import scala.math.log10
+
 sealed trait Voter {
   val cs: Cryptosystem
   val voterID: Integer
@@ -160,14 +164,14 @@ sealed trait Voter {
 
     // Decryption of the summed delegations of the regular voters
     //
-    var delegationsResult = new Array[Message](regularUvDelegationsSize)
+    var delegationsResult = new Array[Int](regularUvDelegationsSize)
 
     for(i <- 0 until regularUvDelegationsSize)
       delegationsResult(i) = cs.decrypt(privateKey, delegationsSum(i))
 
     // Decryption of the summed votes of the regular voters
     //
-    var regularVotesResult = new Array[Message](regularUvChoiceSize)
+    var regularVotesResult = new Array[Int](regularUvChoiceSize)
 
     for(i <- 0 until regularUvChoiceSize)
       regularVotesResult(i) = cs.decrypt(privateKey, regularVotesSum(i))
@@ -195,7 +199,7 @@ sealed trait Voter {
 
     // Decryption of the summed ballots of the experts
     //
-    var expertVotesResult = new Array[Message](expertUnitVectorSize)
+    var expertVotesResult = new Array[Int](expertUnitVectorSize)
 
     for(i <- 0 until expertUnitVectorSize ) {
       expertVotesResult(i) = cs.decrypt(privateKey, expertVotesSum(i))
@@ -220,6 +224,7 @@ case class RegularVoter(val cs: Cryptosystem,
   def produceVote(proposalID: Integer, delegationChoice: Int, choice: VoteCases.Value): Ballot = {
 
     val ballot = new VoterBallot(voterID, proposalID, expertsNum, stake)
+    var choiceIdx = 0
 
     val randDeleg = for (i <- 0 until ballot.uvDelegations.size) yield cs.getRand()
     val randChoice = for (i <- 0 until ballot.uvChoice.size) yield cs.getRand()
@@ -231,6 +236,7 @@ case class RegularVoter(val cs: Cryptosystem,
       for (i <- 0 until ballot.uvChoice.size) {
         ballot.uvChoice(i) = cs.encrypt(publicKey, randChoice(i), 0)
       }
+      choiceIdx = delegationChoice
     }
     else {
       for (i <- 0 until ballot.uvDelegations.size) {
@@ -243,8 +249,16 @@ case class RegularVoter(val cs: Cryptosystem,
           case VoteCases.Abstain  => 2
         }
         ballot.uvChoice(i) = cs.encrypt(publicKey, randChoice(i), if (i == pos) 1 else 0)
+        choiceIdx = expertsNum + pos
       }
     }
+
+//    val nizk =
+//      new UnitVectorLogNIZK(cs, publicKey,
+//      ballot.uvDelegations ++ ballot.uvChoice,
+//      choiceIdx,
+//      randDeleg ++ randChoice)
+//      .produceNIZK()
 
     ballot
   }

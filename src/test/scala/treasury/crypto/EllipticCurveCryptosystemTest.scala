@@ -1,7 +1,10 @@
 package treasury.crypto
 
+import java.math.BigInteger
 import java.util
 
+import org.bouncycastle.jce.ECNamedCurveTable
+import org.bouncycastle.jce.spec.ECParameterSpec
 import org.bouncycastle.util.encoders.Hex
 import org.json.JSONObject
 import org.scalatest.FunSuite
@@ -14,7 +17,7 @@ class EllipticCurveCryptosystemTest extends FunSuite {
   val jsonObj = new JSONObject(jsonTestData);
 
   test("encrypt/decrypt message") {
-    val message = math.pow(2, 10).toInt
+    val message = scala.math.pow(2, 10).toInt
     val rand = Array[Byte](100)
 
     val cs = new EllipticCurveCryptosystem
@@ -106,5 +109,33 @@ class EllipticCurveCryptosystemTest extends FunSuite {
 
     assert(util.Arrays.equals(outToCheck._1, out._1))
     assert(util.Arrays.equals(outToCheck._2, out._2))
+  }
+
+  test("hash256") {
+    val cs = new EllipticCurveCryptosystem
+    val hash = cs.hash256(Array(0))
+
+    assert(hash.size == 32)
+  }
+
+  test("Pedersen commitment") {
+    val cs = new EllipticCurveCryptosystem
+    val hash = cs.hash256(Array(0))
+
+    val comm = cs.pedersenCommitment(hash, Array(1), Array(2,3,6))
+    assert(comm.size == 33)
+  }
+
+  test("using reducible/irreducible element from Zp") {
+    val ecSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec("secp256k1");
+    val curve = ecSpec.getCurve
+
+    val reduced = new BigInteger(Array(10.toByte))
+    val notreduced = ecSpec.getN.add(reduced) // add modulo
+
+    val point1 = ecSpec.getG.multiply(reduced).getEncoded(true)
+    val point2 = ecSpec.getG.multiply(notreduced).getEncoded(true)
+
+    assert(util.Arrays.equals(point1, point2))
   }
 }
