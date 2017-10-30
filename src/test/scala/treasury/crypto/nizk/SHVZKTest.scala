@@ -57,4 +57,44 @@ class SHVZKTest extends FunSuite {
 
     assert(verified)
   }
+
+  test("produce nizk 2") {
+    val choice = 2
+    val (uv, rand) = createUnitVector(3, choice)
+
+    val proof = new SHVZKGen(cs, pubKey, uv, choice, rand).produceNIZK()
+    val verified = new SHVZKVerifier(cs, pubKey, uv, proof).verifyProof()
+
+    assert(verified)
+  }
+
+  test("produce nizk 3") {
+    val choice = 62
+    val (uv, rand) = createUnitVector(64, choice)
+
+    val proof = new SHVZKGen(cs, pubKey, uv, choice, rand).produceNIZK()
+    val verified = new SHVZKVerifier(cs, pubKey, uv, proof).verifyProof()
+
+    assert(verified)
+  }
+
+  test("proof size") {
+    val choice = 0
+    val (uv, rand) = createUnitVector(5, choice)
+    val proof = new SHVZKGen(cs, pubKey, uv, choice, rand).produceNIZK()
+
+    assert(proof.IBA.size == 3)
+    assert(proof.Dk.size == 3)
+    assert(proof.zwv.size == 3)
+  }
+
+  test("proof size 2") {
+    val choice = 3
+    val (uv, rand) = createUnitVector(16, choice)
+    val proof = new SHVZKGen(cs, pubKey, uv, choice, rand).produceNIZK()
+
+    assert(proof.IBA.size == 4)
+    assert(proof.Dk.size == 4)
+    assert(proof.zwv.size == 4)
+  }
 }
