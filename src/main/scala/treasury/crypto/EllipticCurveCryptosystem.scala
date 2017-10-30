@@ -32,13 +32,15 @@ class EllipticCurveCryptosystem extends Cryptosystem {
 
   private val ecSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec("secp256k1");
   private lazy val curve = ecSpec.getCurve
+  private lazy val secureRandom = new SecureRandom()
 
   private val keyPairGenerator: KeyPairGenerator = {
     val g = KeyPairGenerator.getInstance("EC", "BC")
-    g.initialize(ecSpec, new SecureRandom())
+    g.initialize(ecSpec, secureRandom)
     g
   }
 
+  def basePoint = ecSpec.getG.getEncoded(true)
   def orderOfBasePoint = ecSpec.getN
 
   def createKeyPair(): (PrivKey, PubKey) = {
@@ -87,11 +89,7 @@ class EllipticCurveCryptosystem extends Cryptosystem {
   }
 
   def getRand(): Randomness = {
-    // takes a priv key from the key pair as random element from Zp
-    // TODO: implement generation of a random element from Zp directly
-    val pair: KeyPair = keyPairGenerator.generateKeyPair
-    val privateKey = pair.getPrivate.asInstanceOf[ECPrivateKey]
-    privateKey.getD.toByteArray
+    new BigInteger(orderOfBasePoint.bitLength, secureRandom).mod(orderOfBasePoint).toByteArray
   }
 
   def add(cipherText1: Ciphertext, cipherText2: Ciphertext): Ciphertext = {
