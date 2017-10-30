@@ -1,5 +1,6 @@
 package treasury
 
+import org.scalameter._
 
 package object crypto {
 
@@ -16,7 +17,7 @@ package object crypto {
     val Yes, No, Abstain = Value
   }
 
-  object Utils {
+  object TimeUtils {
     def time[R](block: => R): R = {
       val t0 = System.nanoTime()
       val result = block
@@ -39,6 +40,19 @@ package object crypto {
       val t1 = System.nanoTime()
       println(msg + " " + (t1-t0)/1000000 + " ms")
       result
+    }
+
+    def accurate_time[R](msg: String, block: => R): Unit = {
+      val time = config(
+        Key.exec.benchRuns -> 20,
+      ) withWarmer {
+        new Warmer.Default
+      } withMeasurer {
+        new Measurer.IgnoringGC
+      } measure {
+        block
+      }
+      println(msg + " " + time.value.toInt  + " ms")
     }
   }
 }

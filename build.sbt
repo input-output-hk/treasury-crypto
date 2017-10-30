@@ -11,7 +11,8 @@ libraryDependencies ++= Seq(
   "org.bouncycastle" % "bcprov-jdk15on" % "1.58",
   "org.scalatest" %% "scalatest" % "3.0.+" % "test",
   "org.json" % "json" % "20170516",
-  "com.storm-enroute" %% "scalameter" % "0.8.2" % "bench"
+  "com.storm-enroute" %% "scalameter" % "0.8.2" % "bench",
+  "com.storm-enroute" %% "scalameter-core" % "0.8.2"
 )
 
 testFrameworks += new TestFramework(

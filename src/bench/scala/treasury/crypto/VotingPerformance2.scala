@@ -1,11 +1,11 @@
 package treasury.crypto
 
-import org.scalatest.FunSuite
 import treasury.crypto.common.VotingSimulator
 
-class VotingPerformance2 extends FunSuite {
+/* Benchmarking tally for different number of experts */
+class VotingPerformance2 extends {
 
-  test("benchmark tally for different number of experts") {
+  def run() = {
     val numberOfExperts = (50 to 250).by(50)
     val numberOfVoters = 1000
 
@@ -14,10 +14,15 @@ class VotingPerformance2 extends FunSuite {
 
       val simulator = new VotingSimulator(experts, numberOfVoters, 1, 1)
 
-      val ballots = Utils.time("     Ballots creation: ", simulator.prepareBallots())
+      val ballots = TimeUtils.time("\tBallots creation: ", simulator.prepareBallots())
 
-      Utils.time("     Tally: ", simulator.doTally(ballots))
+      TimeUtils.time("\tTally: ", simulator.doTally(ballots))
     }
   }
 }
 
+object VotingPerformance2 {
+  def main(args: Array[String]) {
+    new VotingPerformance2().run
+  }
+}

@@ -3,8 +3,10 @@ package treasury.crypto
 import org.scalatest.FunSuite
 import treasury.crypto.common.VotingSimulator
 
+/* Benchmarking ballot creation */
 class BallotCreationPerformance extends FunSuite {
-  test("benchmark ballot creation") {
+
+  def run() = {
     val numberOfExperts = (50 to 250).by(50)
 
     for (experts <- numberOfExperts) {
@@ -12,20 +14,27 @@ class BallotCreationPerformance extends FunSuite {
 
       println("Running test for " + experts + " experts ...")
 
-      val ballot = Utils.time_ms("     Voter ballot creation: ", simulator.createVoterBallot(1, 1, 1, VoteCases.Yes)).asInstanceOf[VoterBallot]
-      val ballotSize = ballot.uvChoice.foldLeft(0) {
-        (acc, c) => acc + c._1.size + c._2.size
-      } + ballot.uvDelegations.foldLeft(0) {
-        (acc, c) => acc + c._1.size + c._2.size
-      }
-      println("     Voter ballot size: " + ballotSize + " bytes")
+      TimeUtils.accurate_time("\tVoter ballot creation: ", simulator.createVoterBallot(1, 1, 1, VoteCases.Yes))
 
-      val exballot = Utils.time_ms("     Expert ballot creation: ", simulator.createExpertBallot(1, 1, VoteCases.Yes)).asInstanceOf[ExpertBallot]
-      val exballotSize = exballot.uvChoice.foldLeft(0) {
+      val ballot = simulator.createVoterBallot(1, 1, 1, VoteCases.Yes)
+      val ballotSize = ballot.getUnitVector.foldLeft(0) {
         (acc, c) => acc + c._1.size + c._2.size
       }
-      println("     Expert ballot size: " + exballotSize + " bytes")
+      println("\tVoter ballot size: " + ballotSize + " bytes")
+
+      TimeUtils.accurate_time("\tExpert ballot creation: ", simulator.createExpertBallot(1, 1, VoteCases.Yes))
+
+      val exballot = simulator.createExpertBallot(1, 1, VoteCases.Yes)
+      val exballotSize = exballot.getUnitVector.foldLeft(0) {
+        (acc, c) => acc + c._1.size + c._2.size
+      }
+      println("\tExpert ballot size: " + exballotSize + " bytes")
     }
   }
+}
 
+object BallotCreationPerformance {
+  def main(args: Array[String]) {
+    new BallotCreationPerformance().run
+  }
 }
