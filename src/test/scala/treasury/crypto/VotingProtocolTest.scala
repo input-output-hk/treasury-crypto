@@ -80,27 +80,16 @@ class VotingProtocolTest extends FunSuite {
     val voter = new RegularVoter(cs, 11, expertsNum, pubKey, Array(1))
 
     println("Tally started")
-//    val tallyRes = voter.tallyVotes(ballots, privKey)
     val tallyRes = Utils.time("Tally V1 time: ", voter.tallyVotes(ballots, privKey))
 
     assert(tallyRes.yes == 15 * MULTIPLIER)
     assert(tallyRes.no == 40 * MULTIPLIER)
     assert(tallyRes.abstain == 15 * MULTIPLIER)
 
-//    val tallyRes2 = voter.tallyVotesV2(ballots, privKey)
     val tallyRes2 = Utils.time("Tally V2 time: ", voter.tallyVotesV2(ballots, privKey))
 
     assert(tallyRes2.yes == 15 * MULTIPLIER)
     assert(tallyRes2.no == 40 * MULTIPLIER)
     assert(tallyRes2.abstain == 15 * MULTIPLIER)
-
-//    MULTIPLIER = 30
-//    Elapsed time: 39.1 sec
-//
-//    MULTIPLIER = 20
-//    Elapsed time: 17.1 sec
-//
-//    MULTIPLIER = 10
-//    Elapsed time: 4.5 sec
   }
 }

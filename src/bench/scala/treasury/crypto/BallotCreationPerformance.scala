@@ -21,7 +21,7 @@ class BallotCreationPerformance extends FunSuite {
       println("     Voter ballot size: " + ballotSize + " bytes")
 
       val exballot = Utils.time_ms("     Expert ballot creation: ", simulator.createExpertBallot(1, 1, VoteCases.Yes)).asInstanceOf[ExpertBallot]
-      val exballotSize = exballot.unitVector.foldLeft(0) {
+      val exballotSize = exballot.uvChoice.foldLeft(0) {
         (acc, c) => acc + c._1.size + c._2.size
       }
       println("     Expert ballot size: " + exballotSize + " bytes")

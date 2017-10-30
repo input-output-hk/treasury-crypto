@@ -42,7 +42,7 @@ sealed trait Voter {
     // The choice vector of an expert should be raised to the power of the amount of the delegated stake
     val expertsChoices = ballots.filter(_.isInstanceOf[ExpertBallot]).map {
       (ballot) => {
-        val expertChoice = ballot.asInstanceOf[ExpertBallot].unitVector
+        val expertChoice = ballot.asInstanceOf[ExpertBallot].uvChoice
         assert(expertChoice.size == Ballot.VOTER_CHOISES_NUM)
 
         val delegatedStake = cs.decrypt(privateKey, delegations(ballot.issuerId))
@@ -111,9 +111,9 @@ sealed trait Voter {
         case expertBallot: ExpertBallot =>
 
           if(expertUnitVectorSize == 0)
-            expertUnitVectorSize = expertBallot.unitVector.size
+            expertUnitVectorSize = expertBallot.uvChoice.size
 
-          if(expertUnitVectorSize != 0 && expertUnitVectorSize != expertBallot.unitVector.size)
+          if(expertUnitVectorSize != 0 && expertUnitVectorSize != expertBallot.uvChoice.size)
             return TallyResult(0,0,0)
       }
     }
@@ -180,7 +180,7 @@ sealed trait Voter {
     //
     for(i <- 0 until expertsBallots.size)
       for(j <- 0 until expertUnitVectorSize )
-        expertsBallots(i).unitVector(j) = cs.multiply(expertsBallots(i).unitVector(j), ByteBuffer.allocate(4).putInt(delegationsResult(expertsBallots(i).issuerId)).array())
+        expertsBallots(i).uvChoice(j) = cs.multiply(expertsBallots(i).uvChoice(j), ByteBuffer.allocate(4).putInt(delegationsResult(expertsBallots(i).issuerId)).array())
 
     // Unit-wise summation of the weighted experts votes
     //
@@ -191,9 +191,9 @@ sealed trait Voter {
       for(j <- 0 until expertsBallots.size)
       {
         if(expertVotesSum(i) == null)
-          expertVotesSum(i) = expertsBallots(j).unitVector(i)
+          expertVotesSum(i) = expertsBallots(j).uvChoice(i)
         else
-          expertVotesSum(i) = cs.add(expertsBallots(j).unitVector(i), expertVotesSum(i))
+          expertVotesSum(i) = cs.add(expertsBallots(j).uvChoice(i), expertVotesSum(i))
       }
     }
 
@@ -272,7 +272,7 @@ case class Expert(val cs: Cryptosystem,
   def produceVote(proposalID: Integer, delegationChoice: Int, choice: VoteCases.Value): Ballot = {
 
     val expertBallot = new ExpertBallot(voterID, proposalID)
-    val randomness = for (i <- 0 until expertBallot.unitVector.size) yield cs.getRand()
+    val randomness = for (i <- 0 until expertBallot.uvChoice.size) yield cs.getRand()
 
     val nonZeroElementPos: Int =
       choice match {
@@ -281,8 +281,8 @@ case class Expert(val cs: Cryptosystem,
         case VoteCases.Abstain  => 2
       }
 
-    for (i <- 0 until expertBallot.unitVector.size) {
-      expertBallot.unitVector(i) = cs.encrypt(publicKey, randomness(i), if (i == nonZeroElementPos) 1 else 0)
+    for (i <- 0 until expertBallot.uvChoice.size) {
+      expertBallot.uvChoice(i) = cs.encrypt(publicKey, randomness(i), if (i == nonZeroElementPos) 1 else 0)
     }
 
     expertBallot
