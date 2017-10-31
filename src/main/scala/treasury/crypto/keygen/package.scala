@@ -1,6 +1,12 @@
 package treasury.crypto
 
 package object keygen {
+
+  //----------------------------------------------------------
+  // Committee member attributes
+  //
+  case class CommitteeMemberAttr(id: Integer, publicKey: PubKey)
+
   //----------------------------------------------------------
   // Round 1 data structures
   //
