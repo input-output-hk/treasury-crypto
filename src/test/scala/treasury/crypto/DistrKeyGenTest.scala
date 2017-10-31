@@ -6,10 +6,11 @@ import org.bouncycastle.jce.ECNamedCurveTable
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.jce.spec.ECParameterSpec
 import org.scalatest.FunSuite
-import treasury.crypto.DKGEC_Data._
 import java.util.Random
 
-class DKGECTest  extends FunSuite {
+import treasury.crypto.keygen.{Committee, R1Data, R3Data}
+
+class DistrKeyGenTest  extends FunSuite {
 
   test("dkg_functionality"){
 
