@@ -6,7 +6,7 @@ class VotingProtocolTest extends FunSuite {
 
   test("voting") {
     // Simulating the shared public and private keys of committees
-    val cs = new EllipticCurveCryptosystem
+    val cs = new Cryptosystem
     val (privKey, pubKey) = cs.createKeyPair()
 
     // The parameters of specific voting round
@@ -45,7 +45,7 @@ class VotingProtocolTest extends FunSuite {
 
   test("voting2") {
     // Simulating the shared public and private keys of committees
-    val cs = new EllipticCurveCryptosystem
+    val cs = new Cryptosystem
     val (privKey, pubKey) = cs.createKeyPair()
 
     val MULTIPLIER = 10

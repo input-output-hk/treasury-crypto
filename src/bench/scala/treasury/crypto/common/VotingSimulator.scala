@@ -8,7 +8,7 @@ class VotingSimulator(val numberOfExperts: Int,
                       val stakePerVoter: Int,
                       val numberOfProjects: Int) {
 
-  protected val cs = new EllipticCurveCryptosystem
+  protected val cs = new Cryptosystem
   protected val (privKey, pubKey) = cs.createKeyPair()
 
   def createVoterBallot(voterId: Int,

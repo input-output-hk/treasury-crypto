@@ -4,7 +4,7 @@ import org.scalatest.FunSuite
 
 class VoterTest extends FunSuite {
 
-  val cs = new EllipticCurveCryptosystem
+  val cs = new Cryptosystem
   val (privKey, pubKey) = cs.createKeyPair()
 
   test("test zero knowledge proof for Voter ballot") {

@@ -6,7 +6,7 @@ import treasury.crypto._
 import treasury.crypto.math.BigIntPolynomial
 
 /* This class implements generation of Special Honest Verifier Zero Knowledge proof for unit vector */
-class SHVZKGen(cs: EllipticCurveCryptosystem,
+class SHVZKGen(cs: Cryptosystem,
                pubKey: PubKey,
                unitVector: Seq[Ciphertext],
                val choiceIndex: Int,

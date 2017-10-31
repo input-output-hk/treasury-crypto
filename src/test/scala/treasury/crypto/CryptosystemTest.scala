@@ -11,7 +11,7 @@ import org.scalatest.FunSuite
 
 import scala.io.Source
 
-class EllipticCurveCryptosystemTest extends FunSuite {
+class CryptosystemTest extends FunSuite {
 
   val jsonTestData = Source.fromResource("cryptosystem_test.json").mkString
   val jsonObj = new JSONObject(jsonTestData);
@@ -20,7 +20,7 @@ class EllipticCurveCryptosystemTest extends FunSuite {
     val message = scala.math.pow(2, 10).toInt
     val rand = Array[Byte](100)
 
-    val cs = new EllipticCurveCryptosystem
+    val cs = new Cryptosystem
     val (privKey, pubKey) = cs.createKeyPair()
 
     val ciphertext = cs.encrypt(pubKey, rand, message)
@@ -39,7 +39,7 @@ class EllipticCurveCryptosystemTest extends FunSuite {
 
     val ciphertextToCheck = (Hex.decode(cipherObj.getString("c1")), Hex.decode(cipherObj.getString("c2")))
 
-    val cs = new EllipticCurveCryptosystem
+    val cs = new Cryptosystem
     val ciphertext = cs.encrypt(pubkey, randomness, message)
 
     assert(util.Arrays.equals(ciphertext._1, ciphertextToCheck._1))
@@ -55,7 +55,7 @@ class EllipticCurveCryptosystemTest extends FunSuite {
 
     val messageToCheck = Integer.parseInt(outputObj.getString("message"), 16)
 
-    val cs = new EllipticCurveCryptosystem
+    val cs = new Cryptosystem
     val message = cs.decrypt(privkey, ciphertext)
 
     assert(message == messageToCheck)
@@ -72,7 +72,7 @@ class EllipticCurveCryptosystemTest extends FunSuite {
     val ciphertext1 = (Hex.decode(cipher1Obj.getString("c1")), Hex.decode(cipher1Obj.getString("c2")))
     val ciphertext2 = (Hex.decode(cipher2Obj.getString("c1")), Hex.decode(cipher2Obj.getString("c2")))
 
-    val cs = new EllipticCurveCryptosystem
+    val cs = new Cryptosystem
     val out = cs.add(ciphertext1, ciphertext2)
 
     assert(util.Arrays.equals(outToCheck._1, out._1))
@@ -88,7 +88,7 @@ class EllipticCurveCryptosystemTest extends FunSuite {
 
     val ciphertext = (Hex.decode(cipherObj.getString("c1")), Hex.decode(cipherObj.getString("c2")))
 
-    val cs = new EllipticCurveCryptosystem
+    val cs = new Cryptosystem
     val out = cs.multiply(ciphertext, Hex.decode(scalar))
 
     assert(util.Arrays.equals(outToCheck._1, out._1))
@@ -104,7 +104,7 @@ class EllipticCurveCryptosystemTest extends FunSuite {
 
     val ciphertext = (Hex.decode(cipherObj.getString("c1")), Hex.decode(cipherObj.getString("c2")))
 
-    val cs = new EllipticCurveCryptosystem
+    val cs = new Cryptosystem
     val out = cs.multiply(ciphertext, Hex.decode(scalar))
 
     assert(util.Arrays.equals(outToCheck._1, out._1))
@@ -112,14 +112,14 @@ class EllipticCurveCryptosystemTest extends FunSuite {
   }
 
   test("hash256") {
-    val cs = new EllipticCurveCryptosystem
+    val cs = new Cryptosystem
     val hash = cs.hash256(Array(0))
 
     assert(hash.size == 32)
   }
 
   test("Pedersen commitment") {
-    val cs = new EllipticCurveCryptosystem
+    val cs = new Cryptosystem
     val hash = cs.hash256(Array(0))
 
     val comm = cs.pedersenCommitment(hash, Array(1), Array(2,3,6))

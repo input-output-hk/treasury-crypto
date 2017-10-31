@@ -1,8 +1,8 @@
 package treasury.crypto.nizk.shvzk
 
-import treasury.crypto.{Ciphertext, EllipticCurveCryptosystem, PubKey, Randomness}
+import treasury.crypto.{Ciphertext, Cryptosystem, PubKey, Randomness}
 
-class SHVZKCommon(val cs: EllipticCurveCryptosystem,
+class SHVZKCommon(val cs: Cryptosystem,
                   val pubKey: PubKey,
                   val unitVector: Seq[Ciphertext]) {
 

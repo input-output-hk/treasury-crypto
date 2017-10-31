@@ -5,7 +5,7 @@ import java.util
 
 import treasury.crypto._
 
-class SHVZKVerifier(cs: EllipticCurveCryptosystem,
+class SHVZKVerifier(cs: Cryptosystem,
                     pubKey: PubKey,
                     unitVector: Seq[Ciphertext],
                     val proof: SHVZKProof) extends SHVZKCommon(cs, pubKey, unitVector) {
