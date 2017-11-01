@@ -18,7 +18,7 @@ class BallotCreationPerformance extends FunSuite {
 
       val ballot = simulator.createVoterBallot(1, 1, 1, VoteCases.Yes)
       val ballotSize = ballot.getUnitVector.foldLeft(0) {
-        (acc, c) => acc + c._1.size + c._2.size
+        (acc, c) => acc + c._1.getEncoded(true).size + c._2.getEncoded(true).size
       }
       println("\tVoter ballot size: " + ballotSize + " bytes")
 
@@ -26,7 +26,7 @@ class BallotCreationPerformance extends FunSuite {
 
       val exballot = simulator.createExpertBallot(1, 1, VoteCases.Yes)
       val exballotSize = exballot.getUnitVector.foldLeft(0) {
-        (acc, c) => acc + c._1.size + c._2.size
+        (acc, c) => acc + c._1.getEncoded(true).size + c._2.getEncoded(true).size
       }
       println("\tExpert ballot size: " + exballotSize + " bytes")
     }

@@ -22,10 +22,10 @@ class SHVZKPerformance {
         new SHVZKVerifier(shvzkTest.cs, shvzkTest.pubKey, uv, proof).verifyProof())
       println("\tVerified: " + verified)
       val proofsize: Int =
-        proof.R.size +
-        proof.zwv.size * proof.zwv(0)._1.size * 3 +
-        proof.Dk.size * proof.Dk(0)._1.size * 2 +
-        proof.IBA.size * proof.IBA(0)._1.size * 3
+        proof.R.toByteArray.size +
+        proof.zwv.size * proof.zwv(0)._1.toByteArray.size * 3 +
+        proof.Dk.size * proof.Dk(0)._1.getEncoded(true).size * 2 +
+        proof.IBA.size * proof.IBA(0)._1.getEncoded(true).size * 3
       println("\tNIZK Proof size: " + proofsize + " bytes")
     }
   }

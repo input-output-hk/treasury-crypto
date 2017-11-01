@@ -17,13 +17,12 @@ class CryptosystemTest extends FunSuite {
   val jsonObj = new JSONObject(jsonTestData);
 
   test("encrypt/decrypt message") {
-    val message = scala.math.pow(2, 10).toInt
-    val rand = Array[Byte](100)
+    val message = BigInteger.valueOf(2).pow(10)
 
     val cs = new Cryptosystem
     val (privKey, pubKey) = cs.createKeyPair()
 
-    val ciphertext = cs.encrypt(pubKey, rand, message)
+    val ciphertext = cs.encrypt(pubKey, cs.getRand, message)
     val decryptedMessage = cs.decrypt(privKey, ciphertext)
 
     assert(message == decryptedMessage)
@@ -34,15 +33,19 @@ class CryptosystemTest extends FunSuite {
     val cipherObj = jsonObj.getJSONObject("encryption").getJSONObject("output").getJSONObject("ciphertext")
 
     val pubkey = Hex.decode(inputObj.getString("pubkey"))
-    val randomness = Hex.decode(inputObj.getString("randomness"))
-    val message = Integer.parseInt(inputObj.getString("message"), 16)
-
-    val ciphertextToCheck = (Hex.decode(cipherObj.getString("c1")), Hex.decode(cipherObj.getString("c2")))
+    val randomness = new BigInteger(Hex.decode(inputObj.getString("randomness")))
+    val message = new BigInteger(Hex.decode(inputObj.getString("message")))
 
     val cs = new Cryptosystem
-    val ciphertext = cs.encrypt(pubkey, randomness, message)
 
-    assert(util.Arrays.equals(ciphertext._1, ciphertextToCheck._1))
+    val ciphertextToCheck = (
+      cs.decodePoint(Hex.decode(cipherObj.getString("c1"))),
+      cs.decodePoint(Hex.decode(cipherObj.getString("c2")))
+    )
+    val ciphertext = cs.encrypt(cs.decodePoint(pubkey), randomness, message)
+
+    assert(ciphertext._1.equals(ciphertextToCheck._1))
+    assert(ciphertext._2.equals(ciphertextToCheck._2))
   }
 
   test("decryption") {
@@ -50,15 +53,18 @@ class CryptosystemTest extends FunSuite {
     val cipherObj = inputObj.getJSONObject("ciphertext")
     val outputObj = jsonObj.getJSONObject("decryption").getJSONObject("output")
 
-    val privkey = Hex.decode(inputObj.getString("privkey"))
-    val ciphertext = (Hex.decode(cipherObj.getString("c1")), Hex.decode(cipherObj.getString("c2")))
-
-    val messageToCheck = Integer.parseInt(outputObj.getString("message"), 16)
-
     val cs = new Cryptosystem
+
+    val privkey = new BigInteger(Hex.decode(inputObj.getString("privkey")))
+    val ciphertext = (
+      cs.decodePoint(Hex.decode(cipherObj.getString("c1"))),
+      cs.decodePoint(Hex.decode(cipherObj.getString("c2")))
+    )
+
+    val messageToCheck = new BigInteger(Hex.decode(outputObj.getString("message")))
     val message = cs.decrypt(privkey, ciphertext)
 
-    assert(message == messageToCheck)
+    assert(message.equals(messageToCheck))
   }
 
   test("add") {
@@ -67,16 +73,18 @@ class CryptosystemTest extends FunSuite {
     val cipher2Obj = inputObj.getJSONObject("ciphertext2")
     val cipherOutObj = jsonObj.getJSONObject("add").getJSONObject("output").getJSONObject("ciphertext")
 
-    val outToCheck = (Hex.decode(cipherOutObj.getString("c1")), Hex.decode(cipherOutObj.getString("c2")))
-
-    val ciphertext1 = (Hex.decode(cipher1Obj.getString("c1")), Hex.decode(cipher1Obj.getString("c2")))
-    val ciphertext2 = (Hex.decode(cipher2Obj.getString("c1")), Hex.decode(cipher2Obj.getString("c2")))
-
     val cs = new Cryptosystem
+
+    val outToCheck = (cs.decodePoint(Hex.decode(cipherOutObj.getString("c1"))), cs.decodePoint(Hex.decode(cipherOutObj.getString("c2"))))
+
+    val ciphertext1 = (cs.decodePoint(Hex.decode(cipher1Obj.getString("c1"))), cs.decodePoint(Hex.decode(cipher1Obj.getString("c2"))))
+    val ciphertext2 = (cs.decodePoint(Hex.decode(cipher2Obj.getString("c1"))), cs.decodePoint(Hex.decode(cipher2Obj.getString("c2"))))
+
+
     val out = cs.add(ciphertext1, ciphertext2)
 
-    assert(util.Arrays.equals(outToCheck._1, out._1))
-    assert(util.Arrays.equals(outToCheck._2, out._2))
+    assert(outToCheck._1.equals(out._1))
+    assert(outToCheck._2.equals(out._2))
   }
 
   test("multiply") {
@@ -84,15 +92,16 @@ class CryptosystemTest extends FunSuite {
     val cipherObj = inputObj.getJSONObject("ciphertext")
     val scalar = inputObj.getString("scalar")
     val outputObj = jsonObj.getJSONObject("multiply").getJSONObject("output").getJSONObject("ciphertext")
-    val outToCheck = (Hex.decode(outputObj.getString("c1")), Hex.decode(outputObj.getString("c2")))
-
-    val ciphertext = (Hex.decode(cipherObj.getString("c1")), Hex.decode(cipherObj.getString("c2")))
 
     val cs = new Cryptosystem
-    val out = cs.multiply(ciphertext, Hex.decode(scalar))
 
-    assert(util.Arrays.equals(outToCheck._1, out._1))
-    assert(util.Arrays.equals(outToCheck._2, out._2))
+    val ciphertext = (cs.decodePoint(Hex.decode(cipherObj.getString("c1"))), cs.decodePoint(Hex.decode(cipherObj.getString("c2"))))
+
+    val out = cs.multiply(ciphertext, new BigInteger(Hex.decode(scalar)))
+    val outToCheck = (cs.decodePoint(Hex.decode(outputObj.getString("c1"))), cs.decodePoint(Hex.decode(outputObj.getString("c2"))))
+
+    assert(outToCheck._1.equals(out._1))
+    assert(outToCheck._2.equals(out._2))
   }
 
   test("multiply2") {
@@ -100,15 +109,16 @@ class CryptosystemTest extends FunSuite {
     val cipherObj = inputObj.getJSONObject("ciphertext")
     val scalar = inputObj.getString("scalar")
     val outputObj = jsonObj.getJSONObject("multiply2").getJSONObject("output").getJSONObject("ciphertext")
-    val outToCheck = (Hex.decode(outputObj.getString("c1")), Hex.decode(outputObj.getString("c2")))
-
-    val ciphertext = (Hex.decode(cipherObj.getString("c1")), Hex.decode(cipherObj.getString("c2")))
 
     val cs = new Cryptosystem
-    val out = cs.multiply(ciphertext, Hex.decode(scalar))
 
-    assert(util.Arrays.equals(outToCheck._1, out._1))
-    assert(util.Arrays.equals(outToCheck._2, out._2))
+    val ciphertext = (cs.decodePoint(Hex.decode(cipherObj.getString("c1"))), cs.decodePoint(Hex.decode(cipherObj.getString("c2"))))
+
+    val out = cs.multiply(ciphertext, new BigInteger(Hex.decode(scalar)))
+    val outToCheck = (cs.decodePoint(Hex.decode(outputObj.getString("c1"))), cs.decodePoint(Hex.decode(outputObj.getString("c2"))))
+
+    assert(outToCheck._1.equals(out._1))
+    assert(outToCheck._2.equals(out._2))
   }
 
   test("hash256") {
@@ -116,14 +126,6 @@ class CryptosystemTest extends FunSuite {
     val hash = cs.hash256(Array(0))
 
     assert(hash.size == 32)
-  }
-
-  test("Pedersen commitment") {
-    val cs = new Cryptosystem
-    val hash = cs.hash256(Array(0))
-
-    val comm = cs.pedersenCommitment(hash, Array(1), Array(2,3,6))
-    assert(comm.size == 33)
   }
 
   test("using reducible/irreducible element from Zp") {

@@ -1,5 +1,7 @@
 package treasury.crypto.common
 
+import java.math.BigInteger
+
 import treasury.crypto._
 
 
@@ -15,7 +17,7 @@ class VotingSimulator(val numberOfExperts: Int,
                         projectId: Int,
                         delegation: Int,
                         choice: VoteCases.Value): Ballot = {
-    RegularVoter(cs, voterId, numberOfExperts, pubKey, BigInt(stakePerVoter).toByteArray)
+    RegularVoter(cs, voterId, numberOfExperts, pubKey, BigInteger.valueOf(stakePerVoter))
       .produceVote(projectId, delegation, choice)
   }
 
@@ -58,7 +60,7 @@ class VotingSimulator(val numberOfExperts: Int,
    * Returns a list of projects with tally results */
   def doTally(ballots: Seq[(Int, Seq[Ballot])]): Seq[(Int, TallyResult)] = {
     // Obtaining results by an arbitrary voter
-    val voter = RegularVoter(cs, 0, numberOfExperts, pubKey, Array(1))
+    val voter = RegularVoter(cs, 0, numberOfExperts, pubKey, One)
 
     ballots.map {
       project => (project._1, voter.tallyVotes(project._2, privKey))

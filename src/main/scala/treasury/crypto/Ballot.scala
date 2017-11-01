@@ -1,5 +1,7 @@
 package treasury.crypto
 
+import java.math.BigInteger
+
 import org.json.JSONObject
 
 // The data structure for storing of the individual voter's/expert's choice
@@ -18,7 +20,7 @@ object Ballot {
 case class VoterBallot(override val issuerId: Int,
                        override val proposalId: Int,
                        val expertsNum: Int,
-                       val stake: Array[Byte]) extends Ballot {
+                       val stake: BigInteger) extends Ballot {
   // Unit vector of expertsNum + voterChoisesNum elements
   val uvDelegations: Array[Ciphertext] = new Array(expertsNum)
   val uvChoice: Array[Ciphertext] = new Array(Ballot.VOTER_CHOISES_NUM)

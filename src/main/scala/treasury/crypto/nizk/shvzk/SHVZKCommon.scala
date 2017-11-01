@@ -1,6 +1,8 @@
 package treasury.crypto.nizk.shvzk
 
-import treasury.crypto.{Ciphertext, Cryptosystem, PubKey, Randomness}
+import java.math.BigInteger
+
+import treasury.crypto._
 
 class SHVZKCommon(val cs: Cryptosystem,
                   val pubKey: PubKey,
@@ -10,18 +12,18 @@ class SHVZKCommon(val cs: Cryptosystem,
   protected val uvSize = scala.math.pow(2, log).toInt
 
   /* Use hash of the statement as Common Reference String for both prover and verifier */
-  protected val crs = {
+  protected val crs = new BigInteger({
     val bytes: Array[Byte] = unitVector.foldLeft(Array[Byte]()) {
-      (acc, c) => acc ++ c._1 ++ c._2
+      (acc, c) => acc ++ c._1.getEncoded(true) ++ c._2.getEncoded(true)
     }
-    cs.hash256(pubKey ++ bytes)
-  }
+    cs.hash256(pubKey.getEncoded(true) ++ bytes)
+  })
 
   /* Fill in unit vector with Enc(0,0) elements so that its size is exactly the power of 2 (2^log) */
   def padUnitVector(uv: Seq[Ciphertext]): Seq[Ciphertext] = {
     if (uv.size == uvSize) uv
     else {
-      val zeroUnit = cs.encrypt(pubKey, Array(0.toByte), Array(0.toByte))
+      val zeroUnit = cs.encrypt(pubKey, Zero, Zero)
       val paddingSize = (uvSize - unitVector.size).toInt
 
       val uvPadding = Array.fill[Ciphertext](paddingSize)(zeroUnit)
@@ -35,10 +37,18 @@ class SHVZKCommon(val cs: Cryptosystem,
     if (rand.size == uvSize) rand
     else {
       val paddingSize = (uvSize - unitVector.size).toInt
-      val randPadding = Array.fill[Randomness](paddingSize)(Array(0))
+      val randPadding = Array.fill[Randomness](paddingSize)(Zero)
 
       rand ++ randPadding
     }
+  }
+
+  def pedersenCommitment(crs: BigInteger, m: Element, r: Randomness): Point = {
+    val ck = cs.basePoint.multiply(crs)
+    val c1 = cs.basePoint.multiply(m)
+    val c2 = ck.multiply(r)
+
+    c1.add(c2)
   }
 }
 

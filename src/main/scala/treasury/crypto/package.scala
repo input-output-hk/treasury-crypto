@@ -1,17 +1,23 @@
 package treasury
 
+import java.math.BigInteger
+
+import org.bouncycastle.math.ec.ECPoint
 import org.scalameter._
 
 package object crypto {
 
-  type PrivKey = Array[Byte]
-  type PubKey = Array[Byte]
-  type Ciphertext = (Array[Byte], Array[Byte])
-  type Randomness = Array[Byte]
-  type Element = Array[Byte]
-  type Point = Array[Byte]
+  type PrivKey = BigInteger
+  type PubKey = ECPoint
+  type Ciphertext = (ECPoint, ECPoint)
+  type Randomness = BigInteger
+  type Element = BigInteger
+  type Point = ECPoint
 
-  case class TallyResult(val yes: Int, val no: Int, val abstain: Int)
+  val Zero = BigInteger.valueOf(0)
+  val One = BigInteger.valueOf(1)
+
+  case class TallyResult(val yes: BigInteger, val no: BigInteger, val abstain: BigInteger)
 
   object VoteCases extends Enumeration {
     val Yes, No, Abstain = Value

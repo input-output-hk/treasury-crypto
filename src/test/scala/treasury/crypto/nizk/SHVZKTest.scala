@@ -13,7 +13,7 @@ class SHVZKTest extends FunSuite {
     assert(size > choice)
     val t = for (i <- 0 until size) yield {
       val rand = cs.getRand()
-      val ciphertext = cs.encrypt(pubKey, rand, if(choice == i) 1 else 0)
+      val ciphertext = cs.encrypt(pubKey, rand, if(choice == i) One else Zero)
       (ciphertext, rand)
     }
     (t.map(_._1), t.map(_._2))
@@ -29,7 +29,7 @@ class SHVZKTest extends FunSuite {
 
     assert(paddedRand.size == paddedUv.size)
     assert(paddedUv.size == 16)
-    assert(paddedRand(13).size == 1 && paddedRand(13)(0) == 0)
+    assert(paddedRand(13).equals(Zero))
     assert(paddedUv(13) == paddedUv(14))
     assert(paddedUv(14) == paddedUv(15))
   }
