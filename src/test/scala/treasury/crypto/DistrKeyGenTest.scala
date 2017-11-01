@@ -13,19 +13,12 @@ import treasury.crypto.keygen.{CommitteeMember, CommitteeMemberAttr,R1Data, R3Da
 class DistrKeyGenTest  extends FunSuite {
 
   test("dkg_functionality"){
+    val cs = new Cryptosystem
 
-    Security.addProvider(new BouncyCastleProvider())
-    val ecSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec("secp256k1")
-    val rand = new Random
-
-    // CSR parameters
-    val g = ecSpec.getG
-    val h = g.multiply(new BigInteger("5"))
-
-    val committeeMembersAttrs = (0 to 5).map(new Integer(_)).map(new CommitteeMemberAttr(_, null))
+    val committeeMembersAttrs = (0 to 5).map(new Integer(_)).map(new CommitteeMemberAttr(_, cs.basePoint.multiply(cs.getRand)))
 
     val committeeMembers = for (id <- committeeMembersAttrs.indices) yield {
-      new CommitteeMember(ecSpec, g.getEncoded(true), h.getEncoded(true), id, committeeMembersAttrs)
+      new CommitteeMember(cs, id, committeeMembersAttrs)
     }
 
     var r1Data = for (currentId <- committeeMembersAttrs.indices) yield {
@@ -43,7 +36,7 @@ class DistrKeyGenTest  extends FunSuite {
         if(x.issuerID == 0)
         {
           println(x.issuerID + " committee members's commitment modified on Round 2")
-          E(0) = ecSpec.getCurve.getInfinity.getEncoded(true)
+          E(0) = cs.infinityPoint.getEncoded(true)
         }
         R1Data(x.issuerID, E, x.S_a, x.S_b)
       }
@@ -68,7 +61,7 @@ class DistrKeyGenTest  extends FunSuite {
         if(x.issuerID == 1)
         {
           println(x.issuerID + " committee members's commitment modified on Round 3")
-          commitments(0) = ecSpec.getCurve.getInfinity.getEncoded(true)
+          commitments(0) = cs.infinityPoint.getEncoded(true)
         }
         R3Data(x.issuerID, commitments)
       }
@@ -92,7 +85,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     // Calculating the individual public keys (pk_i = g^sk_i for each committee)
     var individualPublicKeys = for(i <- committeeMembers.indices) yield {
-      (committeeMembers(i).ownID, g.multiply(committeeMembers(i).secretKey))
+      (committeeMembers(i).ownID, cs.basePoint.multiply(committeeMembers(i).secretKey))
     }
 
     var sharedPublicKeysAfterR2 = sharedPublicKeys
@@ -110,13 +103,13 @@ class DistrKeyGenTest  extends FunSuite {
     }
 
     // Verify, that each committee has obtained the same shared public key after round 2
-    assert(sharedPublicKeysAfterR2.map(_._2).forall(ecSpec.getCurve.decodePoint(_).equals(ecSpec.getCurve.decodePoint(sharedPublicKeysAfterR2(0)._2))))
+    assert(sharedPublicKeysAfterR2.map(_._2).forall(cs.decodePoint(_).equals(cs.decodePoint(sharedPublicKeysAfterR2(0)._2))))
 
     // Using individual public keys to calculate the shared public key without any secret key reconstruction
-    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(ecSpec.getCurve.getInfinity){(publicKeysSum, publicKey) => publicKeysSum.add(publicKey)}
+    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(cs.infinityPoint){(publicKeysSum, publicKey) => publicKeysSum.add(publicKey)}
 
     // Verify, that shared public key is equal to the original public key
-    assert(publicKeysSum.equals(ecSpec.getCurve.decodePoint(sharedPublicKeysAfterR2(0)._2)))
+    assert(publicKeysSum.equals(cs.decodePoint(sharedPublicKeysAfterR2(0)._2)))
   }
 
   //--------------------------------------------------------------------------------------------------------------
@@ -127,21 +120,16 @@ class DistrKeyGenTest  extends FunSuite {
 //    println("Performance test")
 //    println("--------------------------------------------------------------------------------------")
 //
-//    Security.addProvider(new BouncyCastleProvider())
-//    val ecSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec("secp256k1")
-//
-//    // CSR parameters
-//    val g = ecSpec.getG
-//    val h = g.multiply(new BigInteger("5"))
+//    val cs = new Cryptosystem
 //
 //    val commiteeMembersNum = 100
 //
 //    println("Committee members number: " + commiteeMembersNum)
 //
-//    val committeeMembersAttrs = (0 until commiteeMembersNum).map(new Integer(_)).map(new CommitteeMemberAttr(_, new PubKey(0)))
+//    val committeeMembersAttrs = (0 until commiteeMembersNum).map(new Integer(_)).map(new CommitteeMemberAttr(_, cs.basePoint.multiply(cs.getRand)))
 //
 //    val committeeMembers = for (id <- committeeMembersAttrs.indices) yield {
-//      new CommitteeMember(ecSpec, g.getEncoded(true), h.getEncoded(true), id, committeeMembersAttrs)
+//      new CommitteeMember(cs, id, committeeMembersAttrs)
 //    }
 //
 //    var t0 = System.nanoTime()

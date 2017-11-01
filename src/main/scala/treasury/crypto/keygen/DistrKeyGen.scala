@@ -5,14 +5,13 @@ import java.util.Random
 
 import org.bouncycastle.jce.spec.ECParameterSpec
 import org.bouncycastle.math.ec.ECPoint
+import treasury.crypto.Cryptosystem
 
 import scala.collection.mutable.ArrayBuffer
 
 // Distributed Key Generation, based on Elliptic Curves
 //
-class DistrKeyGen(ecSpec:                 ECParameterSpec,
-                  g:                      ECPoint,
-                  h:                      ECPoint,
+class DistrKeyGen(cs: Cryptosystem,
                   ownID:                  Integer,
                   committeeMembersAttrs:  Seq[CommitteeMemberAttr])
 {
@@ -47,6 +46,15 @@ class DistrKeyGen(ecSpec:                 ECParameterSpec,
   case class Commitment(issuerID: Integer, commitment: Array[ECPoint])
   case class Share(issuerID: Integer, share_a: SecretShare, share_b: SecretShare)
 
+  private val g = cs.basePoint
+  private val h = {
+    val bytes: Array[Byte] = committeeMembersAttrs.sortBy(_.id).foldLeft(Array[Byte]()) {
+      (acc, c) => acc ++ c.publicKey.getEncoded(true)
+    }
+    val crs = new BigInteger(cs.hash256(bytes)).mod(cs.orderOfBasePoint)
+    g.multiply(crs)
+  }
+
   val CRS_commitments = new ArrayBuffer[CRS_commitment]() // CRS commitments of other participants
   val commitments = new ArrayBuffer[Commitment]()         // Commitments of other participants
   val shares = new ArrayBuffer[Share]()                   // Shares of other participants
@@ -62,8 +70,8 @@ class DistrKeyGen(ecSpec:                 ECParameterSpec,
 
   def doRound1(secretKey: Array[Byte]): R1Data =
   {
-    val poly_a = new Polynomial(new BigInteger(secretKey), ecSpec.getN, t)
-    val poly_b = new Polynomial(new BigInteger(secretKey), ecSpec.getN, t)
+    val poly_a = new Polynomial(new BigInteger(secretKey), cs.orderOfBasePoint, t)
+    val poly_b = new Polynomial(new BigInteger(secretKey), cs.orderOfBasePoint, t)
 
     val r1Data = R1Data(ownID, new Array[Array[Byte]](t), new Array[SecretShare](n-1), new Array[SecretShare](n-1))
 
@@ -98,9 +106,9 @@ class DistrKeyGen(ecSpec:                 ECParameterSpec,
     for(i <- E.indices)
     {
       if(E_sum == null)
-        E_sum = ecSpec.getCurve.decodePoint(E(i)).multiply(BigInteger.valueOf(share_a.x.toLong).pow(i))
+        E_sum = cs.decodePoint(E(i)).multiply(BigInteger.valueOf(share_a.x.toLong).pow(i))
       else
-        E_sum = E_sum.add(ecSpec.getCurve.decodePoint(E(i)).multiply(BigInteger.valueOf(share_a.x.toLong).pow(i)))
+        E_sum = E_sum.add(cs.decodePoint(E(i)).multiply(BigInteger.valueOf(share_a.x.toLong).pow(i)))
     }
 
     val CSR_Shares = g.multiply(new BigInteger(share_a.S)).add(h.multiply(new BigInteger(share_b.S)))
@@ -122,7 +130,7 @@ class DistrKeyGen(ecSpec:                 ECParameterSpec,
           if(checkOnCSR(r1Data(i).S_a(j), r1Data(i).S_b(j), r1Data(i).E))
           {
             shares += Share(r1Data(i).issuerID, r1Data(i).S_a(j), r1Data(i).S_b(j))
-            CRS_commitments += CRS_commitment(r1Data(i).issuerID, r1Data(i).E.map(x => ecSpec.getCurve.decodePoint(x)))
+            CRS_commitments += CRS_commitment(r1Data(i).issuerID, r1Data(i).E.map(x => cs.decodePoint(x)))
           }
           else
             complains += ComplainR2(r1Data(i).issuerID)
@@ -159,7 +167,7 @@ class DistrKeyGen(ecSpec:                 ECParameterSpec,
 
   def checkCommitment(issuerID: Integer, commitment: Array[Array[Byte]]): Boolean =
   {
-    val A = commitment.map(x => ecSpec.getCurve.decodePoint(x))
+    val A = commitment.map(x => cs.decodePoint(x))
     var A_sum: ECPoint = null
     val share = shares.find(_.issuerID == issuerID)
     if(share.isDefined)
@@ -195,7 +203,7 @@ class DistrKeyGen(ecSpec:                 ECParameterSpec,
       if(issuerID != ownID)
       {
         if(checkCommitment(issuerID, issuerCommitments)){
-          commitments += Commitment(issuerID, issuerCommitments.map(ecSpec.getCurve.decodePoint(_)))
+          commitments += Commitment(issuerID, issuerCommitments.map(cs.decodePoint(_)))
         }
         else
         {
@@ -287,9 +295,9 @@ class DistrKeyGen(ecSpec:                 ECParameterSpec,
       var L = coeffs(sortedShares(i).x.toInt - 1)
 
       if(L.compareTo(BigInteger.valueOf(0)) == -1)
-        L = L.add(ecSpec.getN)
+        L = L.add(cs.orderOfBasePoint)
 
-      restoredSecret = restoredSecret.add(L.multiply(new BigInteger(sortedShares(i).S))).mod(ecSpec.getN)
+      restoredSecret = restoredSecret.add(L.multiply(new BigInteger(sortedShares(i).S))).mod(cs.orderOfBasePoint)
     }
     restoredSecret
   }
@@ -331,7 +339,7 @@ class DistrKeyGen(ecSpec:                 ECParameterSpec,
       honestPublicKeysSum = honestPublicKeysSum.add(commitments(i).commitment(0))
     }
 
-    var violatorsPublicKeysSum: ECPoint = ecSpec.getCurve.getInfinity
+    var violatorsPublicKeysSum: ECPoint = cs.infinityPoint
     for(i <- violatorsPublicKeys.indices){
       violatorsPublicKeysSum = violatorsPublicKeysSum.add(violatorsPublicKeys(i)._2)
     }

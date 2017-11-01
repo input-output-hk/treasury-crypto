@@ -28,6 +28,7 @@ class Cryptosystem {
 
   def basePoint = ecSpec.getG
   def orderOfBasePoint = ecSpec.getN
+  def infinityPoint = ecSpec.getCurve.getInfinity
 
   def createKeyPair(): (PrivKey, PubKey) = {
     val pair: KeyPair = keyPairGenerator.generateKeyPair
