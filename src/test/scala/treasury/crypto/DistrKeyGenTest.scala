@@ -22,7 +22,7 @@ class DistrKeyGenTest  extends FunSuite {
     val g = ecSpec.getG
     val h = g.multiply(new BigInteger("5"))
 
-    val committeeMembersAttrs = (0 to 5).map(new Integer(_)).map(new CommitteeMemberAttr(_, new PubKey(0)))
+    val committeeMembersAttrs = (0 to 5).map(new Integer(_)).map(new CommitteeMemberAttr(_, null))
 
     val committeeMembers = for (id <- committeeMembersAttrs.indices) yield {
       new CommitteeMember(ecSpec, g.getEncoded(true), h.getEncoded(true), id, committeeMembersAttrs)
@@ -121,70 +121,70 @@ class DistrKeyGenTest  extends FunSuite {
 
   //--------------------------------------------------------------------------------------------------------------
 
-  test("dkg_speed")
-  {
-    println("--------------------------------------------------------------------------------------")
-    println("Performance test")
-    println("--------------------------------------------------------------------------------------")
-
-    Security.addProvider(new BouncyCastleProvider())
-    val ecSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec("secp256k1")
-
-    // CSR parameters
-    val g = ecSpec.getG
-    val h = g.multiply(new BigInteger("5"))
-
-    val commiteeMembersNum = 100
-
-    println("Committee members number: " + commiteeMembersNum)
-
-    val committeeMembersAttrs = (0 until commiteeMembersNum).map(new Integer(_)).map(new CommitteeMemberAttr(_, new PubKey(0)))
-
-    val committeeMembers = for (id <- committeeMembersAttrs.indices) yield {
-      new CommitteeMember(ecSpec, g.getEncoded(true), h.getEncoded(true), id, committeeMembersAttrs)
-    }
-
-    var t0 = System.nanoTime()
-    val r1Data = for (currentId <- committeeMembersAttrs.indices) yield {
-      committeeMembers(currentId).setKeyR1()
-    }
-    var t1 = System.nanoTime()
-    println("Round 1: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
-
-    t0 = System.nanoTime()
-    val r2Data = for (currentId <- committeeMembersAttrs.indices) yield {
-      committeeMembers(currentId).setKeyR2(r1Data)
-    }
-    t1 = System.nanoTime()
-    println("Round 2: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
-
-    t0 = System.nanoTime()
-    val r3Data = for (currentId <- committeeMembersAttrs.indices) yield {
-      committeeMembers(currentId).setKeyR3(r2Data)
-    }
-    t1 = System.nanoTime()
-    println("Round 3: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
-
-    t0 = System.nanoTime()
-    val r4Data = for (currentId <- committeeMembersAttrs.indices) yield {
-      committeeMembers(currentId).setKeyR4(r3Data)
-    }
-    t1 = System.nanoTime()
-    println("Round 4: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
-
-    t0 = System.nanoTime()
-    val r5_1Data = for (currentId <- committeeMembersAttrs.indices) yield {
-      committeeMembers(currentId).setKeyR5_1(r4Data)
-    }
-    t1 = System.nanoTime()
-    println("Round 5.1: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
-
-    t0 = System.nanoTime()
-    val sharedPublicKeys = for (currentId <- committeeMembersAttrs.indices) yield {
-      (currentId, committeeMembers(currentId).setKeyR5_2(r5_1Data))
-    }
-    t1 = System.nanoTime()
-    println("Round 5.2: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
-    println("--------------------------------------------------------------------------------------")
-  }
+//  test("dkg_speed")
+//  {
+//    println("--------------------------------------------------------------------------------------")
+//    println("Performance test")
+//    println("--------------------------------------------------------------------------------------")
+//
+//    Security.addProvider(new BouncyCastleProvider())
+//    val ecSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec("secp256k1")
+//
+//    // CSR parameters
+//    val g = ecSpec.getG
+//    val h = g.multiply(new BigInteger("5"))
+//
+//    val commiteeMembersNum = 100
+//
+//    println("Committee members number: " + commiteeMembersNum)
+//
+//    val committeeMembersAttrs = (0 until commiteeMembersNum).map(new Integer(_)).map(new CommitteeMemberAttr(_, new PubKey(0)))
+//
+//    val committeeMembers = for (id <- committeeMembersAttrs.indices) yield {
+//      new CommitteeMember(ecSpec, g.getEncoded(true), h.getEncoded(true), id, committeeMembersAttrs)
+//    }
+//
+//    var t0 = System.nanoTime()
+//    val r1Data = for (currentId <- committeeMembersAttrs.indices) yield {
+//      committeeMembers(currentId).setKeyR1()
+//    }
+//    var t1 = System.nanoTime()
+//    println("Round 1: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
+//
+//    t0 = System.nanoTime()
+//    val r2Data = for (currentId <- committeeMembersAttrs.indices) yield {
+//      committeeMembers(currentId).setKeyR2(r1Data)
+//    }
+//    t1 = System.nanoTime()
+//    println("Round 2: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
+//
+//    t0 = System.nanoTime()
+//    val r3Data = for (currentId <- committeeMembersAttrs.indices) yield {
+//      committeeMembers(currentId).setKeyR3(r2Data)
+//    }
+//    t1 = System.nanoTime()
+//    println("Round 3: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
+//
+//    t0 = System.nanoTime()
+//    val r4Data = for (currentId <- committeeMembersAttrs.indices) yield {
+//      committeeMembers(currentId).setKeyR4(r3Data)
+//    }
+//    t1 = System.nanoTime()
+//    println("Round 4: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
+//
+//    t0 = System.nanoTime()
+//    val r5_1Data = for (currentId <- committeeMembersAttrs.indices) yield {
+//      committeeMembers(currentId).setKeyR5_1(r4Data)
+//    }
+//    t1 = System.nanoTime()
+//    println("Round 5.1: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
+//
+//    t0 = System.nanoTime()
+//    val sharedPublicKeys = for (currentId <- committeeMembersAttrs.indices) yield {
+//      (currentId, committeeMembers(currentId).setKeyR5_2(r5_1Data))
+//    }
+//    t1 = System.nanoTime()
+//    println("Round 5.2: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
+//    println("--------------------------------------------------------------------------------------")
+//  }
 }
