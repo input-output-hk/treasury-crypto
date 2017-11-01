@@ -5,7 +5,8 @@ package object keygen {
   //----------------------------------------------------------
   // Committee member attributes
   //
-  case class CommitteeMemberAttr(id: Integer, publicKey: PubKey)
+  case class CommitteeMemberAttr(id:        Integer,
+                                 publicKey: PubKey)
 
   //----------------------------------------------------------
   // Round 1 data structures
@@ -39,12 +40,22 @@ package object keygen {
                          share_a:     SecretShare,
                          share_b:     SecretShare)
 
-  case class R4Data (complains: Array[ComplainR4])
+  case class R4Data (issuerID:  Integer,
+                     complains: Array[ComplainR4])
 
   //----------------------------------------------------------
-  // Round 5 data structures
+  // Round 5.1 data structures
   //
-  case class R5_1Data (violatorsShares: Array[(Integer, SecretShare)]) // decrypted share from violator to issuer of this message
+  case class R5_1Data (issuerID:  Integer,
+                       violatorsShares: Array[(Integer, SecretShare)]) // decrypted share from violator to issuer of this message
 
+  //----------------------------------------------------------
+  // Round 5.2 data structures
+  //
   type SharedPublicKey = Array[Byte]
+
+  case class SecretKey (ownerID: Integer, secretKey: Array[Byte])
+
+  case class R5_2Data (sharedPublicKey:     SharedPublicKey,
+                       violatorsSecretKeys: Array[SecretKey])
 }
