@@ -1,10 +1,8 @@
 package treasury.crypto.keygen
 
-import java.math.{BigInteger}
+import java.math.BigInteger
 import java.security.SecureRandom
 import java.util.Random
-
-import org.bouncycastle.jce.spec.ECParameterSpec
 import org.bouncycastle.math.ec.ECPoint
 import treasury.crypto.Cryptosystem
 
@@ -12,7 +10,7 @@ import scala.collection.mutable.ArrayBuffer
 
 // Distributed Key Generation, based on Elliptic Curves
 //
-class DistrKeyGen(cs: Cryptosystem,
+class DistrKeyGen(cs:                     Cryptosystem,
                   ownID:                  Integer,
                   committeeMembersAttrs:  Seq[CommitteeMemberAttr])
 {
@@ -43,29 +41,29 @@ class DistrKeyGen(cs: Cryptosystem,
     }
   }
 
-  case class CRS_commitment(issuerID: Integer, csr_commitment: Array[ECPoint])
+  case class CRS_commitment(issuerID: Integer, crs_commitment: Array[ECPoint])
   case class Commitment(issuerID: Integer, commitment: Array[ECPoint])
   case class Share(issuerID: Integer, share_a: SecretShare, share_b: SecretShare)
 
   private val g = cs.basePoint
-  private val h = {
-    val bytes: Array[Byte] = committeeMembersAttrs.sortBy(_.id).foldLeft(Array[Byte]()) {
-      (acc, c) => acc ++ c.publicKey.getEncoded(true)
-    }
-    val crs = new BigInteger(cs.hash256(bytes)).mod(cs.orderOfBasePoint)
-    g.multiply(crs)
-  }
+  private val h = g.multiply(BigInteger.valueOf(5))
+//    private val h = {
+//    val bytes: Array[Byte] = committeeMembersAttrs.sortBy(_.id).foldLeft(Array[Byte]()) {
+//      (acc, c) => acc ++ c.publicKey.getEncoded(true)
+//    }
+//    val crs = new BigInteger(cs.hash256(bytes)).mod(cs.orderOfBasePoint)
+//    g.multiply(crs)
+//  }
 
-  val CRS_commitments = new ArrayBuffer[CRS_commitment]() // CRS commitments of other participants
-  val commitments = new ArrayBuffer[Commitment]()         // Commitments of other participants
-  val shares = new ArrayBuffer[Share]()                   // Shares of other participants
-  val violatorsIDs = new ArrayBuffer[Integer]()
+  private val CRS_commitments = new ArrayBuffer[CRS_commitment]() // CRS commitments of other participants
+  private val commitments = new ArrayBuffer[Commitment]()         // Commitments of other participants
+  private val shares = new ArrayBuffer[Share]()                   // Shares of other participants
+  private val violatorsIDs = new ArrayBuffer[Integer]()           // ID' s of committee members-violators
 
-  val n = committeeMembersAttrs.size  // Total number of protocol participants
-  val t = (n.toFloat / 2).ceil.toInt  // Threshold number of participants
-  val A = new Array[ECPoint](t)       // Own commitments
-
-  val infinityPoint = ecSpec.getCurve.getInfinity
+  private val n = committeeMembersAttrs.size  // Total number of protocol participants
+  private val t = (n.toFloat / 2).ceil.toInt  // Threshold number of participants
+  private val A = new Array[ECPoint](t)       // Own commitments
+  private val infinityPoint = cs.infinityPoint
 
   // Pseudorandom number generation in Zp field
   def randZp(p: BigInteger): BigInteger = {
@@ -103,12 +101,12 @@ class DistrKeyGen(cs: Cryptosystem,
     r1Data
   }
 
-  def checkOnCSR(share_a: SecretShare, share_b: SecretShare, E: Array[Array[Byte]]): Boolean =
+  def checkOnCRS(share_a: SecretShare, share_b: SecretShare, E: Array[Array[Byte]]): Boolean =
   {
     var E_sum: ECPoint = infinityPoint
 
     for(i <- E.indices) {
-        E_sum = E_sum.add(ecSpec.getCurve.decodePoint(E(i)).multiply(BigInteger.valueOf(share_a.x.toLong).pow(i)))
+        E_sum = E_sum.add(cs.decodePoint(E(i)).multiply(BigInteger.valueOf(share_a.x.toLong).pow(i)))
     }
     val CRS_Shares = g.multiply(new BigInteger(share_a.S)).add(h.multiply(new BigInteger(share_b.S)))
 
@@ -126,10 +124,10 @@ class DistrKeyGen(cs: Cryptosystem,
       {
         if(r1Data(i).S_a(j).receiverID == ownID)
         {
-          if(checkOnCSR(r1Data(i).S_a(j), r1Data(i).S_b(j), r1Data(i).E))
+          if(checkOnCRS(r1Data(i).S_a(j), r1Data(i).S_b(j), r1Data(i).E))
           {
             shares += Share(r1Data(i).issuerID, r1Data(i).S_a(j), r1Data(i).S_b(j))
-            CRS_commitments += CRS_commitment(r1Data(i).issuerID, r1Data(i).E.map(x => ecSpec.getCurve.decodePoint(x)))
+            CRS_commitments += CRS_commitment(r1Data(i).issuerID, r1Data(i).E.map(x => cs.decodePoint(x)))
           }
           else
             complains += ComplainR2(r1Data(i).issuerID)
@@ -149,9 +147,9 @@ class DistrKeyGen(cs: Cryptosystem,
       {
         // TODO: Check validity of the complain
 
-        val violatorCSRCommitment = CRS_commitments.find(_.issuerID == r2Data(i).complains(j).violatorID)
-        if(violatorCSRCommitment.isDefined)
-          CRS_commitments -= violatorCSRCommitment.get
+        val violatorCRSCommitment = CRS_commitments.find(_.issuerID == r2Data(i).complains(j).violatorID)
+        if(violatorCRSCommitment.isDefined)
+          CRS_commitments -= violatorCRSCommitment.get
 
         val violatorShare = shares.find(_.issuerID == r2Data(i).complains(j).violatorID)
         if(violatorShare.isDefined){
@@ -160,15 +158,14 @@ class DistrKeyGen(cs: Cryptosystem,
         }
       }
     }
-
     // Commitments of poly_a coefficients
     //
-    R3Data(ownID, A.map(x => x.getEncoded(true)))
+    R3Data(ownID, A.map(_.getEncoded(true)))
   }
 
   def checkCommitment(issuerID: Integer, commitment: Array[Array[Byte]]): Boolean =
   {
-    val A = commitment.map(x => ecSpec.getCurve.decodePoint(x))
+    val A = commitment.map(cs.decodePoint)
     var A_sum: ECPoint = infinityPoint
     val share = shares.find(_.issuerID == issuerID)
     if(share.isDefined)
@@ -200,7 +197,7 @@ class DistrKeyGen(cs: Cryptosystem,
       if(issuerID != ownID)
       {
         if(checkCommitment(issuerID, issuerCommitments)){
-          commitments += Commitment(issuerID, issuerCommitments.map(ecSpec.getCurve.decodePoint(_)))
+          commitments += Commitment(issuerID, issuerCommitments.map(cs.decodePoint))
         }
         else
         {
@@ -220,13 +217,13 @@ class DistrKeyGen(cs: Cryptosystem,
   {
     def checkComplain(complain: ComplainR4): Boolean =
     {
-      val violatorsCSRCommitment = CRS_commitments.find(_.issuerID == complain.violatorID).get
-      val CSR_Ok = checkOnCSR(complain.share_a, complain.share_b, violatorsCSRCommitment.csr_commitment.map(_.getEncoded(true)))
+      val violatorsCRSCommitment = CRS_commitments.find(_.issuerID == complain.violatorID).get
+      val CRS_Ok = checkOnCRS(complain.share_a, complain.share_b, violatorsCRSCommitment.crs_commitment.map(_.getEncoded(true)))
 
       val violatorsCommitment = commitments.find(_.issuerID == complain.violatorID).get
       val Commitment_Ok = checkCommitment(complain.violatorID, violatorsCommitment.commitment.map(_.getEncoded(true)))
 
-      CSR_Ok && !Commitment_Ok
+      CRS_Ok && !Commitment_Ok
     }
 
     val violatorsShares = ArrayBuffer[(Integer, SecretShare)]()
@@ -266,8 +263,8 @@ class DistrKeyGen(cs: Cryptosystem,
 
   def testInterpolation(degree: Int): Boolean =
   {
-    val secret = new BigInteger(ecSpec.getN.bitLength(), new SecureRandom()).mod(ecSpec.getN)
-    val poly = new Polynomial(secret, ecSpec.getN, degree)
+    val secret = new BigInteger(cs.orderOfBasePoint.bitLength(), new SecureRandom()).mod(cs.orderOfBasePoint)
+    val poly = new Polynomial(secret, cs.orderOfBasePoint, degree)
 
     val sharesNum = degree * 2 // ratio specific for voting protocol, as assumed t = n / 2, i.e. degree = sharesNum / 2
     var shares = for(x <- 1 to sharesNum) yield {SecretShare(0, x, poly(BigInteger.valueOf(x)).toByteArray)}
@@ -306,10 +303,10 @@ class DistrKeyGen(cs: Cryptosystem,
         val J = BigInteger.valueOf(shares(j).x.toLong)
         val I = BigInteger.valueOf(x.toLong)
 
-        val J_I = J.subtract(I).mod(ecSpec.getN)
-        val JdivJ_I = J.multiply(inverseElement(J_I, ecSpec.getN)).mod(ecSpec.getN)
+        val J_I = J.subtract(I).mod(cs.orderOfBasePoint)
+        val JdivJ_I = J.multiply(inverseElement(J_I, cs.orderOfBasePoint)).mod(cs.orderOfBasePoint)
 
-        coeff = coeff.multiply(JdivJ_I).mod(ecSpec.getN)
+        coeff = coeff.multiply(JdivJ_I).mod(cs.orderOfBasePoint)
       }
     }
     coeff
@@ -323,7 +320,7 @@ class DistrKeyGen(cs: Cryptosystem,
       val L_i = getLagrangeCoeff(shares(i).x, shares)
       val p_i = new BigInteger(shares(i).S)
 
-      restoredSecret = restoredSecret.add(L_i.multiply(p_i)).mod(ecSpec.getN)
+      restoredSecret = restoredSecret.add(L_i.multiply(p_i)).mod(cs.orderOfBasePoint)
     }
     restoredSecret
   }

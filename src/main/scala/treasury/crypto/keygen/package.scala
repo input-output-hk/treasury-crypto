@@ -6,7 +6,7 @@ package object keygen {
   // Committee member attributes
   //
   case class CommitteeMemberAttr(id:        Integer,
-                                 publicKey: PubKey)
+                                 publicKey: Array[Byte])
 
   //----------------------------------------------------------
   // Round 1 data structures

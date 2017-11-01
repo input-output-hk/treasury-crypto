@@ -1,47 +1,37 @@
 package treasury.crypto
-import java.security.Security
-import java.math.BigInteger
 
-import org.bouncycastle.jce.ECNamedCurveTable
-import org.bouncycastle.jce.provider.BouncyCastleProvider
-import org.bouncycastle.jce.spec.ECParameterSpec
 import org.scalatest.FunSuite
-import java.util.Random
-
-import treasury.crypto.keygen.{CommitteeMember, CommitteeMemberAttr,R1Data, R3Data}
+import treasury.crypto.keygen._
 
 class DistrKeyGenTest  extends FunSuite {
 
-//  test("dkg_interpolation"){
-//
-//    Security.addProvider(new BouncyCastleProvider())
-//    val ecSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec("secp256k1")
-//    val rand = new Random
-//
-//    // CSR parameters
-//    val g = ecSpec.getG
-//    val h = g.multiply(new BigInteger("5"))
-//
-//    val committeeMembersAttrs = (0 to 7).map(new Integer(_)).map(CommitteeMemberAttr(_, new PubKey(0)))
-//
-//    val committeeMember = new CommitteeMember(ecSpec, g.getEncoded(true), h.getEncoded(true), 0, committeeMembersAttrs)
-//
-//    for(degree <- 2 to 100)
-//    {
-//      //assert(committeeMember.dkg.testInterpolation(degree))
-//
-//      print("degree " + degree + " : ")
-//      if (committeeMember.dkg.testInterpolation(degree))
-//        println("OK")
-//      else
-//        println("ERR")
-//    }
-//  }
+  test("dkg_interpolation"){
+
+    val cs = new Cryptosystem
+    val dkg = new DistrKeyGen(cs, 0, new Array[CommitteeMemberAttr](0))
+
+    for(degree <- 2 to 100)
+    {
+      val result = dkg.testInterpolation(degree)
+
+      assert(result)
+
+      print("degree " + degree + " : ")
+      if (result)
+        println("OK")
+      else
+        println("ERR")
+    }
+  }
+
+  //--------------------------------------------------------------------------------------------------------------
 
   test("dkg_functionality"){
+
     val cs = new Cryptosystem
 
-    val committeeMembersAttrs = (0 to 5).map(new Integer(_)).map(new CommitteeMemberAttr(_, cs.basePoint.multiply(cs.getRand)))
+//    val committeeMembersAttrs = (0 to 5).map(new Integer(_)).map(CommitteeMemberAttr(_, cs.basePoint.multiply(cs.getRand)))
+    val committeeMembersAttrs = (0 to 5).map(new Integer(_)).map(CommitteeMemberAttr(_, new Array[Byte](0)))
 
     val committeeMembers = for (id <- committeeMembersAttrs.indices) yield {
       new CommitteeMember(cs, id, committeeMembersAttrs)
@@ -128,79 +118,17 @@ class DistrKeyGenTest  extends FunSuite {
       }
     }
 
-    val sharedPublicKeys = sharedPublicKeysAfterR2.map(_._2.sharedPublicKey).map(ecSpec.getCurve.decodePoint(_))
+    val sharedPublicKeys = sharedPublicKeysAfterR2.map(_._2.sharedPublicKey).map(cs.decodePoint)
 
     // Verify, that each committee has obtained the same shared public key after round 2
     assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys(0))))
 
     // Using individual public keys to calculate the shared public key without any secret key reconstruction
-    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(ecSpec.getCurve.getInfinity){(publicKeysSum, publicKey) => publicKeysSum.add(publicKey)}
+    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(cs.infinityPoint){(publicKeysSum, publicKey) => publicKeysSum.add(publicKey)}
 
     // Verify, that shared public key is equal to the original public key
     assert(publicKeysSum.equals(sharedPublicKeys(0)))
   }
 
   //--------------------------------------------------------------------------------------------------------------
-
-//  test("dkg_speed")
-//  {
-//    println("--------------------------------------------------------------------------------------")
-//    println("Performance test")
-//    println("--------------------------------------------------------------------------------------")
-//
-//    val cs = new Cryptosystem
-//
-//    val commiteeMembersNum = 100
-//
-//    println("Committee members number: " + commiteeMembersNum)
-//
-//    val committeeMembersAttrs = (0 until commiteeMembersNum).map(new Integer(_)).map(new CommitteeMemberAttr(_, cs.basePoint.multiply(cs.getRand)))
-//
-//    val committeeMembers = for (id <- committeeMembersAttrs.indices) yield {
-//      new CommitteeMember(cs, id, committeeMembersAttrs)
-//    }
-//
-//    var t0 = System.nanoTime()
-//    val r1Data = for (currentId <- committeeMembersAttrs.indices) yield {
-//      committeeMembers(currentId).setKeyR1()
-//    }
-//    var t1 = System.nanoTime()
-//    println("Round 1: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
-//
-//    t0 = System.nanoTime()
-//    val r2Data = for (currentId <- committeeMembersAttrs.indices) yield {
-//      committeeMembers(currentId).setKeyR2(r1Data)
-//    }
-//    t1 = System.nanoTime()
-//    println("Round 2: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
-//
-//    t0 = System.nanoTime()
-//    val r3Data = for (currentId <- committeeMembersAttrs.indices) yield {
-//      committeeMembers(currentId).setKeyR3(r2Data)
-//    }
-//    t1 = System.nanoTime()
-//    println("Round 3: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
-//
-//    t0 = System.nanoTime()
-//    val r4Data = for (currentId <- committeeMembersAttrs.indices) yield {
-//      committeeMembers(currentId).setKeyR4(r3Data)
-//    }
-//    t1 = System.nanoTime()
-//    println("Round 4: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
-//
-//    t0 = System.nanoTime()
-//    val r5_1Data = for (currentId <- committeeMembersAttrs.indices) yield {
-//      committeeMembers(currentId).setKeyR5_1(r4Data)
-//    }
-//    t1 = System.nanoTime()
-//    println("Round 5.1: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
-//
-//    t0 = System.nanoTime()
-//    val sharedPublicKeys = for (currentId <- committeeMembersAttrs.indices) yield {
-//      (currentId, committeeMembers(currentId).setKeyR5_2(r5_1Data))
-//    }
-//    t1 = System.nanoTime()
-//    println("Round 5.2: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
-//    println("--------------------------------------------------------------------------------------")
-//  }
 }
