@@ -8,7 +8,7 @@ import org.bouncycastle.jce.spec.ECParameterSpec
 import org.scalatest.FunSuite
 import java.util.Random
 
-import treasury.crypto.keygen.{Committee, R1Data, R3Data}
+import treasury.crypto.keygen.{CommitteeMember, CommitteeMemberAttr,R1Data, R3Data}
 
 class DistrKeyGenTest  extends FunSuite {
 
@@ -22,17 +22,17 @@ class DistrKeyGenTest  extends FunSuite {
     val g = ecSpec.getG
     val h = g.multiply(new BigInteger("5"))
 
-    val committeesIDs = (0 to 5).map(new Integer(_))
+    val committeeMembersAttrs = (0 to 5).map(new Integer(_)).map(new CommitteeMemberAttr(_, new PubKey(0)))
 
-    val committees = for (id <- committeesIDs.indices) yield {
-      new Committee(ecSpec, g.getEncoded(true), h.getEncoded(true), id, committeesIDs)
+    val committeeMembers = for (id <- committeeMembersAttrs.indices) yield {
+      new CommitteeMember(ecSpec, g.getEncoded(true), h.getEncoded(true), id, committeeMembersAttrs)
     }
 
-    var r1Data = for (currentId <- committeesIDs.indices) yield {
-      committees(currentId).setKeyR1()
+    var r1Data = for (currentId <- committeeMembersAttrs.indices) yield {
+      committeeMembers(currentId).setKeyR1()
     }
 
-    // Changing commitments of some committees to get complain on them
+    // Changing commitments of some committee members to get complain on them
     //
     r1Data.map
     {
@@ -42,22 +42,22 @@ class DistrKeyGenTest  extends FunSuite {
 //        if(rand.nextBoolean())
         if(x.issuerID == 0)
         {
-          println(x.issuerID + " committee's commitment modified on Round 2")
+          println(x.issuerID + " committee members's commitment modified on Round 2")
           E(0) = ecSpec.getCurve.getInfinity.getEncoded(true)
         }
         R1Data(x.issuerID, E, x.S_a, x.S_b)
       }
     }
 
-    val r2Data = for (currentId <- committeesIDs.indices) yield {
-      committees(currentId).setKeyR2(r1Data)
+    val r2Data = for (currentId <- committeeMembersAttrs.indices) yield {
+      committeeMembers(currentId).setKeyR2(r1Data)
     }
 
-    val r3Data = for (currentId <- committeesIDs.indices) yield {
-      committees(currentId).setKeyR3(r2Data)
+    val r3Data = for (currentId <- committeeMembersAttrs.indices) yield {
+      committeeMembers(currentId).setKeyR3(r2Data)
     }
 
-    // Changing commitments of some committees to get complain on them
+    // Changing commitments of some committee members to get complain on them
     //
     r3Data.map
     {
@@ -67,23 +67,23 @@ class DistrKeyGenTest  extends FunSuite {
 //        if(rand.nextBoolean())
         if(x.issuerID == 1)
         {
-          println(x.issuerID + " committee's commitment modified on Round 3")
+          println(x.issuerID + " committee members's commitment modified on Round 3")
           commitments(0) = ecSpec.getCurve.getInfinity.getEncoded(true)
         }
         R3Data(x.issuerID, commitments)
       }
     }
 
-    val r4Data = for (currentId <- committeesIDs.indices) yield {
-      committees(currentId).setKeyR4(r3Data)
+    val r4Data = for (currentId <- committeeMembersAttrs.indices) yield {
+      committeeMembers(currentId).setKeyR4(r3Data)
     }
 
-    val r5_1Data = for (currentId <- committeesIDs.indices) yield {
-      committees(currentId).setKeyR5_1(r4Data)
+    val r5_1Data = for (currentId <- committeeMembersAttrs.indices) yield {
+      committeeMembers(currentId).setKeyR5_1(r4Data)
     }
 
-    val sharedPublicKeys = for (currentId <- committeesIDs.indices) yield {
-      (currentId, committees(currentId).setKeyR5_2(r5_1Data))
+    val sharedPublicKeys = for (currentId <- committeeMembersAttrs.indices) yield {
+      (currentId, committeeMembers(currentId).setKeyR5_2(r5_1Data))
     }
 
     //---------------------------------------------------------------
@@ -91,8 +91,8 @@ class DistrKeyGenTest  extends FunSuite {
     //---------------------------------------------------------------
 
     // Calculating the individual public keys (pk_i = g^sk_i for each committee)
-    var individualPublicKeys = for(i <- committees.indices) yield {
-      (committees(i).ownID, g.multiply(committees(i).secretKey))
+    var individualPublicKeys = for(i <- committeeMembers.indices) yield {
+      (committeeMembers(i).ownID, g.multiply(committeeMembers(i).secretKey))
     }
 
     var sharedPublicKeysAfterR2 = sharedPublicKeys
@@ -134,57 +134,57 @@ class DistrKeyGenTest  extends FunSuite {
     val g = ecSpec.getG
     val h = g.multiply(new BigInteger("5"))
 
-    val commiteesNum = 100
+    val commiteeMembersNum = 100
 
-    println("Committees number: " + commiteesNum)
+    println("Committee members number: " + commiteeMembersNum)
 
-    val committeesIDs = (0 until commiteesNum).map(new Integer(_))
+    val committeeMembersAttrs = (0 until commiteeMembersNum).map(new Integer(_)).map(new CommitteeMemberAttr(_, new PubKey(0)))
 
-    val committees = for (id <- committeesIDs.indices) yield {
-      new Committee(ecSpec, g.getEncoded(true), h.getEncoded(true), id, committeesIDs)
+    val committeeMembers = for (id <- committeeMembersAttrs.indices) yield {
+      new CommitteeMember(ecSpec, g.getEncoded(true), h.getEncoded(true), id, committeeMembersAttrs)
     }
 
     var t0 = System.nanoTime()
-    val r1Data = for (currentId <- committeesIDs.indices) yield {
-      committees(currentId).setKeyR1()
+    val r1Data = for (currentId <- committeeMembersAttrs.indices) yield {
+      committeeMembers(currentId).setKeyR1()
     }
     var t1 = System.nanoTime()
-    println("Round 1: " + ((t1-t0).toFloat/1000000000)/commiteesNum + " sec per committee")
+    println("Round 1: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
 
     t0 = System.nanoTime()
-    val r2Data = for (currentId <- committeesIDs.indices) yield {
-      committees(currentId).setKeyR2(r1Data)
+    val r2Data = for (currentId <- committeeMembersAttrs.indices) yield {
+      committeeMembers(currentId).setKeyR2(r1Data)
     }
     t1 = System.nanoTime()
-    println("Round 2: " + ((t1-t0).toFloat/1000000000)/commiteesNum + " sec per committee")
+    println("Round 2: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
 
     t0 = System.nanoTime()
-    val r3Data = for (currentId <- committeesIDs.indices) yield {
-      committees(currentId).setKeyR3(r2Data)
+    val r3Data = for (currentId <- committeeMembersAttrs.indices) yield {
+      committeeMembers(currentId).setKeyR3(r2Data)
     }
     t1 = System.nanoTime()
-    println("Round 3: " + ((t1-t0).toFloat/1000000000)/commiteesNum + " sec per committee")
+    println("Round 3: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
 
     t0 = System.nanoTime()
-    val r4Data = for (currentId <- committeesIDs.indices) yield {
-      committees(currentId).setKeyR4(r3Data)
+    val r4Data = for (currentId <- committeeMembersAttrs.indices) yield {
+      committeeMembers(currentId).setKeyR4(r3Data)
     }
     t1 = System.nanoTime()
-    println("Round 4: " + ((t1-t0).toFloat/1000000000)/commiteesNum + " sec per committee")
+    println("Round 4: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
 
     t0 = System.nanoTime()
-    val r5_1Data = for (currentId <- committeesIDs.indices) yield {
-      committees(currentId).setKeyR5_1(r4Data)
+    val r5_1Data = for (currentId <- committeeMembersAttrs.indices) yield {
+      committeeMembers(currentId).setKeyR5_1(r4Data)
     }
     t1 = System.nanoTime()
-    println("Round 5.1: " + ((t1-t0).toFloat/1000000000)/commiteesNum + " sec per committee")
+    println("Round 5.1: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
 
     t0 = System.nanoTime()
-    val sharedPublicKeys = for (currentId <- committeesIDs.indices) yield {
-      (currentId, committees(currentId).setKeyR5_2(r5_1Data))
+    val sharedPublicKeys = for (currentId <- committeeMembersAttrs.indices) yield {
+      (currentId, committeeMembers(currentId).setKeyR5_2(r5_1Data))
     }
     t1 = System.nanoTime()
-    println("Round 5.2: " + ((t1-t0).toFloat/1000000000)/commiteesNum + " sec per committee")
+    println("Round 5.2: " + ((t1-t0).toFloat/1000000000)/commiteeMembersNum + " sec per committee member")
     println("--------------------------------------------------------------------------------------")
   }
 }

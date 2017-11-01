@@ -5,9 +5,9 @@ import java.util.Random
 
 import org.bouncycastle.jce.spec.ECParameterSpec
 
-class Committee(val ecSpec: ECParameterSpec, val g: Array[Byte], val h: Array[Byte], val ownID: Integer, val committeesIDs: Seq[Integer] ) {
+class CommitteeMember(val ecSpec: ECParameterSpec, val g: Array[Byte], val h: Array[Byte], val ownID: Integer, val committeeMembersAttrs: Seq[CommitteeMemberAttr] ) {
 
-  val dkg = new DistrKeyGen(ecSpec, ecSpec.getCurve.decodePoint(g), ecSpec.getCurve.decodePoint(h), ownID, committeesIDs)
+  val dkg = new DistrKeyGen(ecSpec, ecSpec.getCurve.decodePoint(g), ecSpec.getCurve.decodePoint(h), ownID, committeeMembersAttrs)
   val secretKey = new BigInteger(ecSpec.getN.bitLength(), new Random).mod(ecSpec.getN)
 
   def setKeyR1(): R1Data = {

@@ -10,11 +10,11 @@ import scala.collection.mutable.ArrayBuffer
 
 // Distributed Key Generation, based on Elliptic Curves
 //
-class DistrKeyGen(ecSpec:         ECParameterSpec,
-                  g:              ECPoint,
-                  h:              ECPoint,
-                  ownID:          Integer,
-                  committeesIDs:  Seq[Integer])
+class DistrKeyGen(ecSpec:                 ECParameterSpec,
+                  g:                      ECPoint,
+                  h:                      ECPoint,
+                  ownID:                  Integer,
+                  committeeMembersAttrs:  Seq[CommitteeMemberAttr])
 {
   class Polynomial(a_0: BigInteger, p: BigInteger, degree: Integer)
   {
@@ -43,15 +43,15 @@ class DistrKeyGen(ecSpec:         ECParameterSpec,
     }
   }
 
-  case class CSR_commitment(issuerID: Integer, csr_commitment: Array[ECPoint])
+  case class CRS_commitment(issuerID: Integer, csr_commitment: Array[ECPoint])
   case class Commitment(issuerID: Integer, commitment: Array[ECPoint])
   case class Share(issuerID: Integer, share_a: SecretShare, share_b: SecretShare)
 
-  val CSR_commitments = new ArrayBuffer[CSR_commitment]() // CSR commitments of other participants
+  val CRS_commitments = new ArrayBuffer[CRS_commitment]() // CRS commitments of other participants
   val commitments = new ArrayBuffer[Commitment]()         // Commitments of other participants
   val shares = new ArrayBuffer[Share]()                   // Shares of other participants
 
-  val n = committeesIDs.size          // Total number of protocol participants
+  val n = committeeMembersAttrs.size  // Total number of protocol participants
   val t = (n.toFloat / 2).ceil.toInt  // Threshold number of participants
   val A = new Array[ECPoint](t)       // Own commitments
 
@@ -70,14 +70,12 @@ class DistrKeyGen(ecSpec:         ECParameterSpec,
     for(i <- A.indices)
       A(i) = g.multiply(poly_a(i))
 
-    // CSR commitments for each coefficient of both polynomials
+    // CRS commitments for each coefficient of both polynomials
     //
     for(i <- r1Data.E.indices)
       r1Data.E(i) = A(i).add(h.multiply(poly_b(i))).getEncoded(true)
 
-    val recipientsIDs = committeesIDs.filter(_ != ownID)
-
-//    val shares = new ArrayBuffer[SecretShare]()
+    val recipientsIDs = committeeMembersAttrs.map(_.id).filter(_ != ownID)
 
     // Secret shares for each committee member
     //
@@ -89,12 +87,7 @@ class DistrKeyGen(ecSpec:         ECParameterSpec,
       // TODO: Add encryption of shares
       r1Data.S_a(i) = SecretShare(recipientsIDs(i), x, poly_a(X).toByteArray)
       r1Data.S_b(i) = SecretShare(recipientsIDs(i), x, poly_b(X).toByteArray)
-//      shares += SecretShare(x, recipientsIDs(i), poly_a(X).toByteArray)
     }
-
-//    val restoredA0 = restoreSecret(shares)
-//    val isEq = restoredA0.equals(poly_a(0))
-//    println(ownID + " : " + poly_a(0).toString)
     r1Data
   }
 
@@ -129,10 +122,10 @@ class DistrKeyGen(ecSpec:         ECParameterSpec,
           if(checkOnCSR(r1Data(i).S_a(j), r1Data(i).S_b(j), r1Data(i).E))
           {
             shares += Share(r1Data(i).issuerID, r1Data(i).S_a(j), r1Data(i).S_b(j))
-            CSR_commitments += CSR_commitment(r1Data(i).issuerID, r1Data(i).E.map(x => ecSpec.getCurve.decodePoint(x)))
+            CRS_commitments += CRS_commitment(r1Data(i).issuerID, r1Data(i).E.map(x => ecSpec.getCurve.decodePoint(x)))
           }
           else
-            complains += new ComplainR2(r1Data(i).issuerID)
+            complains += ComplainR2(r1Data(i).issuerID)
         }
       }
     }
@@ -149,9 +142,9 @@ class DistrKeyGen(ecSpec:         ECParameterSpec,
       {
         // TODO: Check validity of the complain
 
-        val violatorCSRCommitment = CSR_commitments.find(_.issuerID == r2Data(i).complains(j).violatorID)
+        val violatorCSRCommitment = CRS_commitments.find(_.issuerID == r2Data(i).complains(j).violatorID)
         if(violatorCSRCommitment.isDefined)
-          CSR_commitments -= violatorCSRCommitment.get
+          CRS_commitments -= violatorCSRCommitment.get
 
         val violatorShare = shares.find(_.issuerID == r2Data(i).complains(j).violatorID)
         if(violatorShare.isDefined)
@@ -220,7 +213,7 @@ class DistrKeyGen(ecSpec:         ECParameterSpec,
   {
     def checkComplain(complain: ComplainR4): Boolean =
     {
-      val violatorsCSRCommitment = CSR_commitments.find(_.issuerID == complain.violatorID).get
+      val violatorsCSRCommitment = CRS_commitments.find(_.issuerID == complain.violatorID).get
       val CSR_Ok = checkOnCSR(complain.share_a, complain.share_b, violatorsCSRCommitment.csr_commitment.map(_.getEncoded(true)))
 
       val violatorsCommitment = commitments.find(_.issuerID == complain.violatorID).get
