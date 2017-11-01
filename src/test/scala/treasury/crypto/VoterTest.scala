@@ -11,7 +11,7 @@ class VoterTest extends FunSuite {
     val voterId = 6
     val numberOfExperts = 6
 
-    val voter = new RegularVoter(cs, voterId, numberOfExperts, pubKey, Array(1))
+    val voter = new RegularVoter(cs, voterId, numberOfExperts, pubKey, One)
     val ballot = voter.produceVote(0, 3, VoteCases.Abstain).asInstanceOf[VoterBallot]
 
     assert(ballot.uvDelegations.size == numberOfExperts)

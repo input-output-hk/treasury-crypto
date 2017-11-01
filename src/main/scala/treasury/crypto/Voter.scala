@@ -1,5 +1,6 @@
 package treasury.crypto
 
+import java.math.BigInteger
 import java.nio.ByteBuffer
 
 import treasury.crypto.nizk.shvzk.SHVZKGen
@@ -46,7 +47,7 @@ sealed trait Voter {
         assert(expertChoice.size == Ballot.VOTER_CHOISES_NUM)
 
         val delegatedStake = cs.decrypt(privateKey, delegations(ballot.issuerId))
-        expertChoice.map(c => cs.multiply(c, BigInt(delegatedStake).toByteArray))
+        expertChoice.map(c => cs.multiply(c, delegatedStake))
       }
     }
 
@@ -106,7 +107,7 @@ sealed trait Voter {
           if(expertsNum != 0 && expertsNum != voterBallot.expertsNum ||
             regularUvDelegationsSize != 0 && regularUvDelegationsSize != voterBallot.uvDelegations.size ||
             regularUvChoiceSize != 0 && regularUvChoiceSize != voterBallot.uvChoice.size)
-            return TallyResult(0,0,0)
+            return TallyResult(Zero,Zero,Zero)
 
         case expertBallot: ExpertBallot =>
 
@@ -114,7 +115,7 @@ sealed trait Voter {
             expertUnitVectorSize = expertBallot.uvChoice.size
 
           if(expertUnitVectorSize != 0 && expertUnitVectorSize != expertBallot.uvChoice.size)
-            return TallyResult(0,0,0)
+            return TallyResult(Zero,Zero,Zero)
       }
     }
 
@@ -164,14 +165,14 @@ sealed trait Voter {
 
     // Decryption of the summed delegations of the regular voters
     //
-    var delegationsResult = new Array[Int](regularUvDelegationsSize)
+    var delegationsResult = new Array[BigInteger](regularUvDelegationsSize)
 
     for(i <- 0 until regularUvDelegationsSize)
       delegationsResult(i) = cs.decrypt(privateKey, delegationsSum(i))
 
     // Decryption of the summed votes of the regular voters
     //
-    var regularVotesResult = new Array[Int](regularUvChoiceSize)
+    var regularVotesResult = new Array[BigInteger](regularUvChoiceSize)
 
     for(i <- 0 until regularUvChoiceSize)
       regularVotesResult(i) = cs.decrypt(privateKey, regularVotesSum(i))
@@ -180,7 +181,7 @@ sealed trait Voter {
     //
     for(i <- 0 until expertsBallots.size)
       for(j <- 0 until expertUnitVectorSize )
-        expertsBallots(i).uvChoice(j) = cs.multiply(expertsBallots(i).uvChoice(j), ByteBuffer.allocate(4).putInt(delegationsResult(expertsBallots(i).issuerId)).array())
+        expertsBallots(i).uvChoice(j) = cs.multiply(expertsBallots(i).uvChoice(j), delegationsResult(expertsBallots(i).issuerId))
 
     // Unit-wise summation of the weighted experts votes
     //
@@ -199,7 +200,7 @@ sealed trait Voter {
 
     // Decryption of the summed ballots of the experts
     //
-    var expertVotesResult = new Array[Int](expertUnitVectorSize)
+    var expertVotesResult = new Array[BigInteger](expertUnitVectorSize)
 
     for(i <- 0 until expertUnitVectorSize ) {
       expertVotesResult(i) = cs.decrypt(privateKey, expertVotesSum(i))
@@ -208,9 +209,9 @@ sealed trait Voter {
     // Total sum of regular voters and experts votes
     //
     TallyResult(
-      expertVotesResult(0) + regularVotesResult(0),
-      expertVotesResult(1) + regularVotesResult(1),
-      expertVotesResult(2) + regularVotesResult(2)
+      expertVotesResult(0).add(regularVotesResult(0)),
+      expertVotesResult(1).add(regularVotesResult(1)),
+      expertVotesResult(2).add(regularVotesResult(2))
     )
   }
 }
@@ -219,7 +220,7 @@ case class RegularVoter(val cs: Cryptosystem,
                         val voterID: Integer,
                         val expertsNum: Integer,
                         val publicKey: PubKey,
-                        val stake: Array[Byte]) extends Voter {
+                        val stake: BigInteger) extends Voter {
 
   def produceVote(proposalID: Integer, delegationChoice: Int, choice: VoteCases.Value): Ballot = {
 
@@ -231,16 +232,16 @@ case class RegularVoter(val cs: Cryptosystem,
 
     if (delegationChoice >= 0 && delegationChoice < expertsNum) {
       for (i <- 0 until ballot.uvDelegations.size) {
-        ballot.uvDelegations(i) = cs.encrypt(publicKey, randDeleg(i), if (i == delegationChoice) 1 else 0)
+        ballot.uvDelegations(i) = cs.encrypt(publicKey, randDeleg(i), if (i == delegationChoice) One else Zero)
       }
       for (i <- 0 until ballot.uvChoice.size) {
-        ballot.uvChoice(i) = cs.encrypt(publicKey, randChoice(i), 0)
+        ballot.uvChoice(i) = cs.encrypt(publicKey, randChoice(i), Zero)
       }
       choiceIdx = delegationChoice
     }
     else {
       for (i <- 0 until ballot.uvDelegations.size) {
-        ballot.uvDelegations(i) = cs.encrypt(publicKey, randDeleg(i), 0)
+        ballot.uvDelegations(i) = cs.encrypt(publicKey, randDeleg(i), Zero)
       }
       for (i <- 0 until ballot.uvChoice.size) {
         val pos = choice match {
@@ -248,7 +249,7 @@ case class RegularVoter(val cs: Cryptosystem,
           case VoteCases.No       => 1
           case VoteCases.Abstain  => 2
         }
-        ballot.uvChoice(i) = cs.encrypt(publicKey, randChoice(i), if (i == pos) 1 else 0)
+        ballot.uvChoice(i) = cs.encrypt(publicKey, randChoice(i), if (i == pos) One else Zero)
         choiceIdx = expertsNum + pos
       }
     }
@@ -282,7 +283,7 @@ case class Expert(val cs: Cryptosystem,
       }
 
     for (i <- 0 until expertBallot.uvChoice.size) {
-      expertBallot.uvChoice(i) = cs.encrypt(publicKey, randomness(i), if (i == nonZeroElementPos) 1 else 0)
+      expertBallot.uvChoice(i) = cs.encrypt(publicKey, randomness(i), if (i == nonZeroElementPos) One else Zero)
     }
 
     expertBallot

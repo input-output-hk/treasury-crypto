@@ -6,15 +6,13 @@ import java.util.Random
 
 import org.bouncycastle.jce.spec.ECParameterSpec
 import org.bouncycastle.math.ec.ECPoint
-import org.bouncycastle.math.field.Polynomial
+import treasury.crypto.Cryptosystem
 
 import scala.collection.mutable.ArrayBuffer
 
 // Distributed Key Generation, based on Elliptic Curves
 //
-class DistrKeyGen(ecSpec:                 ECParameterSpec,
-                  g:                      ECPoint,
-                  h:                      ECPoint,
+class DistrKeyGen(cs: Cryptosystem,
                   ownID:                  Integer,
                   committeeMembersAttrs:  Seq[CommitteeMemberAttr])
 {
@@ -49,6 +47,15 @@ class DistrKeyGen(ecSpec:                 ECParameterSpec,
   case class Commitment(issuerID: Integer, commitment: Array[ECPoint])
   case class Share(issuerID: Integer, share_a: SecretShare, share_b: SecretShare)
 
+  private val g = cs.basePoint
+  private val h = {
+    val bytes: Array[Byte] = committeeMembersAttrs.sortBy(_.id).foldLeft(Array[Byte]()) {
+      (acc, c) => acc ++ c.publicKey.getEncoded(true)
+    }
+    val crs = new BigInteger(cs.hash256(bytes)).mod(cs.orderOfBasePoint)
+    g.multiply(crs)
+  }
+
   val CRS_commitments = new ArrayBuffer[CRS_commitment]() // CRS commitments of other participants
   val commitments = new ArrayBuffer[Commitment]()         // Commitments of other participants
   val shares = new ArrayBuffer[Share]()                   // Shares of other participants
@@ -67,8 +74,8 @@ class DistrKeyGen(ecSpec:                 ECParameterSpec,
 
   def doRound1(secretKey: Array[Byte]): R1Data =
   {
-    val poly_a = new Polynomial(new BigInteger(secretKey), ecSpec.getN, t)
-    val poly_b = new Polynomial(new BigInteger(secretKey), ecSpec.getN, t)
+    val poly_a = new Polynomial(new BigInteger(secretKey), cs.orderOfBasePoint, t)
+    val poly_b = new Polynomial(new BigInteger(secretKey), cs.orderOfBasePoint, t)
 
     val r1Data = R1Data(ownID, new Array[Array[Byte]](t), new Array[SecretShare](n-1), new Array[SecretShare](n-1))
 
@@ -360,7 +367,7 @@ class DistrKeyGen(ecSpec:                 ECParameterSpec,
       honestPublicKeysSum = honestPublicKeysSum.add(commitments(i).commitment(0))
     }
 
-    var violatorsPublicKeysSum: ECPoint = ecSpec.getCurve.getInfinity
+    var violatorsPublicKeysSum: ECPoint = cs.infinityPoint
     for(i <- violatorsPublicKeys.indices){
       violatorsPublicKeysSum = violatorsPublicKeysSum.add(violatorsPublicKeys(i))
     }

@@ -3,7 +3,7 @@
 		"input": {
 			"pubkey": "02381392dfc97af3ef1e9bb75a7816d0f1c436e72309519b00113e6192327d85d9",
 			"randomness": "64",
-			"message": "400"
+			"message": "0400"
 		},
 		"output": {
 			"ciphertext": {
@@ -22,7 +22,7 @@
 			}
 		},
 		"output": {
-			"message": "400"
+			"message": "0400"
 		}
 	},
 

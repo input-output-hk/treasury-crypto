@@ -39,19 +39,12 @@ class DistrKeyGenTest  extends FunSuite {
 //  }
 
   test("dkg_functionality"){
+    val cs = new Cryptosystem
 
-    Security.addProvider(new BouncyCastleProvider())
-    val ecSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec("secp256k1")
-    val rand = new Random
-
-    // CSR parameters
-    val g = ecSpec.getG
-    val h = g.multiply(new BigInteger("5"))
-
-    val committeeMembersAttrs = (0 to 7).map(new Integer(_)).map(CommitteeMemberAttr(_, new PubKey(0)))
+    val committeeMembersAttrs = (0 to 5).map(new Integer(_)).map(new CommitteeMemberAttr(_, cs.basePoint.multiply(cs.getRand)))
 
     val committeeMembers = for (id <- committeeMembersAttrs.indices) yield {
-      new CommitteeMember(ecSpec, g.getEncoded(true), h.getEncoded(true), id, committeeMembersAttrs)
+      new CommitteeMember(cs, id, committeeMembersAttrs)
     }
 
     var r1Data = for (currentId <- committeeMembersAttrs.indices) yield {
@@ -69,7 +62,7 @@ class DistrKeyGenTest  extends FunSuite {
         if(x.issuerID == 0)
         {
           println(x.issuerID + " committee members's commitment modified on Round 2")
-          E(0) = ecSpec.getCurve.getInfinity.getEncoded(true)
+          E(0) = cs.infinityPoint.getEncoded(true)
         }
         R1Data(x.issuerID, E, x.S_a, x.S_b)
       }
@@ -94,7 +87,7 @@ class DistrKeyGenTest  extends FunSuite {
         if(x.issuerID == 1 || x.issuerID == 3)
         {
           println(x.issuerID + " committee members's commitment modified on Round 3")
-          commitments(0) = ecSpec.getCurve.getInfinity.getEncoded(true)
+          commitments(0) = cs.infinityPoint.getEncoded(true)
         }
         R3Data(x.issuerID, commitments)
       }
@@ -118,7 +111,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     // Calculating the individual public keys (pk_i = g^sk_i for each committee)
     var individualPublicKeys = for(i <- committeeMembers.indices) yield {
-      (committeeMembers(i).ownID, g.multiply(committeeMembers(i).secretKey))
+      (committeeMembers(i).ownID, cs.basePoint.multiply(committeeMembers(i).secretKey))
     }
 
     var sharedPublicKeysAfterR2 = r5_2Data
@@ -155,21 +148,16 @@ class DistrKeyGenTest  extends FunSuite {
 //    println("Performance test")
 //    println("--------------------------------------------------------------------------------------")
 //
-//    Security.addProvider(new BouncyCastleProvider())
-//    val ecSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec("secp256k1")
+//    val cs = new Cryptosystem
 //
-//    // CSR parameters
-//    val g = ecSpec.getG
-//    val h = g.multiply(new BigInteger("5"))
-//
-//    val commiteeMembersNum = 10
+//    val commiteeMembersNum = 100
 //
 //    println("Committee members number: " + commiteeMembersNum)
 //
-//    val committeeMembersAttrs = (0 until commiteeMembersNum).map(new Integer(_)).map(new CommitteeMemberAttr(_, new PubKey(0)))
+//    val committeeMembersAttrs = (0 until commiteeMembersNum).map(new Integer(_)).map(new CommitteeMemberAttr(_, cs.basePoint.multiply(cs.getRand)))
 //
 //    val committeeMembers = for (id <- committeeMembersAttrs.indices) yield {
-//      new CommitteeMember(ecSpec, g.getEncoded(true), h.getEncoded(true), id, committeeMembersAttrs)
+//      new CommitteeMember(cs, id, committeeMembersAttrs)
 //    }
 //
 //    var t0 = System.nanoTime()
