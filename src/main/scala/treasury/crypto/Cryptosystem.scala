@@ -8,7 +8,7 @@ import org.bouncycastle.jce.ECNamedCurveTable
 import org.bouncycastle.jce.interfaces.{ECPrivateKey, ECPublicKey}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.jce.spec.ECParameterSpec
-import org.bouncycastle.math.ec.ECPoint
+import org.bouncycastle.math.ec.{ECAlgorithms, ECPoint}
 
 /* Holds common params for Elliptic Curve cryptosystem that are used throughout the library
 */
@@ -38,23 +38,39 @@ class Cryptosystem {
     (privateKey.getD, publicKey.getQ)
   }
 
+  /* Implements Elliptic Curve version of Lifted ElGamal encryption.
+  *  A plaintext is represented as BigInteger.
+  * */
   def encrypt(pubKey: PubKey, rand: Randomness, msg: BigInteger): Ciphertext = {
-    val rG = ecSpec.getG.multiply(rand)
-    val rPk = pubKey.multiply(rand)
-    val mG = ecSpec.getG.multiply(msg)
-    val mGrPk = mG.add(rPk)
-
-    (rG, mGrPk)
+    val mG = basePoint.multiply(msg)
+    encryptPoint(pubKey, rand, mG)
   }
 
+  /* Implements Elliptic Curve version of Lifted ElGamal decryption.
+  *  A plaintext is represented as BigInteger. It is reconstructed by solving DLOG.
+  * */
   def decrypt(privKey: PrivKey, ciphertext: Ciphertext): BigInteger = {
-    val rG = ciphertext._1
-    val mGrPk = ciphertext._2
+    val point = decryptPoint(privKey, ciphertext)
+    discreteLog(point)
+  }
 
-    val t = rG.multiply(privKey)
-    val plaintext = mGrPk.subtract(t).normalize()
+  /* Implements Elliptic Curve version of classic ElGamal encryption.
+  *  A plaintext is represented as point on the curve.
+  * */
+  def encryptPoint(pubKey: PubKey, rand: Randomness, msg: Point): Ciphertext = {
+    val rG = basePoint.multiply(rand)
+    val rPk = pubKey.multiply(rand)
+    val MrPk = rPk.add(msg)
 
-    reconstructMessage(plaintext)
+    (rG, MrPk)
+  }
+
+  /* Implements Elliptic Curve version of classic ElGamal decryption.
+  *  A plaintext is represented as point on the curve.
+  * */
+  def decryptPoint(privKey: PrivKey, ciphertext: Ciphertext): Point = {
+    val rPk = ciphertext._1.multiply(privKey)
+    ciphertext._2.subtract(rPk).normalize()
   }
 
   // Pseudorandom number generation in Zp field (p = orderOfBasePoint)
@@ -109,8 +125,8 @@ class Cryptosystem {
     )
   }
 
-  /* Solve discrete logarithm for m*G */
-  private def reconstructMessage(plaintextPoint: ECPoint): BigInteger = {
+  /* Solve discrete logarithm for m*G. Assuming that the degree space is not big */
+  private def discreteLog(plaintextPoint: ECPoint): BigInteger = {
     var P = ecSpec.getG
 
     if (P.multiply(Zero).equals(plaintextPoint))
