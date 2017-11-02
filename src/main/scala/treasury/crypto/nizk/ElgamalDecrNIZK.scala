@@ -3,6 +3,7 @@ package treasury.crypto.nizk
 import java.math.BigInteger
 
 import treasury.crypto._
+import treasury.crypto.core._
 
 object ElgamalDecrNIZK {
 

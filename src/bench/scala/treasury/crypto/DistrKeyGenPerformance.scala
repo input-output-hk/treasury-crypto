@@ -1,5 +1,6 @@
 package treasury.crypto
 
+import treasury.crypto.core.Cryptosystem
 import treasury.crypto.keygen._
 
 class DistrKeyGenPerformance {

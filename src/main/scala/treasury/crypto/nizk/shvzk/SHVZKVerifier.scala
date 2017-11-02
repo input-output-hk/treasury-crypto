@@ -4,6 +4,7 @@ import java.math.BigInteger
 import java.util
 
 import treasury.crypto._
+import treasury.crypto.core._
 
 class SHVZKVerifier(cs: Cryptosystem,
                     pubKey: PubKey,

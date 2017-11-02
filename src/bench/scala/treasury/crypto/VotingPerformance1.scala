@@ -1,6 +1,7 @@
 package treasury.crypto
 
 import treasury.crypto.common.VotingSimulator
+import treasury.crypto.core.TimeUtils
 
 /* Benchmarking tally for different number of voters */
 class VotingPerformance1 {

@@ -2,7 +2,7 @@ package treasury.crypto.nizk.shvzk
 
 import java.math.BigInteger
 
-import treasury.crypto._
+import treasury.crypto.core._
 import treasury.crypto.math.BigIntPolynomial
 
 /* This class implements generation of Special Honest Verifier Zero Knowledge proof for unit vector */
@@ -15,10 +15,10 @@ class SHVZKGen(cs: Cryptosystem,
   private class Commitment(val idxBit: Byte) {
     assert(idxBit == 0 || idxBit == 1)
     val ik = BigInteger.valueOf(idxBit)
-    val alpha = cs.getRand()
-    val beta = cs.getRand()
-    val gamma = cs.getRand()
-    val delta = cs.getRand()
+    val alpha = cs.getRand
+    val beta = cs.getRand
+    val gamma = cs.getRand
+    val delta = cs.getRand
 
     val I = pedersenCommitment(crs, ik, alpha)
     val B = pedersenCommitment(crs, beta, gamma)
@@ -122,7 +122,7 @@ class SHVZKGen(cs: Cryptosystem,
           acc
         }.mod(cs.orderOfBasePoint)
 
-        val Rk = cs.getRand()
+        val Rk = cs.getRand
         (cs.encrypt(pubKey, Rk, sum), Rk)
       }
 

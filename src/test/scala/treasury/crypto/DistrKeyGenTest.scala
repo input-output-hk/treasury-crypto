@@ -1,6 +1,7 @@
 package treasury.crypto
 
 import org.scalatest.FunSuite
+import treasury.crypto.core.Cryptosystem
 import treasury.crypto.keygen._
 
 class DistrKeyGenTest  extends FunSuite {

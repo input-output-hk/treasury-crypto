@@ -1,6 +1,8 @@
 package treasury.crypto
 
 import org.scalatest.FunSuite
+import treasury.crypto.core.{Cryptosystem,One,VoteCases}
+import treasury.crypto.voting.{RegularVoter, VoterBallot}
 
 class VoterTest extends FunSuite {
 

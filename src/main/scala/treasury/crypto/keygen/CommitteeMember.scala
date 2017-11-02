@@ -4,7 +4,8 @@ import java.math.BigInteger
 import java.util.Random
 
 import org.bouncycastle.jce.spec.ECParameterSpec
-import treasury.crypto.{Cryptosystem, Point}
+import treasury.crypto.core.Point
+import treasury.crypto.core.Cryptosystem
 
 class CommitteeMember(val cs: Cryptosystem, val ownID: Integer, val h: Point, val committeeMembersAttrs: Seq[CommitteeMemberAttr] ) {
 

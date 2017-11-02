@@ -1,7 +1,7 @@
 package treasury.crypto.nizk
 
 import org.scalatest.FunSuite
-import treasury.crypto._
+import treasury.crypto.core._
 import treasury.crypto.nizk.shvzk.{SHVZKCommon, SHVZKGen, SHVZKVerifier}
 
 class SHVZKTest extends FunSuite {
@@ -12,7 +12,7 @@ class SHVZKTest extends FunSuite {
   def createUnitVector(size: Int, choice: Int): (Seq[Ciphertext], Seq[Randomness]) = {
     assert(size > choice)
     val t = for (i <- 0 until size) yield {
-      val rand = cs.getRand()
+      val rand = cs.getRand
       val ciphertext = cs.encrypt(pubKey, rand, if(choice == i) One else Zero)
       (ciphertext, rand)
     }

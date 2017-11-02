@@ -3,6 +3,8 @@ package treasury.crypto
 import java.math.BigInteger
 
 import org.scalatest.FunSuite
+import treasury.crypto.core._
+import treasury.crypto.voting.{Expert, RegularVoter}
 
 class VotingProtocolTest extends FunSuite {
 

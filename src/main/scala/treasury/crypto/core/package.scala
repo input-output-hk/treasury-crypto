@@ -1,11 +1,11 @@
-package treasury
+package treasury.crypto
 
 import java.math.BigInteger
 
 import org.bouncycastle.math.ec.ECPoint
 import org.scalameter._
 
-package object crypto {
+package object core {
 
   type PrivKey = BigInteger
   type PubKey = ECPoint

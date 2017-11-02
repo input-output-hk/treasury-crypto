@@ -1,8 +1,8 @@
-package treasury.crypto
+package treasury.crypto.voting
 
 import java.math.BigInteger
 
-import org.json.JSONObject
+import treasury.crypto.core._
 
 // The data structure for storing of the individual voter's/expert's choice
 trait Ballot {

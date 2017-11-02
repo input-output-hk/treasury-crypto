@@ -1,4 +1,4 @@
-package treasury.crypto
+package treasury.crypto.core
 
 import java.math.BigInteger
 import java.security.{KeyPair, KeyPairGenerator, SecureRandom, Security}
@@ -8,7 +8,7 @@ import org.bouncycastle.jce.ECNamedCurveTable
 import org.bouncycastle.jce.interfaces.{ECPrivateKey, ECPublicKey}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.jce.spec.ECParameterSpec
-import org.bouncycastle.math.ec.{ECAlgorithms, ECPoint}
+import org.bouncycastle.math.ec.ECPoint
 
 /* Holds common params for Elliptic Curve cryptosystem that are used throughout the library
 */
@@ -102,7 +102,7 @@ class Cryptosystem {
       try {
         ecSpec.getCurve.decodePoint(Array(2.toByte) ++ fElem.getEncoded)
       } catch {
-        case _ => findPoint(x.add(One).mod(fieldCharacteristic))
+        case _: Throwable => findPoint(x.add(One).mod(fieldCharacteristic))
       }
     }
 

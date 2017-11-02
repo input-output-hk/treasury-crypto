@@ -1,7 +1,6 @@
 package treasury.crypto.nizk
 
-import org.scalatest.FunSuite
-import treasury.crypto.TimeUtils
+import treasury.crypto.core.TimeUtils
 import treasury.crypto.nizk.shvzk.{SHVZKGen, SHVZKVerifier}
 
 /* Benchmarking Unit Vector ZK with log size communication */

@@ -3,8 +3,10 @@ package treasury.crypto.keygen
 import java.math.BigInteger
 import java.security.SecureRandom
 import java.util.Random
+
 import org.bouncycastle.math.ec.ECPoint
-import treasury.crypto.{Cryptosystem, Point}
+import treasury.crypto.core.Point
+import treasury.crypto.core.Cryptosystem
 
 import scala.collection.mutable.ArrayBuffer
 

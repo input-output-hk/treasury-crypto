@@ -2,7 +2,8 @@ package treasury.crypto.common
 
 import java.math.BigInteger
 
-import treasury.crypto._
+import treasury.crypto.core._
+import treasury.crypto.voting.{Ballot, Expert, RegularVoter}
 
 
 class VotingSimulator(val numberOfExperts: Int,

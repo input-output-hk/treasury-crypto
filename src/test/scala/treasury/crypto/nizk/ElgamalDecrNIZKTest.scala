@@ -3,7 +3,7 @@ package treasury.crypto.nizk
 import java.math.BigInteger
 
 import org.scalatest.FunSuite
-import treasury.crypto.Cryptosystem
+import treasury.crypto.core.Cryptosystem
 
 class ElgamalDecrNIZKTest extends FunSuite {
   test("elgamal decryption nizk") {

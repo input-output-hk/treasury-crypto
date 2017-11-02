@@ -2,6 +2,7 @@ package treasury.crypto
 
 import org.scalatest.FunSuite
 import treasury.crypto.common.VotingSimulator
+import treasury.crypto.core.{TimeUtils, VoteCases}
 
 /* Benchmarking ballot creation */
 class BallotCreationPerformance extends FunSuite {

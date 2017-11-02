@@ -3,6 +3,7 @@ package treasury.crypto.nizk.shvzk
 import java.math.BigInteger
 
 import treasury.crypto._
+import treasury.crypto.core._
 
 class SHVZKCommon(val cs: Cryptosystem,
                   val pubKey: PubKey,

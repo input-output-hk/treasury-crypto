@@ -8,6 +8,7 @@ import org.bouncycastle.jce.spec.ECParameterSpec
 import org.bouncycastle.util.encoders.Hex
 import org.json.JSONObject
 import org.scalatest.FunSuite
+import treasury.crypto.core.Cryptosystem
 
 import scala.io.Source
 

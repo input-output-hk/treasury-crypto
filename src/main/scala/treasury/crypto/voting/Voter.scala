@@ -1,11 +1,9 @@
-package treasury.crypto
+package treasury.crypto.voting
 
 import java.math.BigInteger
-import java.nio.ByteBuffer
 
-import treasury.crypto.nizk.shvzk.SHVZKGen
-
-import scala.math.log10
+import treasury.crypto._
+import treasury.crypto.core._
 
 sealed trait Voter {
   val cs: Cryptosystem
@@ -227,8 +225,8 @@ case class RegularVoter(val cs: Cryptosystem,
     val ballot = new VoterBallot(voterID, proposalID, expertsNum, stake)
     var choiceIdx = 0
 
-    val randDeleg = for (i <- 0 until ballot.uvDelegations.size) yield cs.getRand()
-    val randChoice = for (i <- 0 until ballot.uvChoice.size) yield cs.getRand()
+    val randDeleg = for (i <- 0 until ballot.uvDelegations.size) yield cs.getRand
+    val randChoice = for (i <- 0 until ballot.uvChoice.size) yield cs.getRand
 
     if (delegationChoice >= 0 && delegationChoice < expertsNum) {
       for (i <- 0 until ballot.uvDelegations.size) {
@@ -273,7 +271,7 @@ case class Expert(val cs: Cryptosystem,
   def produceVote(proposalID: Integer, delegationChoice: Int, choice: VoteCases.Value): Ballot = {
 
     val expertBallot = new ExpertBallot(voterID, proposalID)
-    val randomness = for (i <- 0 until expertBallot.uvChoice.size) yield cs.getRand()
+    val randomness = for (i <- 0 until expertBallot.uvChoice.size) yield cs.getRand
 
     val nonZeroElementPos: Int =
       choice match {
