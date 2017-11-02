@@ -140,4 +140,9 @@ class CryptosystemTest extends FunSuite {
 
     assert(util.Arrays.equals(point1, point2))
   }
+
+  test("hash to point") {
+    val cs = new Cryptosystem
+    cs.hashToPoint(Array.fill[Byte](32)(0xFF.toByte))
+  }
 }

@@ -75,6 +75,26 @@ class Cryptosystem {
     md.digest
   }
 
+  /* This function is untested. There can be bugs. Don't use without re-checking. */
+  def hashToPoint(bytes: Array[Byte]): Point = {
+    val fieldCharacteristic = ecSpec.getCurve.getField.getCharacteristic
+    var fieldElem = new BigInteger(bytes).mod(fieldCharacteristic)
+
+    def findPoint(x: BigInteger): ECPoint = {
+      val fElem = ecSpec.getCurve.fromBigInteger(x)
+      try {
+        ecSpec.getCurve.decodePoint(Array(2.toByte) ++ fElem.getEncoded)
+      } catch {
+        case _ => findPoint(x.add(One).mod(fieldCharacteristic))
+      }
+    }
+
+    while(!ecSpec.getCurve.isValidFieldElement(fieldElem)) {
+      fieldElem = fieldElem.add(One)
+    }
+    findPoint(fieldElem)
+  }
+
   def decodePoint(point: Array[Byte]): ECPoint = {
     curve.decodePoint(point)
   }

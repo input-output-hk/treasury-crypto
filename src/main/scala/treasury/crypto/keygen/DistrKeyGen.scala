@@ -5,7 +5,7 @@ import java.util.Random
 
 import org.bouncycastle.jce.spec.ECParameterSpec
 import org.bouncycastle.math.ec.ECPoint
-import treasury.crypto.Cryptosystem
+import treasury.crypto.{Cryptosystem, Point}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -13,6 +13,7 @@ import scala.collection.mutable.ArrayBuffer
 //
 class DistrKeyGen(cs: Cryptosystem,
                   ownID:                  Integer,
+                  h:                      Point,
                   committeeMembersAttrs:  Seq[CommitteeMemberAttr])
 {
   class Polynomial(a_0: BigInteger, p: BigInteger, degree: Integer)
@@ -47,13 +48,6 @@ class DistrKeyGen(cs: Cryptosystem,
   case class Share(issuerID: Integer, share_a: SecretShare, share_b: SecretShare)
 
   private val g = cs.basePoint
-  private val h = {
-    val bytes: Array[Byte] = committeeMembersAttrs.sortBy(_.id).foldLeft(Array[Byte]()) {
-      (acc, c) => acc ++ c.publicKey.getEncoded(true)
-    }
-    val crs = new BigInteger(cs.hash256(bytes)).mod(cs.orderOfBasePoint)
-    g.multiply(crs)
-  }
 
   val CRS_commitments = new ArrayBuffer[CRS_commitment]() // CRS commitments of other participants
   val commitments = new ArrayBuffer[Commitment]()         // Commitments of other participants

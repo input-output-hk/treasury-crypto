@@ -4,11 +4,11 @@ import java.math.BigInteger
 import java.util.Random
 
 import org.bouncycastle.jce.spec.ECParameterSpec
-import treasury.crypto.Cryptosystem
+import treasury.crypto.{Cryptosystem, Point}
 
-class CommitteeMember(val cs: Cryptosystem, val ownID: Integer, val committeeMembersAttrs: Seq[CommitteeMemberAttr] ) {
+class CommitteeMember(val cs: Cryptosystem, val ownID: Integer, val h: Point, val committeeMembersAttrs: Seq[CommitteeMemberAttr] ) {
 
-  val dkg = new DistrKeyGen(cs, ownID, committeeMembersAttrs)
+  val dkg = new DistrKeyGen(cs, ownID, h, committeeMembersAttrs)
   val secretKey = cs.getRand
 
   def setKeyR1(): R1Data = {

@@ -14,11 +14,12 @@ class DistrKeyGenTest  extends FunSuite {
 
   test("dkg_functionality"){
     val cs = new Cryptosystem
+    val crs_h = cs.basePoint.multiply(cs.getRand)
 
     val committeeMembersAttrs = (0 to 5).map(new Integer(_)).map(new CommitteeMemberAttr(_, cs.basePoint.multiply(cs.getRand)))
 
     val committeeMembers = for (id <- committeeMembersAttrs.indices) yield {
-      new CommitteeMember(cs, id, committeeMembersAttrs)
+      new CommitteeMember(cs, id, crs_h, committeeMembersAttrs)
     }
 
     var r1Data = for (currentId <- committeeMembersAttrs.indices) yield {
@@ -121,6 +122,7 @@ class DistrKeyGenTest  extends FunSuite {
 //    println("--------------------------------------------------------------------------------------")
 //
 //    val cs = new Cryptosystem
+//    val crs_h = cs.basePoint.multiply(cs.getRand)
 //
 //    val commiteeMembersNum = 100
 //
@@ -129,7 +131,7 @@ class DistrKeyGenTest  extends FunSuite {
 //    val committeeMembersAttrs = (0 until commiteeMembersNum).map(new Integer(_)).map(new CommitteeMemberAttr(_, cs.basePoint.multiply(cs.getRand)))
 //
 //    val committeeMembers = for (id <- committeeMembersAttrs.indices) yield {
-//      new CommitteeMember(cs, id, committeeMembersAttrs)
+//      new CommitteeMember(cs, id, crs_h, committeeMembersAttrs)
 //    }
 //
 //    var t0 = System.nanoTime()
