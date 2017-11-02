@@ -57,7 +57,8 @@ class Cryptosystem {
     reconstructMessage(plaintext)
   }
 
-  def getRand(): Randomness = {
+  // Pseudorandom number generation in Zp field (p = orderOfBasePoint)
+  def getRand: Randomness = {
     new BigInteger(orderOfBasePoint.bitLength, secureRandom).mod(orderOfBasePoint)
   }
 

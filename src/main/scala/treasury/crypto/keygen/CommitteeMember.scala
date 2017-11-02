@@ -31,7 +31,7 @@ class CommitteeMember(val cs: Cryptosystem, val ownID: Integer, val h: Point, va
     dkg.doRound5_1(r4Data)
   }
 
-  def setKeyR5_2(r5_1Data: Seq[R5_1Data]): SharedPublicKey = {
+  def setKeyR5_2(r5_1Data: Seq[R5_1Data]): R5_2Data = {
     dkg.doRound5_2(r5_1Data)
   }
 }
