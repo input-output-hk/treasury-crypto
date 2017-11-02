@@ -1,10 +1,8 @@
 package treasury.crypto.keygen
 
 import java.math.BigInteger
-import java.security.SecureRandom
-import java.util.Random
-
 import org.bouncycastle.math.ec.ECPoint
+
 import treasury.crypto.core.Point
 import treasury.crypto.core.Cryptosystem
 
@@ -17,38 +15,9 @@ class DistrKeyGen(cs:                     Cryptosystem,
                   h:                      Point,
                   committeeMembersAttrs:  Seq[CommitteeMemberAttr])
 {
-  class Polynomial(a_0: BigInteger, p: BigInteger, degree: Integer)
-  {
-    private val polynomial = new Array[BigInteger](degree)
-
-    // Generating random polynomial coefficients
-    for(i <- polynomial.indices)
-    {
-      if(i == 0)
-        polynomial(0) = a_0
-      else
-        polynomial(i) = randZp(p)
-    }
-
-    // Computing the polynomial value for specified x argument
-    def apply(x: BigInteger): BigInteger = {
-      var res = polynomial(0)
-      for(i <- 1 until polynomial.length)
-        res = polynomial(i).multiply(x.pow(i)).add(res).mod(p)
-      res
-    }
-
-    // Retrieving the value of coefficient by index
-    def apply(i: Integer): BigInteger = {
-      polynomial(i)
-    }
-  }
-
   case class CRS_commitment(issuerID: Integer, crs_commitment: Array[ECPoint])
   case class Commitment(issuerID: Integer, commitment: Array[ECPoint])
   case class Share(issuerID: Integer, share_a: SecretShare, share_b: SecretShare)
-
-  private val g = cs.basePoint
 
   private val CRS_commitments = new ArrayBuffer[CRS_commitment]() // CRS commitments of other participants
   private val commitments = new ArrayBuffer[Commitment]()         // Commitments of other participants
@@ -58,17 +27,14 @@ class DistrKeyGen(cs:                     Cryptosystem,
   private val n = committeeMembersAttrs.size  // Total number of protocol participants
   private val t = (n.toFloat / 2).ceil.toInt  // Threshold number of participants
   private val A = new Array[ECPoint](t)       // Own commitments
-  private val infinityPoint = cs.infinityPoint
 
-  // Pseudorandom number generation in Zp field
-  def randZp(p: BigInteger): BigInteger = {
-    new BigInteger(p.bitLength(), new Random).mod(p)
-  }
+  private val g = cs.basePoint
+  private val infinityPoint = cs.infinityPoint
 
   def doRound1(secretKey: Array[Byte]): R1Data =
   {
-    val poly_a = new Polynomial(new BigInteger(secretKey), cs.orderOfBasePoint, t)
-    val poly_b = new Polynomial(new BigInteger(secretKey), cs.orderOfBasePoint, t)
+    val poly_a = new Polynomial(cs, new BigInteger(secretKey), t)
+    val poly_b = new Polynomial(cs, new BigInteger(secretKey), t)
 
     val r1Data = R1Data(ownID, new Array[Array[Byte]](t), new Array[SecretShare](n-1), new Array[SecretShare](n-1))
 
@@ -125,7 +91,10 @@ class DistrKeyGen(cs:                     Cryptosystem,
             CRS_commitments += CRS_commitment(r1Data(i).issuerID, r1Data(i).E.map(x => cs.decodePoint(x)))
           }
           else
+          {
             complains += ComplainR2(r1Data(i).issuerID)
+            violatorsIDs += r1Data(i).issuerID
+          }
         }
       }
     }
@@ -256,70 +225,6 @@ class DistrKeyGen(cs:                     Cryptosystem,
     R5_1Data(ownID, violatorsShares.toArray)
   }
 
-  def testInterpolation(degree: Int): Boolean =
-  {
-    val secret = new BigInteger(cs.orderOfBasePoint.bitLength(), new SecureRandom()).mod(cs.orderOfBasePoint)
-    val poly = new Polynomial(secret, cs.orderOfBasePoint, degree)
-
-    val sharesNum = degree * 2 // ratio specific for voting protocol, as assumed t = n / 2, i.e. degree = sharesNum / 2
-    var shares = for(x <- 1 to sharesNum) yield {SecretShare(0, x, poly(BigInteger.valueOf(x)).toByteArray)}
-
-    val rnd = new scala.util.Random
-    val patchIndex = rnd.nextInt(sharesNum)
-    val patchLength = {
-      val maxLength = sharesNum - patchIndex
-      if(maxLength > degree) // the minimal number of shares needed for interpolation is equal to degree of polynomial
-        rnd.nextInt(degree)
-      else
-        rnd.nextInt(maxLength)
-    } + 1
-
-    // Delete random number of shares (imitation of committee members disqualification)
-    shares = shares.patch(patchIndex, Nil, patchLength)
-
-    val restoredSecret = restoreSecret(shares)
-
-    secret.equals(restoredSecret)
-  }
-
-  def getLagrangeCoeff(x: Integer, shares: Seq[SecretShare]): BigInteger =
-  {
-    def inverseElement(elem: BigInteger, primeModulus: BigInteger): BigInteger =
-    {
-      elem.modPow(primeModulus.subtract(BigInteger.valueOf(2)), primeModulus)
-    }
-
-    var coeff = new BigInteger("1")
-
-    for(j <- shares.indices)
-    {
-      if(shares(j).x != x)
-      {
-        val J = BigInteger.valueOf(shares(j).x.toLong)
-        val I = BigInteger.valueOf(x.toLong)
-
-        val J_I = J.subtract(I).mod(cs.orderOfBasePoint)
-        val JdivJ_I = J.multiply(inverseElement(J_I, cs.orderOfBasePoint)).mod(cs.orderOfBasePoint)
-
-        coeff = coeff.multiply(JdivJ_I).mod(cs.orderOfBasePoint)
-      }
-    }
-    coeff
-  }
-
-  def restoreSecret(shares: Seq[SecretShare]): BigInteger =
-  {
-    var restoredSecret = new BigInteger("0")
-    for(i <- shares.indices)
-    {
-      val L_i = getLagrangeCoeff(shares(i).x, shares)
-      val p_i = new BigInteger(shares(i).S)
-
-      restoredSecret = restoredSecret.add(L_i.multiply(p_i)).mod(cs.orderOfBasePoint)
-    }
-    restoredSecret
-  }
-
   def doRound5_2(r5_1DataIn: Seq[R5_1Data]): R5_2Data =
   {
     case class ViolatorShare(violatorID: Integer, violatorShares: ArrayBuffer[SecretShare])
@@ -347,7 +252,7 @@ class DistrKeyGen(cs:                     Cryptosystem,
     }
 
     val violatorsSecretKeys = for(i <- violatorsShares.indices) yield {
-      SecretKey(violatorsShares(i).violatorID, restoreSecret(violatorsShares(i).violatorShares).toByteArray)
+      SecretKey(violatorsShares(i).violatorID, LagrangeInterpolation.restoreSecret(cs, violatorsShares(i).violatorShares).toByteArray)
     }
 
     val violatorsPublicKeys = for(i <- violatorsSecretKeys.indices) yield {

@@ -9,12 +9,10 @@ class DistrKeyGenTest  extends FunSuite {
   test("dkg_interpolation"){
 
     val cs = new Cryptosystem
-    val crs_h = cs.basePoint.multiply(cs.getRand)
-    val dkg = new DistrKeyGen(cs, 0, crs_h, new Array[CommitteeMemberAttr](0))
 
-    for(degree <- 2 to 100)
+    for(degree <- 2 to 10)
     {
-      val result = dkg.testInterpolation(degree)
+      val result = LagrangeInterpolation.testInterpolation(cs, degree)
 
       assert(result)
 
@@ -40,7 +38,7 @@ class DistrKeyGenTest  extends FunSuite {
       new CommitteeMember(cs, id, crs_h, committeeMembersAttrs)
     }
 
-    var r1Data = for (currentId <- committeeMembersAttrs.indices) yield {
+    val r1Data = for (currentId <- committeeMembersAttrs.indices) yield {
       committeeMembers(currentId).setKeyR1()
     }
 

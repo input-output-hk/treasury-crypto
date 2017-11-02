@@ -3,6 +3,10 @@ package treasury.crypto.core
 import java.math.BigInteger
 import java.security.{KeyPair, KeyPairGenerator, SecureRandom, Security}
 
+import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
+
 import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3
 import org.bouncycastle.jce.ECNamedCurveTable
 import org.bouncycastle.jce.interfaces.{ECPrivateKey, ECPublicKey}
@@ -26,11 +30,11 @@ class Cryptosystem {
     g
   }
 
-  def basePoint = ecSpec.getG
-  def orderOfBasePoint = ecSpec.getN
-  def infinityPoint = ecSpec.getCurve.getInfinity
+  def basePoint: ECPoint = ecSpec.getG
+  def orderOfBasePoint: BigInteger = ecSpec.getN
+  def infinityPoint: ECPoint = ecSpec.getCurve.getInfinity
 
-  def createKeyPair(): (PrivKey, PubKey) = {
+  def createKeyPair: (PrivKey, PubKey) = {
     val pair: KeyPair = keyPairGenerator.generateKeyPair
     val publicKey = pair.getPublic.asInstanceOf[ECPublicKey]
     val privateKey = pair.getPrivate.asInstanceOf[ECPrivateKey]
@@ -71,6 +75,39 @@ class Cryptosystem {
   def decryptPoint(privKey: PrivKey, ciphertext: Ciphertext): Point = {
     val rPk = ciphertext._1.multiply(privKey)
     ciphertext._2.subtract(rPk).normalize()
+  }
+
+  private def AESEncryptDecrypt(msg: Array[Byte], keyMaterial: Array[Byte], mode: Int): Array[Byte] = {
+
+    assert(keyMaterial.length == 32)
+
+    val key = keyMaterial.slice(0, keyMaterial.length / 2)
+    val iv =  keyMaterial.slice(keyMaterial.length / 2, keyMaterial.length)
+
+    val cipher = Cipher.getInstance("AES/GCM/NoPadding", "BC")
+
+    cipher.init(mode, new SecretKeySpec(key, "AES"), new IvParameterSpec(iv))
+    cipher.doFinal(msg)
+  }
+
+  def hybridEncrypt(pubKey: PubKey, msg: Array[Byte]): HybridCiphertext = {
+
+    val randomPoint = basePoint.multiply(getRand)
+    val keyMaterial = hash256(randomPoint.getEncoded(true))
+
+    val encryptedMessage = AESEncryptDecrypt(msg, keyMaterial, Cipher.ENCRYPT_MODE)
+
+    HybridCiphertext(encryptPoint(pubKey, getRand, randomPoint), encryptedMessage)
+  }
+
+  def hybridDecrypt(privKey: PrivKey, ciphertext: HybridCiphertext): Array[Byte] = {
+
+    val randomPoint = decryptPoint(privKey, ciphertext.encryptedKey)
+    val keyMaterial = hash256(randomPoint.getEncoded(true))
+
+    val decryptedMessage = AESEncryptDecrypt(ciphertext.encryptedMessage, keyMaterial, Cipher.DECRYPT_MODE)
+
+    decryptedMessage
   }
 
   // Pseudorandom number generation in Zp field (p = orderOfBasePoint)

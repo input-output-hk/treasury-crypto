@@ -14,10 +14,12 @@ package object core {
   type Element = BigInteger
   type Point = ECPoint
 
-  val Zero = BigInteger.valueOf(0)
-  val One = BigInteger.valueOf(1)
+  val Zero: BigInteger = BigInteger.valueOf(0)
+  val One:  BigInteger = BigInteger.valueOf(1)
 
-  case class TallyResult(val yes: BigInteger, val no: BigInteger, val abstain: BigInteger)
+  case class TallyResult(yes: BigInteger, no: BigInteger, abstain: BigInteger)
+
+  case class HybridCiphertext(encryptedKey: Ciphertext, encryptedMessage: Array[Byte])
 
   object VoteCases extends Enumeration {
     val Yes, No, Abstain = Value

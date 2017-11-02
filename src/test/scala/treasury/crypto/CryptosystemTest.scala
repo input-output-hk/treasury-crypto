@@ -14,14 +14,14 @@ import scala.io.Source
 
 class CryptosystemTest extends FunSuite {
 
-  val jsonTestData = Source.fromResource("cryptosystem_test.json").mkString
-  val jsonObj = new JSONObject(jsonTestData);
+  private val jsonTestData = Source.fromResource("cryptosystem_test.json").mkString
+  private val jsonObj = new JSONObject(jsonTestData)
 
   test("encrypt/decrypt message with Lifted ElGamal") {
     val message = BigInteger.valueOf(2).pow(10)
 
     val cs = new Cryptosystem
-    val (privKey, pubKey) = cs.createKeyPair()
+    val (privKey, pubKey) = cs.createKeyPair
 
     val ciphertext = cs.encrypt(pubKey, cs.getRand, message)
     val decryptedMessage = cs.decrypt(privKey, ciphertext)
@@ -73,7 +73,7 @@ class CryptosystemTest extends FunSuite {
 
     val message = cs.basePoint.multiply(BigInteger.valueOf(1232))
 
-    val (privKey, pubKey) = cs.createKeyPair()
+    val (privKey, pubKey) = cs.createKeyPair
 
     val ciphertext = cs.encryptPoint(pubKey, cs.getRand, message)
     val decryptedMessage = cs.decryptPoint(privKey, ciphertext)
@@ -139,12 +139,11 @@ class CryptosystemTest extends FunSuite {
     val cs = new Cryptosystem
     val hash = cs.hash256(Array(0))
 
-    assert(hash.size == 32)
+    assert(hash.length == 32)
   }
 
   test("using reducible/irreducible element from Zp") {
-    val ecSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec("secp256k1");
-    val curve = ecSpec.getCurve
+    val ecSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec("secp256k1")
 
     val reduced = new BigInteger(Array(10.toByte))
     val notreduced = ecSpec.getN.add(reduced) // add modulo
@@ -158,5 +157,24 @@ class CryptosystemTest extends FunSuite {
   test("hash to point") {
     val cs = new Cryptosystem
     cs.hashToPoint(Array.fill[Byte](32)(0xFF.toByte))
+  }
+
+  test("hybrid_encryption") {
+
+    val cs = new Cryptosystem
+    val rnd = new scala.util.Random
+
+    for(i <- 1 to 100)
+    {
+      val (privKey, pubKey) = cs.createKeyPair
+
+      val message = new Array[Byte](1 + rnd.nextInt(1024)) // message length in range [1, 1024]
+      rnd.nextBytes(message)
+
+      val hybridCiphertext = cs.hybridEncrypt(pubKey, message)
+      val decryptedMessage = cs.hybridDecrypt(privKey, hybridCiphertext)
+
+      assert(message.sameElements(decryptedMessage))
+    }
   }
 }
