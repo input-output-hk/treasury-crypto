@@ -7,7 +7,7 @@ import treasury.crypto.nizk.shvzk.{SHVZKCommon, SHVZKGen, SHVZKVerifier}
 class SHVZKTest extends FunSuite {
 
   val cs = new Cryptosystem
-  val (privKey, pubKey) = cs.createKeyPair()
+  val (privKey, pubKey) = cs.createKeyPair
 
   def createUnitVector(size: Int, choice: Int): (Seq[Ciphertext], Seq[Randomness]) = {
     assert(size > choice)

@@ -17,11 +17,20 @@ class DistrKeyGenPerformance {
     val cs = new Cryptosystem
     val crs_h = cs.basePoint.multiply(cs.getRand)
 
-//      val committeeMembersAttrs = (0 until commiteeMembersNum).map(new Integer(_)).map(new CommitteeMemberAttr(_, cs.basePoint.multiply(cs.getRand)))
-    val committeeMembersAttrs = (0 until commiteeMembersNum).map(new Integer(_)).map(CommitteeMemberAttr(_, new Array[Byte](0)))
+    val minId = 1
+    val maxId = 10
+    val keyPairs = for(id <- minId to maxId) yield {(id, cs.createKeyPair)}
 
-    val committeeMembers = for (id <- committeeMembersAttrs.indices) yield {
-      new CommitteeMember(cs, id, crs_h, committeeMembersAttrs)
+    val committeeMembersAttrs = for(i <- keyPairs.indices) yield {
+      CommitteeMemberAttr(keyPairs(i)._1, keyPairs(i)._2._2)
+    }
+
+    val committeeMembers = for (i <- committeeMembersAttrs.indices) yield {
+
+      val currentId = committeeMembersAttrs(i).id
+      val currentKeyPair = keyPairs.find(_._1 == currentId).get._2
+
+      new CommitteeMember(cs, currentId, crs_h, currentKeyPair, committeeMembersAttrs)
     }
 
     var t0 = System.nanoTime()

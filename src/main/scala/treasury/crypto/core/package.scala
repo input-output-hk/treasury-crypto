@@ -9,6 +9,7 @@ package object core {
 
   type PrivKey = BigInteger
   type PubKey = ECPoint
+  type KeyPair = (PrivKey, PubKey)
   type Ciphertext = (ECPoint, ECPoint)
   type Randomness = BigInteger
   type Element = BigInteger
@@ -18,6 +19,7 @@ package object core {
   val One:  BigInteger = BigInteger.valueOf(1)
 
   case class HybridCiphertext(encryptedKey: Ciphertext, encryptedMessage: Array[Byte])
+  case class HybridPlaintext (decryptedKey: Point, decryptedMessage: Array[Byte])
 
   object VoteCases extends Enumeration {
     val Yes, No, Abstain = Value

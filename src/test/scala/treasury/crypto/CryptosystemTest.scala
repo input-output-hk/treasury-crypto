@@ -174,7 +174,7 @@ class CryptosystemTest extends FunSuite {
       val hybridCiphertext = cs.hybridEncrypt(pubKey, message)
       val decryptedMessage = cs.hybridDecrypt(privKey, hybridCiphertext)
 
-      assert(message.sameElements(decryptedMessage))
+      assert(message.sameElements(decryptedMessage.decryptedMessage))
     }
   }
 }

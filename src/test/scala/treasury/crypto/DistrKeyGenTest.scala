@@ -31,15 +31,24 @@ class DistrKeyGenTest  extends FunSuite {
     val cs = new Cryptosystem
     val crs_h = cs.basePoint.multiply(cs.getRand)
 
-//    val committeeMembersAttrs = (0 to 5).map(new Integer(_)).map(CommitteeMemberAttr(_, cs.basePoint.multiply(cs.getRand)))
-    val committeeMembersAttrs = (0 to 5).map(new Integer(_)).map(CommitteeMemberAttr(_, new Array[Byte](0)))
+    val minId = 1
+    val maxId = 10
+    val keyPairs = for(id <- minId to maxId) yield {(id, cs.createKeyPair)}
 
-    val committeeMembers = for (id <- committeeMembersAttrs.indices) yield {
-      new CommitteeMember(cs, id, crs_h, committeeMembersAttrs)
+    val committeeMembersAttrs = for(i <- keyPairs.indices) yield {
+      CommitteeMemberAttr(keyPairs(i)._1, keyPairs(i)._2._2)
     }
 
-    val r1Data = for (currentId <- committeeMembersAttrs.indices) yield {
-      committeeMembers(currentId).setKeyR1()
+    val committeeMembers = for (i <- committeeMembersAttrs.indices) yield {
+
+      val currentId = committeeMembersAttrs(i).id
+      val currentKeyPair = keyPairs.find(_._1 == currentId).get._2
+
+      new CommitteeMember(cs, currentId, crs_h, currentKeyPair, committeeMembersAttrs)
+    }
+
+    val r1Data = for (i <- committeeMembersAttrs.indices) yield {
+      committeeMembers(i).setKeyR1()
     }
 
     // Changing commitments of some committee members to get complain on them
@@ -50,7 +59,7 @@ class DistrKeyGenTest  extends FunSuite {
       {
         val E = x.E
 //        if(rand.nextBoolean())
-        if(x.issuerID == 0)
+        if(x.issuerID == 1)
         {
           println(x.issuerID + " committee members's commitment modified on Round 2")
           E(0) = cs.infinityPoint.getEncoded(true)
@@ -59,12 +68,12 @@ class DistrKeyGenTest  extends FunSuite {
       }
     }
 
-    val r2Data = for (currentId <- committeeMembersAttrs.indices) yield {
-      committeeMembers(currentId).setKeyR2(r1Data)
+    val r2Data = for (i <- committeeMembersAttrs.indices) yield {
+      committeeMembers(i).setKeyR2(r1Data)
     }
 
-    val r3Data = for (currentId <- committeeMembersAttrs.indices) yield {
-      committeeMembers(currentId).setKeyR3(r2Data)
+    val r3Data = for (i <- committeeMembersAttrs.indices) yield {
+      committeeMembers(i).setKeyR3(r2Data)
     }
 
     // Changing commitments of some committee members to get complain on them
@@ -75,7 +84,7 @@ class DistrKeyGenTest  extends FunSuite {
       {
         val commitments = x.commitments
 //        if(rand.nextBoolean())
-        if(x.issuerID == 1 || x.issuerID == 3)
+        if(x.issuerID == 2 || x.issuerID == 3)
         {
           println(x.issuerID + " committee members's commitment modified on Round 3")
           commitments(0) = cs.infinityPoint.getEncoded(true)
@@ -84,16 +93,16 @@ class DistrKeyGenTest  extends FunSuite {
       }
     }
 
-    val r4Data = for (currentId <- committeeMembersAttrs.indices) yield {
-      committeeMembers(currentId).setKeyR4(r3Data)
+    val r4Data = for (i <- committeeMembersAttrs.indices) yield {
+      committeeMembers(i).setKeyR4(r3Data)
     }
 
-    val r5_1Data = for (currentId <- committeeMembersAttrs.indices) yield {
-      committeeMembers(currentId).setKeyR5_1(r4Data)
+    val r5_1Data = for (i <- committeeMembersAttrs.indices) yield {
+      committeeMembers(i).setKeyR5_1(r4Data)
     }
 
-    val r5_2Data = for (currentId <- committeeMembersAttrs.indices) yield {
-      (currentId, committeeMembers(currentId).setKeyR5_2(r5_1Data))
+    val r5_2Data = for (i <- committeeMembersAttrs.indices) yield {
+      (committeeMembers(i).ownID, committeeMembers(i).setKeyR5_2(r5_1Data))
     }
 
     //---------------------------------------------------------------

@@ -1,19 +1,25 @@
 package treasury.crypto
 
+import treasury.crypto.core.{HybridCiphertext, HybridPlaintext, PubKey}
+
 package object keygen {
 
   //----------------------------------------------------------
   // Committee member attributes
   //
   case class CommitteeMemberAttr(id:        Integer,
-                                 publicKey: Array[Byte])
+                                 publicKey: PubKey)
 
   //----------------------------------------------------------
   // Round 1 data structures
   //
   case class SecretShare (receiverID:  Integer,
                           x:           Integer,
-                          S:           Array[Byte])
+                          S:           HybridCiphertext)
+
+  case class OpenedShare (receiverID:  Integer,
+                          x:           Integer,
+                          S:           HybridPlaintext)
 
   case class R1Data (issuerID: Integer,            // ID of commitments and shares issuer
                      E:        Array[Array[Byte]], // CSR commitments for coefficients of the both polynomials (E = g * a_i + h * b_i; i = [0; t) )
@@ -37,8 +43,8 @@ package object keygen {
   // Round 4 data structures
   //
   case class ComplainR4 (violatorID:  Integer,
-                         share_a:     SecretShare,
-                         share_b:     SecretShare)
+                         share_a:     OpenedShare,
+                         share_b:     OpenedShare)
 
   case class R4Data (issuerID:  Integer,
                      complains: Array[ComplainR4])
@@ -46,8 +52,8 @@ package object keygen {
   //----------------------------------------------------------
   // Round 5.1 data structures
   //
-  case class R5_1Data (issuerID:  Integer,
-                       violatorsShares: Array[(Integer, SecretShare)]) // decrypted share from violator to issuer of this message
+  case class R5_1Data (issuerID:        Integer,
+                       violatorsShares: Array[(Integer, OpenedShare)]) // decrypted share from violator to issuer of this message
 
   //----------------------------------------------------------
   // Round 5.2 data structures

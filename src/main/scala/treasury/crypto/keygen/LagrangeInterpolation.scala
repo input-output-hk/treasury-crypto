@@ -4,10 +4,11 @@ import java.math.BigInteger
 import java.security.SecureRandom
 
 import treasury.crypto.core.Cryptosystem
+import treasury.crypto.core.HybridPlaintext
 
 object LagrangeInterpolation
 {
-  private def getLagrangeCoeff(cs: Cryptosystem, x: Integer, shares: Seq[SecretShare]): BigInteger =
+  private def getLagrangeCoeff(cs: Cryptosystem, x: Integer, shares: Seq[OpenedShare]): BigInteger =
   {
     var coeff = new BigInteger("1")
 
@@ -27,13 +28,13 @@ object LagrangeInterpolation
     coeff
   }
 
-  def restoreSecret(cs: Cryptosystem, shares: Seq[SecretShare]): BigInteger =
+  def restoreSecret(cs: Cryptosystem, shares: Seq[OpenedShare]): BigInteger =
   {
     var restoredSecret = new BigInteger("0")
     for(i <- shares.indices)
     {
       val L_i = getLagrangeCoeff(cs, shares(i).x, shares)
-      val p_i = new BigInteger(shares(i).S)
+      val p_i = new BigInteger(shares(i).S.decryptedMessage)
 
       restoredSecret = restoredSecret.add(L_i.multiply(p_i)).mod(cs.orderOfBasePoint)
     }
@@ -46,7 +47,7 @@ object LagrangeInterpolation
     val poly = new Polynomial(cs, secret, degree)
 
     val sharesNum = degree * 2 // ratio specific for voting protocol, as assumed t = n / 2, i.e. degree = sharesNum / 2
-    var shares = for(x <- 1 to sharesNum) yield {SecretShare(0, x, poly(BigInteger.valueOf(x)).toByteArray)}
+    var shares = for(x <- 1 to sharesNum) yield {OpenedShare(0, x, HybridPlaintext(cs.infinityPoint, poly(BigInteger.valueOf(x)).toByteArray))}
 
     val rnd = new scala.util.Random
     val patchIndex = rnd.nextInt(sharesNum)

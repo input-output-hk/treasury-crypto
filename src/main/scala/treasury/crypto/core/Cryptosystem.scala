@@ -100,14 +100,14 @@ class Cryptosystem {
     HybridCiphertext(encryptPoint(pubKey, getRand, randomPoint), encryptedMessage)
   }
 
-  def hybridDecrypt(privKey: PrivKey, ciphertext: HybridCiphertext): Array[Byte] = {
+  def hybridDecrypt(privKey: PrivKey, ciphertext: HybridCiphertext): HybridPlaintext = {
 
     val randomPoint = decryptPoint(privKey, ciphertext.encryptedKey)
     val keyMaterial = hash256(randomPoint.getEncoded(true))
 
     val decryptedMessage = AESEncryptDecrypt(ciphertext.encryptedMessage, keyMaterial, Cipher.DECRYPT_MODE)
 
-    decryptedMessage
+    HybridPlaintext(randomPoint, decryptedMessage)
   }
 
   // Pseudorandom number generation in Zp field (p = orderOfBasePoint)
