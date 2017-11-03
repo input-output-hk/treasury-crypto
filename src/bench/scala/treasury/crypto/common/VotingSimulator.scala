@@ -3,7 +3,7 @@ package treasury.crypto.common
 import java.math.BigInteger
 
 import treasury.crypto.core._
-import treasury.crypto.voting.{Ballot, Expert, RegularVoter}
+import treasury.crypto.voting.{Ballot, Expert, RegularVoter, Tally}
 
 
 class VotingSimulator(val numberOfExperts: Int,
@@ -12,19 +12,21 @@ class VotingSimulator(val numberOfExperts: Int,
                       val numberOfProjects: Int) {
 
   protected val cs = new Cryptosystem
-  protected val (privKey, pubKey) = cs.createKeyPair()
+  protected val (privKey, pubKey) = cs.createKeyPair
 
   def createVoterBallot(voterId: Int,
                         projectId: Int,
                         delegation: Int,
                         choice: VoteCases.Value): Ballot = {
-    RegularVoter(cs, voterId, numberOfExperts, pubKey, BigInteger.valueOf(stakePerVoter))
-      .produceVote(projectId, delegation, choice)
+    val voter = new RegularVoter(cs, numberOfExperts, pubKey, BigInteger.valueOf(stakePerVoter))
+    if (delegation >= 0 && delegation < numberOfExperts)
+      voter.produceDelegatedVote(projectId, delegation)
+    else
+      voter.produceVote(projectId, choice)
   }
 
   def createExpertBallot(expertId: Int, projectId: Int, choice: VoteCases.Value): Ballot = {
-    Expert(cs, expertId, numberOfExperts, pubKey)
-      .produceVote(projectId, -1, choice)
+    new Expert(cs, expertId, pubKey).produceVote(projectId, choice)
   }
 
   /* Returns a list of pairs for each project with project id and corresponding ballots */
@@ -59,12 +61,9 @@ class VotingSimulator(val numberOfExperts: Int,
 
   /* Consumes a list of pairs with project id and ballots.
    * Returns a list of projects with tally results */
-  def doTally(ballots: Seq[(Int, Seq[Ballot])]): Seq[(Int, TallyResult)] = {
-    // Obtaining results by an arbitrary voter
-    val voter = RegularVoter(cs, 0, numberOfExperts, pubKey, One)
-
+  def doTally(ballots: Seq[(Int, Seq[Ballot])]): Seq[(Int, Tally.Result)] = {
     ballots.map {
-      project => (project._1, voter.tallyVotes(project._2, privKey))
+      project => (project._1, Tally.countVotes(cs, numberOfExperts, project._2, privKey))
     }
   }
 }

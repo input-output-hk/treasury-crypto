@@ -17,8 +17,6 @@ package object core {
   val Zero: BigInteger = BigInteger.valueOf(0)
   val One:  BigInteger = BigInteger.valueOf(1)
 
-  case class TallyResult(yes: BigInteger, no: BigInteger, abstain: BigInteger)
-
   case class HybridCiphertext(encryptedKey: Ciphertext, encryptedMessage: Array[Byte])
 
   object VoteCases extends Enumeration {
