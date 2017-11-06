@@ -119,6 +119,12 @@ class Cryptosystem {
     new BigInteger(orderOfBasePoint.bitLength, secureRandom).mod(orderOfBasePoint)
   }
 
+  def getRandBytes(size: Int): Array[Byte] = {
+    val bytes = new Array[Byte](size)
+    secureRandom.nextBytes(bytes)
+    bytes
+  }
+
   def add(cipherText1: Ciphertext, cipherText2: Ciphertext): Ciphertext = {
     (cipherText1._1.add(cipherText2._1), cipherText1._2.add(cipherText2._2))
   }

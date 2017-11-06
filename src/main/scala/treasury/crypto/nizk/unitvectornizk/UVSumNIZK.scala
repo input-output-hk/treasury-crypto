@@ -7,7 +7,7 @@ import treasury.crypto.core._
 /* UVSumNIZK implements non-interactive zero knowledge proof for a unit vector of ciphertext.
  * Each ciphertext obtained with Lifted Elgamal Encryption Scheme.
  * NIZK proves that the sum of the plaintexts is equal to one. Basically it is equivalent to proving
- * that multiplication of the cyphertexts encrypts one. */
+ * that multiplication of the ciphertexts encrypts one. */
 
 object UVSumNIZK {
 
