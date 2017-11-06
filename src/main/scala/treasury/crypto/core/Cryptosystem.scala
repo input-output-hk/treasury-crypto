@@ -1,7 +1,7 @@
 package treasury.crypto.core
 
 import java.math.BigInteger
-import java.security.{KeyPair, KeyPairGenerator, SecureRandom, Security}
+import java.security.{KeyPairGenerator, SecureRandom, Security}
 
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
@@ -35,7 +35,7 @@ class Cryptosystem {
   def infinityPoint: ECPoint = ecSpec.getCurve.getInfinity
 
   def createKeyPair: (PrivKey, PubKey) = {
-    val pair: KeyPair = keyPairGenerator.generateKeyPair
+    val pair = keyPairGenerator.generateKeyPair
     val publicKey = pair.getPublic.asInstanceOf[ECPublicKey]
     val privateKey = pair.getPrivate.asInstanceOf[ECPrivateKey]
 
