@@ -3,17 +3,17 @@ package treasury.crypto.keygen
 import java.math.BigInteger
 
 import org.bouncycastle.math.ec.ECPoint
-import treasury.crypto.core.{Cryptosystem, KeyPair, Point, PubKey}
+import treasury.crypto.core.{Cryptosystem, KeyPair, Point, PubKey, CommitteeIdentifier}
+import treasury.crypto.nizk.ElgamalDecrNIZK
 
 import scala.collection.mutable.ArrayBuffer
 
 // Distributed Key Generation, based on Elliptic Curves
 //
-class DistrKeyGen(cs:                     Cryptosystem,
-                  h:                      Point,
-                  ownID:                  Integer,
-                  transportKeyPair:       KeyPair,
-                  committeeMembersAttrs:  Seq[CommitteeMemberAttr])
+class DistrKeyGen(cs:                       Cryptosystem,
+                  h:                        Point,
+                  transportKeyPair:         KeyPair,
+                  committeeMembersPubKeys:  Seq[PubKey])
 {
   case class CRS_commitment (issuerID: Integer, crs_commitment: Array[ECPoint])
   case class Commitment     (issuerID: Integer, commitment: Array[ECPoint])
@@ -24,46 +24,51 @@ class DistrKeyGen(cs:                     Cryptosystem,
   private val shares          = new ArrayBuffer[Share]()          // Shares of other participants
   private val violatorsIDs    = new ArrayBuffer[Integer]()        // ID' s of committee members-violators
 
-  private val n = committeeMembersAttrs.size  // Total number of protocol participants
-  private val t = (n.toFloat / 2).ceil.toInt  // Threshold number of participants
-  private val A = new Array[ECPoint](t)       // Own commitments
+  private val n = committeeMembersPubKeys.size  // Total number of protocol participants
+  private val t = (n.toFloat / 2).ceil.toInt    // Threshold number of participants
+  private val A = new Array[ECPoint](t)         // Own commitments
 
   private val g = cs.basePoint
   private val infinityPoint = cs.infinityPoint
 
+  private val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
   private val ownPrivateKey = transportKeyPair._1
   private val ownPublicKey  = transportKeyPair._2
+  val ownID: Integer = memberIdentifier.getId(ownPublicKey).get.intValue()
 
   def doRound1(secretKey: Array[Byte]): R1Data =
   {
     val poly_a = new Polynomial(cs, new BigInteger(secretKey), t)
     val poly_b = new Polynomial(cs, new BigInteger(secretKey), t)
 
-    val r1Data = R1Data(ownID, new Array[Array[Byte]](t), new Array[SecretShare](n-1), new Array[SecretShare](n-1))
-
     for(i <- A.indices)
       A(i) = g.multiply(poly_a(i))
 
+    val E   = new ArrayBuffer[Array[Byte]]()
+    val S_a = new ArrayBuffer[SecretShare]()
+    val S_b = new ArrayBuffer[SecretShare]()
+
     // CRS commitments for each coefficient of both polynomials
     //
-    for(i <- r1Data.E.indices)
-      r1Data.E(i) = A(i).add(h.multiply(poly_b(i))).getEncoded(true)
+    for(i <- A.indices)
+      E += A(i).add(h.multiply(poly_b(i))).getEncoded(true)
 
-    val recipientsIDs = committeeMembersAttrs.map(_.id).filter(_ != ownID)
-
-    // Secret shares for each committee member
-    //
-    for(i <- recipientsIDs.indices)
+    for(i <- committeeMembersPubKeys.indices)
     {
-      val x = i + 1 // avoid share for a_0 coefficient
-      val X = BigInteger.valueOf(x)
+      val receiverPublicKey = committeeMembersPubKeys(i)
 
-      val receiverPublicKey = committeeMembersAttrs.find(_.id == recipientsIDs(i)).get.publicKey
+      if(receiverPublicKey != ownPublicKey)
+      {
+        val x = memberIdentifier.getId(receiverPublicKey).get
+        val recipientID = x.intValue()
 
-      r1Data.S_a(i) = SecretShare(recipientsIDs(i), x, cs.hybridEncrypt(receiverPublicKey, poly_a(X).toByteArray))
-      r1Data.S_b(i) = SecretShare(recipientsIDs(i), x, cs.hybridEncrypt(receiverPublicKey, poly_b(X).toByteArray))
+        assert(recipientID != 0) // avoid share for a_0 coefficient
+
+        S_a += SecretShare(recipientID, cs.hybridEncrypt(receiverPublicKey, poly_a(x).toByteArray))
+        S_b += SecretShare(recipientID, cs.hybridEncrypt(receiverPublicKey, poly_b(x).toByteArray))
+      }
     }
-    r1Data
+    R1Data(ownID, E.toArray, S_a.toArray, S_b.toArray)
   }
 
   def checkOnCRS(share_a: OpenedShare, share_b: OpenedShare, E: Array[Array[Byte]]): Boolean =
@@ -71,7 +76,7 @@ class DistrKeyGen(cs:                     Cryptosystem,
     var E_sum: ECPoint = infinityPoint
 
     for(i <- E.indices) {
-        E_sum = E_sum.add(cs.decodePoint(E(i)).multiply(BigInteger.valueOf(share_a.x.toLong).pow(i)))
+        E_sum = E_sum.add(cs.decodePoint(E(i)).multiply(BigInteger.valueOf(share_a.receiverID.toLong).pow(i)))
     }
     val CRS_Shares = g.multiply(new BigInteger(share_a.S.decryptedMessage)).add(h.multiply(new BigInteger(share_b.S.decryptedMessage)))
 
@@ -80,11 +85,12 @@ class DistrKeyGen(cs:                     Cryptosystem,
 
   def doRound2(r1Data: Seq[R1Data]): R2Data =
   {
-    var complains = new ArrayBuffer[ComplainR2]()
+    var complaints = new ArrayBuffer[ComplaintR2]()
 
-    // TODO: Check, that S_a.size == S_b.size
     for(i <- r1Data.indices)
     {
+      assert(r1Data(i).S_a.length == r1Data(i).S_b.length)
+
       for(j <- r1Data(i).S_a.indices)
       {
         if(r1Data(i).S_a(j).receiverID == ownID)
@@ -92,43 +98,87 @@ class DistrKeyGen(cs:                     Cryptosystem,
           val secretShare_a = r1Data(i).S_a(j)
           val secretShare_b = r1Data(i).S_b(j)
 
-          val share_a = OpenedShare(secretShare_a.receiverID, secretShare_a.x, cs.hybridDecrypt(ownPrivateKey, secretShare_a.S))
-          val share_b = OpenedShare(secretShare_b.receiverID, secretShare_b.x, cs.hybridDecrypt(ownPrivateKey, secretShare_b.S))
+          val openedShare_a = OpenedShare(secretShare_a.receiverID, cs.hybridDecrypt(ownPrivateKey, secretShare_a.S))
+          val openedShare_b = OpenedShare(secretShare_b.receiverID, cs.hybridDecrypt(ownPrivateKey, secretShare_b.S))
 
-          if(checkOnCRS(share_a, share_b, r1Data(i).E))
+          if(checkOnCRS(openedShare_a, openedShare_b, r1Data(i).E))
           {
-            shares += Share(r1Data(i).issuerID, share_a, share_b)
+            shares += Share(r1Data(i).issuerID, openedShare_a, openedShare_b)
             CRS_commitments += CRS_commitment(r1Data(i).issuerID, r1Data(i).E.map(x => cs.decodePoint(x)))
           }
           else
           {
-            complains += ComplainR2(r1Data(i).issuerID)
+            val proof_a = ElgamalDecrNIZK.produceNIZK(cs, secretShare_a.S.encryptedKey, ownPrivateKey)
+            val proof_b = ElgamalDecrNIZK.produceNIZK(cs, secretShare_b.S.encryptedKey, ownPrivateKey)
+
+            complaints += ComplaintR2(
+              r1Data(i).issuerID,
+              ownPublicKey,
+              ShareProof(secretShare_a.S, openedShare_a.S, proof_a),
+              ShareProof(secretShare_b.S, openedShare_b.S, proof_b))
+
             violatorsIDs += r1Data(i).issuerID
           }
         }
       }
     }
-    R2Data(complains.toArray)
+    R2Data(complaints.toArray)
   }
 
   def doRound3(r2Data: Seq[R2Data]): R3Data =
   {
+    def checkComplaint(complaint: ComplaintR2): Boolean =
+    {
+      def checkProof(pubKey: PubKey, proof: ShareProof): Boolean =
+      {
+        ElgamalDecrNIZK.verifyNIZK(
+          cs,
+          pubKey,
+          proof.encryptedShare.encryptedKey,
+          proof.decryptedShare.decryptedKey,
+          proof.NIZKProof)
+      }
+
+      def checkEncryption(proof: ShareProof): Boolean =
+      {
+        val ciphertext = cs.hybridEncrypt(
+          ownPublicKey,                         // no matter what public key is used for this verification
+          proof.decryptedShare.decryptedMessage,
+          proof.decryptedShare.decryptedKey)
+
+        ciphertext.encryptedMessage.sameElements(proof.encryptedShare.encryptedMessage)
+      }
+
+      val publicKey = complaint.issuerPublicKey
+      val proof_a = complaint.shareProof_a
+      val proof_b = complaint.shareProof_b
+
+      (checkProof(publicKey, proof_a) && checkEncryption(proof_a)) &&
+      (checkProof(publicKey, proof_b) && checkEncryption(proof_b))
+    }
+
     // Remove received shares and commitments of disqualified committees (if they were verified successfully, but at least 1 complain on their issuer was received)
     //
     for(i <- r2Data.indices)
     {
-      for(j <- r2Data(i).complains.indices)
+      for(j <- r2Data(i).complaints.indices)
       {
-        // TODO: Check validity of the complain
+        val complaint = r2Data(i).complaints(j)
+        val violatorID = complaint.violatorID
 
-        val violatorCRSCommitment = CRS_commitments.find(_.issuerID == r2Data(i).complains(j).violatorID)
-        if(violatorCRSCommitment.isDefined)
-          CRS_commitments -= violatorCRSCommitment.get
+        if(violatorID != ownID &&
+           checkComplaint(complaint))
+        {
+          val violatorCRSCommitment = CRS_commitments.find(_.issuerID == violatorID)
+          if(violatorCRSCommitment.isDefined)
+            CRS_commitments -= violatorCRSCommitment.get
 
-        val violatorShare = shares.find(_.issuerID == r2Data(i).complains(j).violatorID)
-        if(violatorShare.isDefined){
-          shares -= violatorShare.get
-          violatorsIDs += r2Data(i).complains(j).violatorID
+          val violatorShare = shares.find(_.issuerID == violatorID)
+          if(violatorShare.isDefined)
+            shares -= violatorShare.get
+
+          if(!violatorsIDs.contains(violatorID))
+            violatorsIDs += violatorID
         }
       }
     }
@@ -144,7 +194,7 @@ class DistrKeyGen(cs:                     Cryptosystem,
     val share = shares.find(_.issuerID == issuerID)
     if(share.isDefined)
     {
-      val X = BigInteger.valueOf(share.get.share_a.x.toLong)
+      val X = BigInteger.valueOf(share.get.share_a.receiverID.toLong)
 
       for(i <- A.indices) {
           A_sum = A_sum.add(A(i).multiply(X.pow(i)))
@@ -256,7 +306,7 @@ class DistrKeyGen(cs:                     Cryptosystem,
           if(violatorsShares.exists(_.violatorID == violatorID))
             violatorsShares.find(_.violatorID == violatorID).get.violatorShares += violatorShare
           else
-            violatorsShares += ViolatorShare(violatorID, new ArrayBuffer[OpenedShare]()+= violatorShare)
+            violatorsShares += ViolatorShare(violatorID, new ArrayBuffer[OpenedShare]() += violatorShare)
         }
       }
     }

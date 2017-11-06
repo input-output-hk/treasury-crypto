@@ -1,14 +1,10 @@
 package treasury.crypto.keygen
 
-import java.math.BigInteger
-import java.util.Random
+import treasury.crypto.core.{Cryptosystem, KeyPair, Point, PrivKey, PubKey}
 
-import org.bouncycastle.jce.spec.ECParameterSpec
-import treasury.crypto.core.{Cryptosystem, KeyPair, Point, PrivKey}
+class CommitteeMember(val cs: Cryptosystem, val h: Point, val transportKeyPair: KeyPair, val committeeMembersPubKeys: Seq[PubKey] ) {
 
-class CommitteeMember(val cs: Cryptosystem, val ownID: Integer, val h: Point, val transportKeyPair: KeyPair, val committeeMembersAttrs: Seq[CommitteeMemberAttr] ) {
-
-  val dkg = new DistrKeyGen(cs, h, ownID, transportKeyPair, committeeMembersAttrs)
+  val dkg = new DistrKeyGen(cs, h, transportKeyPair, committeeMembersPubKeys)
   val secretKey = cs.getRand
 
   def setKeyR1(): R1Data = {

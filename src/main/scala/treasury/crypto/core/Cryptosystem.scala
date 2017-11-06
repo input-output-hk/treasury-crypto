@@ -90,9 +90,13 @@ class Cryptosystem {
     cipher.doFinal(msg)
   }
 
-  def hybridEncrypt(pubKey: PubKey, msg: Array[Byte]): HybridCiphertext = {
+  def hybridEncrypt(pubKey: PubKey, msg: Array[Byte], symmetricKey: Point = null): HybridCiphertext = {
 
-    val randomPoint = basePoint.multiply(getRand)
+    var randomPoint = symmetricKey
+
+    if(randomPoint == null)
+      randomPoint = basePoint.multiply(getRand)
+
     val keyMaterial = hash256(randomPoint.getEncoded(true))
 
     val encryptedMessage = AESEncryptDecrypt(msg, keyMaterial, Cipher.ENCRYPT_MODE)

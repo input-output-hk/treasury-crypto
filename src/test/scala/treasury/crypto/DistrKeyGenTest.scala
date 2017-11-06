@@ -31,23 +31,14 @@ class DistrKeyGenTest  extends FunSuite {
     val cs = new Cryptosystem
     val crs_h = cs.basePoint.multiply(cs.getRand)
 
-    val minId = 1
-    val maxId = 10
-    val keyPairs = for(id <- minId to maxId) yield {(id, cs.createKeyPair)}
+    val keyPairs = for(id <- 1 to 10) yield cs.createKeyPair
+    val committeeMembersPubKeys = keyPairs.map(_._2)
 
-    val committeeMembersAttrs = for(i <- keyPairs.indices) yield {
-      CommitteeMemberAttr(keyPairs(i)._1, keyPairs(i)._2._2)
+    val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
+      new CommitteeMember(cs, crs_h, keyPairs(i), committeeMembersPubKeys)
     }
 
-    val committeeMembers = for (i <- committeeMembersAttrs.indices) yield {
-
-      val currentId = committeeMembersAttrs(i).id
-      val currentKeyPair = keyPairs.find(_._1 == currentId).get._2
-
-      new CommitteeMember(cs, currentId, crs_h, currentKeyPair, committeeMembersAttrs)
-    }
-
-    val r1Data = for (i <- committeeMembersAttrs.indices) yield {
+    val r1Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR1()
     }
 
@@ -68,11 +59,11 @@ class DistrKeyGenTest  extends FunSuite {
       }
     }
 
-    val r2Data = for (i <- committeeMembersAttrs.indices) yield {
+    val r2Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR2(r1Data)
     }
 
-    val r3Data = for (i <- committeeMembersAttrs.indices) yield {
+    val r3Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR3(r2Data)
     }
 
@@ -93,16 +84,16 @@ class DistrKeyGenTest  extends FunSuite {
       }
     }
 
-    val r4Data = for (i <- committeeMembersAttrs.indices) yield {
+    val r4Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR4(r3Data)
     }
 
-    val r5_1Data = for (i <- committeeMembersAttrs.indices) yield {
+    val r5_1Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR5_1(r4Data)
     }
 
-    val r5_2Data = for (i <- committeeMembersAttrs.indices) yield {
-      (committeeMembers(i).ownID, committeeMembers(i).setKeyR5_2(r5_1Data))
+    val r5_2Data = for (i <- committeeMembersPubKeys.indices) yield {
+      (committeeMembers(i).dkg.ownID, committeeMembers(i).setKeyR5_2(r5_1Data))
     }
 
     //---------------------------------------------------------------
@@ -111,7 +102,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     // Calculating the individual public keys (pk_i = g^sk_i for each committee)
     var individualPublicKeys = for(i <- committeeMembers.indices) yield {
-      (committeeMembers(i).ownID, cs.basePoint.multiply(committeeMembers(i).secretKey))
+      (committeeMembers(i).dkg.ownID, cs.basePoint.multiply(committeeMembers(i).secretKey))
     }
 
     var sharedPublicKeysAfterR2 = r5_2Data
@@ -119,9 +110,9 @@ class DistrKeyGenTest  extends FunSuite {
     // Violators detected on the 2-nd round doesn't participate in the shared public key generation at all
     for(i <- r2Data.indices)
     {
-      for(j <- r2Data(i).complains.indices)
+      for(j <- r2Data(i).complaints.indices)
       {
-        val violatorID = r2Data(i).complains(j).violatorID
+        val violatorID = r2Data(i).complaints(j).violatorID
 
         individualPublicKeys = individualPublicKeys.filter(_._1 != violatorID)
         sharedPublicKeysAfterR2 = sharedPublicKeysAfterR2.filter(_._1 != violatorID)

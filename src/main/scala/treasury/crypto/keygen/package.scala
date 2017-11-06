@@ -1,6 +1,7 @@
 package treasury.crypto
 
-import treasury.crypto.core.{HybridCiphertext, HybridPlaintext, PubKey}
+import treasury.crypto.core._
+import treasury.crypto.nizk.ElgamalDecrNIZK.ElgamalDecrNIZKProof
 
 package object keygen {
 
@@ -14,11 +15,9 @@ package object keygen {
   // Round 1 data structures
   //
   case class SecretShare (receiverID:  Integer,
-                          x:           Integer,
                           S:           HybridCiphertext)
 
   case class OpenedShare (receiverID:  Integer,
-                          x:           Integer,
                           S:           HybridPlaintext)
 
   case class R1Data (issuerID: Integer,            // ID of commitments and shares issuer
@@ -29,9 +28,16 @@ package object keygen {
   //----------------------------------------------------------
   // Round 2 data structures
   //
-  case class ComplainR2 (violatorID: Integer) // { // NIZK  }
+  case class ShareProof (encryptedShare:  HybridCiphertext,
+                         decryptedShare:  HybridPlaintext,
+                         NIZKProof:       ElgamalDecrNIZKProof)
 
-  case class R2Data (complains: Array[ComplainR2])
+  case class ComplaintR2(violatorID:        Integer,
+                         issuerPublicKey:   PubKey,
+                         shareProof_a:      ShareProof,
+                         shareProof_b:      ShareProof)
+
+  case class R2Data (complaints: Array[ComplaintR2])
 
   //----------------------------------------------------------
   // Round 3 data structures

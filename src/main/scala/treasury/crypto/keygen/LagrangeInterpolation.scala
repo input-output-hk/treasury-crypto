@@ -14,9 +14,9 @@ object LagrangeInterpolation
 
     for(j <- shares.indices)
     {
-      if(shares(j).x != x)
+      if(shares(j).receiverID != x)
       {
-        val J = BigInteger.valueOf(shares(j).x.toLong)
+        val J = BigInteger.valueOf(shares(j).receiverID.toLong)
         val I = BigInteger.valueOf(x.toLong)
 
         val J_I = J.subtract(I).mod(cs.orderOfBasePoint)
@@ -33,7 +33,7 @@ object LagrangeInterpolation
     var restoredSecret = new BigInteger("0")
     for(i <- shares.indices)
     {
-      val L_i = getLagrangeCoeff(cs, shares(i).x, shares)
+      val L_i = getLagrangeCoeff(cs, shares(i).receiverID, shares)
       val p_i = new BigInteger(shares(i).S.decryptedMessage)
 
       restoredSecret = restoredSecret.add(L_i.multiply(p_i)).mod(cs.orderOfBasePoint)
@@ -47,7 +47,7 @@ object LagrangeInterpolation
     val poly = new Polynomial(cs, secret, degree)
 
     val sharesNum = degree * 2 // ratio specific for voting protocol, as assumed t = n / 2, i.e. degree = sharesNum / 2
-    var shares = for(x <- 1 to sharesNum) yield {OpenedShare(0, x, HybridPlaintext(cs.infinityPoint, poly(BigInteger.valueOf(x)).toByteArray))}
+    var shares = for(x <- 1 to sharesNum) yield {OpenedShare(x, HybridPlaintext(cs.infinityPoint, poly(BigInteger.valueOf(x)).toByteArray))}
 
     val rnd = new scala.util.Random
     val patchIndex = rnd.nextInt(sharesNum)
