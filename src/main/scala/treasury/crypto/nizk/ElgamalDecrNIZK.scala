@@ -28,7 +28,7 @@ object ElgamalDecrNIZK {
 
     val z = privKey.multiply(e).add(w).mod(cs.orderOfBasePoint)
 
-    ElgamalDecrNIZKProof(A1, A2, z)
+    ElgamalDecrNIZKProof(A1.normalize(), A2.normalize(), z)
   }
 
   def verifyNIZK(cs: Cryptosystem,

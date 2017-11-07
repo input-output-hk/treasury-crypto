@@ -95,7 +95,7 @@ class Cryptosystem {
     var randomPoint = symmetricKey
 
     if(randomPoint == null)
-      randomPoint = basePoint.multiply(getRand)
+      randomPoint = basePoint.multiply(getRand).normalize()
 
     val keyMaterial = hash256(randomPoint.getEncoded(true))
 

@@ -12,8 +12,8 @@ import scala.collection.mutable.ArrayBuffer
 //
 class DistrKeyGen(cs:                       Cryptosystem,
                   h:                        Point,
-                  transportKeyPair:         KeyPair,
-                  committeeMembersPubKeys:  Seq[PubKey])
+                  transportKeyPair:         KeyPair,     // key pair for shares encryption/decryption
+                  committeeMembersPubKeys:  Seq[PubKey]) // public keys of all committee members, including own public key from transportKeyPair
 {
   case class CRS_commitment (issuerID: Integer, crs_commitment: Array[ECPoint])
   case class Commitment     (issuerID: Integer, commitment: Array[ECPoint])
@@ -33,7 +33,7 @@ class DistrKeyGen(cs:                       Cryptosystem,
 
   private val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
   private val ownPrivateKey = transportKeyPair._1
-  private val ownPublicKey  = transportKeyPair._2
+  private val ownPublicKey  = transportKeyPair._2.normalize()
   val ownID: Integer = memberIdentifier.getId(ownPublicKey).get.intValue()
 
   def doRound1(secretKey: Array[Byte]): R1Data =
@@ -42,7 +42,7 @@ class DistrKeyGen(cs:                       Cryptosystem,
     val poly_b = new Polynomial(cs, new BigInteger(secretKey), t)
 
     for(i <- A.indices)
-      A(i) = g.multiply(poly_a(i))
+      A(i) = g.multiply(poly_a(i)).normalize()
 
     val E   = new ArrayBuffer[Array[Byte]]()
     val S_a = new ArrayBuffer[SecretShare]()
@@ -51,7 +51,7 @@ class DistrKeyGen(cs:                       Cryptosystem,
     // CRS commitments for each coefficient of both polynomials
     //
     for(i <- A.indices)
-      E += A(i).add(h.multiply(poly_b(i))).getEncoded(true)
+      E += A(i).add(h.multiply(poly_b(i))).normalize().getEncoded(true)
 
     for(i <- committeeMembersPubKeys.indices)
     {
@@ -211,7 +211,7 @@ class DistrKeyGen(cs:                       Cryptosystem,
 
   def doRound4(r3Data: Seq[R3Data]): R4Data =
   {
-    var complains = new ArrayBuffer[ComplainR4]()
+    var complaints = new ArrayBuffer[ComplaintR4]()
 
     for(i <- r3Data.indices)
     {
@@ -227,25 +227,25 @@ class DistrKeyGen(cs:                       Cryptosystem,
         {
           val share = shares.find(_.issuerID == issuerID)
           if(share.isDefined) { // if committee is disqualified, its shares are already deleted from the local state of the current committee
-            complains += ComplainR4(issuerID, share.get.share_a, share.get.share_b)
+            complaints += ComplaintR4(issuerID, share.get.share_a, share.get.share_b)
             violatorsIDs += issuerID
           }
         }
       }
     }
 
-    R4Data(ownID, complains.toArray)
+    R4Data(ownID, complaints.toArray)
   }
 
   def doRound5_1(r4DataIn: Seq[R4Data]): R5_1Data =
   {
-    def checkComplain(complain: ComplainR4): Boolean =
+    def checkComplaint(complaint: ComplaintR4): Boolean =
     {
-      val violatorsCRSCommitment = CRS_commitments.find(_.issuerID == complain.violatorID).get
-      val CRS_Ok = checkOnCRS(complain.share_a, complain.share_b, violatorsCRSCommitment.crs_commitment.map(_.getEncoded(true)))
+      val violatorsCRSCommitment = CRS_commitments.find(_.issuerID == complaint.violatorID).get
+      val CRS_Ok = checkOnCRS(complaint.share_a, complaint.share_b, violatorsCRSCommitment.crs_commitment.map(_.getEncoded(true)))
 
-      val violatorsCommitment = commitments.find(_.issuerID == complain.violatorID).get
-      val Commitment_Ok = checkCommitment(complain.violatorID, violatorsCommitment.commitment.map(_.getEncoded(true)))
+      val violatorsCommitment = commitments.find(_.issuerID == complaint.violatorID).get
+      val Commitment_Ok = checkCommitment(complaint.violatorID, violatorsCommitment.commitment.map(_.getEncoded(true)))
 
       CRS_Ok && !Commitment_Ok
     }
@@ -256,27 +256,31 @@ class DistrKeyGen(cs:                       Cryptosystem,
 
     for(i <- r4Data.indices)
     {
-      for(j <- r4Data(i).complains.indices)
+      for(j <- r4Data(i).complaints.indices)
       {
-        val violatorID = r4Data(i).complains(j).violatorID
+        val violatorID = r4Data(i).complaints(j).violatorID
 
         if(violatorID != ownID &&
           !violatorsShares.exists(_._1 == violatorID))
         {
-          if(commitments.exists(_.issuerID == violatorID))
+          val violatorShare = shares.find(_.issuerID == violatorID)
+          val violatorCommitment = commitments.find(_.issuerID == violatorID)
+
+          if(violatorCommitment.isDefined)
           {
-            if(checkComplain(r4Data(i).complains(j)))
+            if(checkComplaint(r4Data(i).complaints(j)))
             {
-              val violatorShare = (violatorID, shares.find(_.issuerID == violatorID).get.share_a)
-              violatorsShares += violatorShare
+              if(violatorShare.isDefined)
+                violatorsShares += Tuple2(violatorID, violatorShare.get.share_a)
+
               // Deleting commitment A of the violator
-              commitments -= commitments.find(_.issuerID == violatorID).get
+              commitments -= violatorCommitment.get
             }
           }
-          else
+          else // commitment of violator is absent, because it wasn't accepted at the earlier stage. So post the share of violator.
           {
-            val violatorShare = (violatorID, shares.find(_.issuerID == violatorID).get.share_a)
-            violatorsShares += violatorShare
+            if(violatorShare.isDefined)
+              violatorsShares += Tuple2(violatorID, violatorShare.get.share_a)
           }
         }
       }

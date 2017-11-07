@@ -93,7 +93,7 @@ class DistrKeyGenTest  extends FunSuite {
     }
 
     val r5_2Data = for (i <- committeeMembersPubKeys.indices) yield {
-      (committeeMembers(i).dkg.ownID, committeeMembers(i).setKeyR5_2(r5_1Data))
+      (committeeMembers(i).ownId, committeeMembers(i).setKeyR5_2(r5_1Data))
     }
 
     //---------------------------------------------------------------
@@ -102,7 +102,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     // Calculating the individual public keys (pk_i = g^sk_i for each committee)
     var individualPublicKeys = for(i <- committeeMembers.indices) yield {
-      (committeeMembers(i).dkg.ownID, cs.basePoint.multiply(committeeMembers(i).secretKey))
+      (committeeMembers(i).ownId, cs.basePoint.multiply(committeeMembers(i).secretKey))
     }
 
     var sharedPublicKeysAfterR2 = r5_2Data

@@ -6,12 +6,6 @@ import treasury.crypto.nizk.ElgamalDecrNIZK.ElgamalDecrNIZKProof
 package object keygen {
 
   //----------------------------------------------------------
-  // Committee member attributes
-  //
-  case class CommitteeMemberAttr(id:        Integer,
-                                 publicKey: PubKey)
-
-  //----------------------------------------------------------
   // Round 1 data structures
   //
   case class SecretShare (receiverID:  Integer,
@@ -21,7 +15,7 @@ package object keygen {
                           S:           HybridPlaintext)
 
   case class R1Data (issuerID: Integer,            // ID of commitments and shares issuer
-                     E:        Array[Array[Byte]], // CSR commitments for coefficients of the both polynomials (E = g * a_i + h * b_i; i = [0; t) )
+                     E:        Array[Array[Byte]], // CRS commitments for coefficients of the both polynomials (E = g * a_i + h * b_i; i = [0; t) )
                      S_a:      Array[SecretShare], // poly_a shares for each of k = n-1 committee members
                      S_b:      Array[SecretShare]) // poly_b shares for each of k = n-1 committee members
 
@@ -48,12 +42,12 @@ package object keygen {
   //----------------------------------------------------------
   // Round 4 data structures
   //
-  case class ComplainR4 (violatorID:  Integer,
+  case class ComplaintR4(violatorID:  Integer,
                          share_a:     OpenedShare,
                          share_b:     OpenedShare)
 
-  case class R4Data (issuerID:  Integer,
-                     complains: Array[ComplainR4])
+  case class R4Data (issuerID:    Integer,
+                     complaints:  Array[ComplaintR4])
 
   //----------------------------------------------------------
   // Round 5.1 data structures

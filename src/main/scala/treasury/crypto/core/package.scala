@@ -50,6 +50,14 @@ package object core {
       result
     }
 
+    def time_average_s[R](msg: String, block: => R, n: Int): R = {
+      val t0 = System.nanoTime()
+      val result = block
+      val t1 = System.nanoTime()
+      println(msg + " " + ((t1-t0).toFloat/1000000000)/n + " s")
+      result
+    }
+
     def accurate_time[R](msg: String, block: => R): Unit = {
       val time = config(
         Key.exec.benchRuns -> 200,

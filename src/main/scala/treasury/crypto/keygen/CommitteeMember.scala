@@ -4,8 +4,9 @@ import treasury.crypto.core.{Cryptosystem, KeyPair, Point, PrivKey, PubKey}
 
 class CommitteeMember(val cs: Cryptosystem, val h: Point, val transportKeyPair: KeyPair, val committeeMembersPubKeys: Seq[PubKey] ) {
 
-  val dkg = new DistrKeyGen(cs, h, transportKeyPair, committeeMembersPubKeys)
+  private val dkg = new DistrKeyGen(cs, h, transportKeyPair, committeeMembersPubKeys)
   val secretKey = cs.getRand
+  val ownId: Integer = dkg.ownID
 
   def setKeyR1(): R1Data = {
     dkg.doRound1(secretKey.toByteArray)
