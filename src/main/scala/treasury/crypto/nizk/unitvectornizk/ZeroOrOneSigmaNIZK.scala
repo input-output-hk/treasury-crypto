@@ -50,11 +50,11 @@ object ZeroOrOneSigmaNIZK {
       val e1 = cs.getRandBytes(32)
       val E1 = new BigInteger(e1).mod(cs.orderOfBasePoint)
 
-      val B1 = cs.basePoint.multiply(v)
-      val B2 = pubKey.multiply(v)
+      val B1 = cs.basePoint.multiply(v).normalize
+      val B2 = pubKey.multiply(v).normalize
 
-      val A1 = cs.basePoint.multiply(z1).subtract(ciphertext._1.multiply(E1))
-      val A2 = pubKey.multiply(z1).subtract(ciphertext._2.multiply(E1))
+      val A1 = cs.basePoint.multiply(z1).subtract(ciphertext._1.multiply(E1)).normalize
+      val A2 = pubKey.multiply(z1).subtract(ciphertext._2.multiply(E1)).normalize
 
       val e = cs.hash256 {
         pubKey.getEncoded(true) ++

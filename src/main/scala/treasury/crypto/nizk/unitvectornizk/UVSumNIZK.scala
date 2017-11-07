@@ -25,8 +25,8 @@ object UVSumNIZK {
     }.mod(cs.orderOfBasePoint)
 
     val w = cs.getRand
-    val A1 = cs.basePoint.multiply(w)
-    val A2 = pubKey.multiply(w)
+    val A1 = cs.basePoint.multiply(w).normalize()
+    val A2 = pubKey.multiply(w).normalize()
 
     val e = new BigInteger(
       cs.hash256 {
@@ -37,7 +37,7 @@ object UVSumNIZK {
         A2.getEncoded(true)
       }).mod(cs.orderOfBasePoint)
 
-    val z = R.multiply(e).add(w)
+    val z = R.multiply(e).add(w).mod(cs.orderOfBasePoint)
 
     UVSumNIZKProof(A1, A2, z)
   }

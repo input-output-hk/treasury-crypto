@@ -66,7 +66,7 @@ class Cryptosystem {
     val rPk = pubKey.multiply(rand)
     val MrPk = rPk.add(msg)
 
-    (rG, MrPk)
+    (rG.normalize(), MrPk.normalize())
   }
 
   /* Implements Elliptic Curve version of classic ElGamal decryption.

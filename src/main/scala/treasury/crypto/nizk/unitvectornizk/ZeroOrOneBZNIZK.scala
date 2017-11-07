@@ -32,9 +32,9 @@ object ZeroOrOneBZNIZK {
       A._2.getEncoded(true)
     }).mod(cs.orderOfBasePoint)
 
-    val f = plaintext.multiply(e).add(beta)
-    val w = r.multiply(e).add(gamma)
-    val v = e.subtract(f).multiply(r).add(delta)
+    val f = plaintext.multiply(e).add(beta).mod(cs.orderOfBasePoint)
+    val w = r.multiply(e).add(gamma).mod(cs.orderOfBasePoint)
+    val v = e.subtract(f).multiply(r).add(delta).mod(cs.orderOfBasePoint)
 
     ZeroOrOneBZNIZKProof(A, B, f, w, v)
   }
