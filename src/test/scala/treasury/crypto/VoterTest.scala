@@ -1,8 +1,8 @@
 package treasury.crypto
 
 import org.scalatest.FunSuite
-import treasury.crypto.core.{Cryptosystem,One,VoteCases}
-import treasury.crypto.voting.{RegularVoter, VoterBallot}
+import treasury.crypto.core.{Cryptosystem, One, VoteCases}
+import treasury.crypto.voting.{Expert, RegularVoter, Voter, VoterBallot}
 
 class VoterTest extends FunSuite {
 
@@ -14,8 +14,19 @@ class VoterTest extends FunSuite {
     val numberOfExperts = 6
 
     val voter = new RegularVoter(cs, numberOfExperts, pubKey, One)
-    val ballot = voter.produceVote(0, VoteCases.Abstain).asInstanceOf[VoterBallot]
+    val ballot = voter.produceVote(0, VoteCases.Abstain)
 
-    assert(ballot.uvDelegations.size == numberOfExperts)
+    assert(voter.verifyBallot(ballot))
+    assert(ballot.getUnitVector.size == numberOfExperts + Voter.VOTER_CHOISES_NUM)
+  }
+
+  test("test zero knowledge proof for Expert ballot") {
+    val voterId = 6
+
+    val voter = new Expert(cs, voterId, pubKey)
+    val ballot = voter.produceVote(0, VoteCases.Abstain)
+
+    assert(voter.verifyBallot(ballot))
+    assert(ballot.getUnitVector.size == Voter.VOTER_CHOISES_NUM)
   }
 }

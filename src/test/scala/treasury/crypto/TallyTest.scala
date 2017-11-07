@@ -6,7 +6,7 @@ import org.scalatest.FunSuite
 import treasury.crypto.core._
 import treasury.crypto.voting.{Expert, RegularVoter, Tally}
 
-class VotingProtocolTest extends FunSuite {
+class TallyTest extends FunSuite {
 
   test("voting") {
     // Simulating the shared public and private keys of committees

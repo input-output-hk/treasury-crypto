@@ -3,21 +3,26 @@ package treasury.crypto.voting
 import java.math.BigInteger
 
 import treasury.crypto.core._
+import treasury.crypto.nizk.shvzk.{SHVZKGen, SHVZKVerifier}
 
 abstract class Voter {
   val cs: Cryptosystem
   val publicKey: PubKey
 
-  protected def produceUnitVector(size: Int, nonZeroPos: Int): Array[(Ciphertext, Randomness)] = {
-    val unitVector = new Array[(Ciphertext, Randomness)](size)
+  def verifyBallot(ballot: Ballot): Boolean = {
+    new SHVZKVerifier(cs, publicKey, ballot.getUnitVector, ballot.proof).verifyProof()
+  }
+
+  protected def produceUnitVector(size: Int, nonZeroPos: Int): (Array[Ciphertext], Array[Randomness]) = {
+    val ciphertexts = new Array[Ciphertext](size)
+    val randomness = new Array[Randomness](size)
 
     for (i <- 0 until size) {
-      val rand = cs.getRand
-      val encr = cs.encrypt(publicKey, rand, if (i == nonZeroPos) One else Zero)
-      unitVector(i) = (encr, rand)
+      randomness(i) = cs.getRand
+      ciphertexts(i) = cs.encrypt(publicKey, randomness(i), if (i == nonZeroPos) One else Zero)
     }
 
-    unitVector
+    (ciphertexts, randomness)
   }
 }
 
@@ -38,19 +43,23 @@ class RegularVoter(val cs: Cryptosystem,
       case VoteCases.Abstain  => 2
     }
 
-    val uvDelegations = produceUnitVector(expertsNum, -1)
-    val uvChoice = produceUnitVector(Voter.VOTER_CHOISES_NUM, nonZeroPos)
+    val (uvDelegVector, uvDelegRand) = produceUnitVector(expertsNum, -1)
+    val (uvChoiceVector, uvChoiceRand) = produceUnitVector(Voter.VOTER_CHOISES_NUM, nonZeroPos)
+    val proof = new SHVZKGen(cs, publicKey,
+      uvDelegVector ++ uvChoiceVector, expertsNum + nonZeroPos, uvDelegRand ++ uvChoiceRand).produceNIZK()
 
-    VoterBallot(proposalID, uvDelegations.map(_._1), uvChoice.map(_._1), stake)
+    VoterBallot(proposalID, uvDelegVector, uvChoiceVector, proof, stake)
   }
 
   def produceDelegatedVote(proposalID: Integer, delegate: Int): Ballot = {
     assert(delegate >= 0 && delegate < expertsNum)
 
-    val uvDelegations = produceUnitVector(expertsNum, delegate)
-    val uvChoice = produceUnitVector(Voter.VOTER_CHOISES_NUM, -1)
+    val (uvDelegVector, uvDelegRand) = produceUnitVector(expertsNum, delegate)
+    val (uvChoiceVector, uvChoiceRand) = produceUnitVector(Voter.VOTER_CHOISES_NUM, -1)
+    val proof = new SHVZKGen(cs, publicKey,
+      uvDelegVector ++ uvChoiceVector, delegate, uvDelegRand ++ uvChoiceRand).produceNIZK()
 
-    VoterBallot(proposalID, uvDelegations.map(_._1), uvChoice.map(_._1), stake)
+    VoterBallot(proposalID, uvDelegVector, uvChoiceVector, proof, stake)
   }
 }
 
@@ -66,8 +75,9 @@ case class Expert(val cs: Cryptosystem,
       case VoteCases.Abstain  => 2
     }
 
-    val uvChoice = produceUnitVector(Voter.VOTER_CHOISES_NUM, nonZeroPos)
+    val (uvChoiceVector, uvChoiceRand) = produceUnitVector(Voter.VOTER_CHOISES_NUM, nonZeroPos)
+    val proof = new SHVZKGen(cs, publicKey, uvChoiceVector, nonZeroPos, uvChoiceRand).produceNIZK()
 
-    ExpertBallot(proposalID, expertId, uvChoice.map(_._1))
+    ExpertBallot(proposalID, expertId, uvChoiceVector, proof)
   }
 }
