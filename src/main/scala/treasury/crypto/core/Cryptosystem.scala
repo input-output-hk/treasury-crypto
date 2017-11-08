@@ -39,7 +39,7 @@ class Cryptosystem {
     val publicKey = pair.getPublic.asInstanceOf[ECPublicKey]
     val privateKey = pair.getPrivate.asInstanceOf[ECPrivateKey]
 
-    (privateKey.getD, publicKey.getQ)
+    (privateKey.getD, publicKey.getQ.normalize)
   }
 
   /* Implements Elliptic Curve version of Lifted ElGamal encryption.
@@ -66,7 +66,7 @@ class Cryptosystem {
     val rPk = pubKey.multiply(rand)
     val MrPk = rPk.add(msg)
 
-    (rG.normalize(), MrPk.normalize())
+    (rG.normalize, MrPk.normalize)
   }
 
   /* Implements Elliptic Curve version of classic ElGamal decryption.
@@ -74,7 +74,7 @@ class Cryptosystem {
   * */
   def decryptPoint(privKey: PrivKey, ciphertext: Ciphertext): Point = {
     val rPk = ciphertext._1.multiply(privKey)
-    ciphertext._2.subtract(rPk).normalize()
+    ciphertext._2.subtract(rPk).normalize
   }
 
   private def AESEncryptDecrypt(msg: Array[Byte], keyMaterial: Array[Byte], mode: Int): Array[Byte] = {
@@ -95,7 +95,7 @@ class Cryptosystem {
     var randomPoint = symmetricKey
 
     if(randomPoint == null)
-      randomPoint = basePoint.multiply(getRand).normalize()
+      randomPoint = basePoint.multiply(getRand).normalize
 
     val keyMaterial = hash256(randomPoint.getEncoded(true))
 

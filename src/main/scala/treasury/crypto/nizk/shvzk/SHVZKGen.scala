@@ -157,13 +157,13 @@ class SHVZKGen(cs: Cryptosystem,
     val xpow = x.pow(log).mod(cs.orderOfBasePoint)
     for (i <- 0 until uvSize) {
       val ypow = y.pow(i).mod(cs.orderOfBasePoint)
-      sum1 = sum1.add(rand(i).multiply(xpow).multiply(ypow).mod(cs.orderOfBasePoint))
+      sum1 = sum1.add(rand(i).multiply(xpow).multiply(ypow))
     }
 
     var sum2 = Zero
     for (i <- 0 until log) {
       val xpow = x.pow(i).mod(cs.orderOfBasePoint)
-      sum2 = sum2.add(Rk(i).multiply(xpow)).mod(cs.orderOfBasePoint)
+      sum2 = sum2.add(Rk(i).multiply(xpow))
     }
 
     sum1.add(sum2).mod(cs.orderOfBasePoint)

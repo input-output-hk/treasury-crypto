@@ -20,7 +20,9 @@ class BallotCreationPerformance {
       val ballotSize = ballot.getUnitVector.foldLeft(0) {
         (acc, c) => acc + c._1.getEncoded(true).size + c._2.getEncoded(true).size
       }
+
       println("\tVoter ballot size: " + ballotSize + " bytes")
+      println("\tVoter ballot proof size: " + ballot.proof.size + " bytes")
 
       TimeUtils.accurate_time("\tExpert ballot creation: ", simulator.createExpertBallot(1, 1, VoteCases.Yes))
 
@@ -29,6 +31,7 @@ class BallotCreationPerformance {
         (acc, c) => acc + c._1.getEncoded(true).size + c._2.getEncoded(true).size
       }
       println("\tExpert ballot size: " + exballotSize + " bytes")
+      println("\tExpert ballot proof size: " + exballot.proof.size + " bytes")
     }
   }
 }
