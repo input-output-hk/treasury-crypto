@@ -19,7 +19,22 @@ package object core {
   val One:  BigInteger = BigInteger.valueOf(1)
 
   case class HybridCiphertext(encryptedKey: Ciphertext, encryptedMessage: Array[Byte])
+  {
+    def size: Int =
+    {
+      encryptedKey._1.getEncoded(true).size +
+      encryptedKey._2.getEncoded(true).size
+      encryptedMessage.size
+    }
+  }
   case class HybridPlaintext (decryptedKey: Point, decryptedMessage: Array[Byte])
+  {
+    def size: Int =
+    {
+      decryptedKey.getEncoded(true).size +
+      decryptedMessage.size
+    }
+  }
 
   object VoteCases extends Enumeration {
     val Yes, No, Abstain = Value
@@ -54,7 +69,7 @@ package object core {
       val t0 = System.nanoTime()
       val result = block
       val t1 = System.nanoTime()
-      println(msg + " " + ((t1-t0).toFloat/1000000000)/n + " s")
+      print(msg + "\t" + ((t1-t0).toFloat/1000000000)/n + " s;\t")
       result
     }
 

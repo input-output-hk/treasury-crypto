@@ -8,6 +8,14 @@ import treasury.crypto.core._
 object ElgamalDecrNIZK {
 
   case class ElgamalDecrNIZKProof(A1: Point, A2: Point, z: Element)
+  {
+    def size: Int =
+    {
+      A1.getEncoded(true).size +
+      A2.getEncoded(true).size +
+      z.toByteArray.size
+    }
+  }
 
   def produceNIZK(cs: Cryptosystem,
                   ciphertext: Ciphertext,
