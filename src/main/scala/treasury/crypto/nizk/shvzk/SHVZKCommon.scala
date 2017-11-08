@@ -49,7 +49,7 @@ class SHVZKCommon(val cs: Cryptosystem,
     val c1 = cs.basePoint.multiply(m)
     val c2 = ck.multiply(r)
 
-    c1.add(c2)
+    c1.add(c2).normalize
   }
 }
 

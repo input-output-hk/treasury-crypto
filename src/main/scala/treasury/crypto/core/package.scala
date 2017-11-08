@@ -60,7 +60,7 @@ package object core {
 
     def accurate_time[R](msg: String, block: => R): Unit = {
       val time = config(
-        Key.exec.benchRuns -> 200,
+        Key.exec.benchRuns -> 20,
       ) withWarmer {
         new Warmer.Default
       } withMeasurer {

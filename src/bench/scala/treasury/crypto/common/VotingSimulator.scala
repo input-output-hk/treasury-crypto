@@ -42,21 +42,21 @@ class VotingSimulator(val numberOfExperts: Int,
     val delegatedVotersIds = (numberOfExperts + delegations) until (numberOfExperts + numberOfVoters)
 
     val expertsBallots =
-      for (expertId <- 0 until numberOfExperts) yield {
+      for (expertId <- (0 until numberOfExperts).par) yield {
         createExpertBallot(expertId, projectId, VoteCases.No)
       }
 
     val votersBallots =
-      for (id <- votersIds) yield {
+      for (id <- votersIds.par) yield {
         createVoterBallot(id, projectId, -1, VoteCases.Yes)
       }
 
     val votersDelegatedBallots =
-      for (id <- delegatedVotersIds) yield {
+      for (id <- delegatedVotersIds.par) yield {
         createVoterBallot(id, projectId, id % numberOfExperts, VoteCases.Yes)
       }
 
-    expertsBallots ++ votersBallots ++ votersDelegatedBallots
+    expertsBallots.seq ++ votersBallots.seq ++ votersDelegatedBallots.seq
   }
 
   /* Consumes a list of pairs with project id and ballots.
