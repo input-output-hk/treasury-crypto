@@ -2,7 +2,6 @@ package treasury.crypto.core
 
 import java.math.BigInteger
 import java.security.{KeyPairGenerator, SecureRandom, Security}
-
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -13,6 +12,7 @@ import org.bouncycastle.jce.interfaces.{ECPrivateKey, ECPublicKey}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.jce.spec.ECParameterSpec
 import org.bouncycastle.math.ec.ECPoint
+import treasury.crypto.keygen.DelegationsC1
 
 /* Holds common params for Elliptic Curve cryptosystem that are used throughout the library
 */
@@ -67,6 +67,21 @@ class Cryptosystem {
     val MrPk = rPk.add(msg)
 
     (rG.normalize, MrPk.normalize)
+  }
+
+  def decryptC1(privKey: PrivKey, ciphertext: Ciphertext): Point = {
+    ciphertext._1.multiply(privKey)
+  }
+
+  // Unit-wise decryption of a vector, using sum of corresponding decrypted C1
+  def decryptVectorOnC1(c1Vectors: Seq[Seq[Point]], encryptedVector: Seq[Ciphertext]): Seq[BigInteger] = {
+
+    assert(c1Vectors.forall(_.length == c1Vectors.head.length))
+    assert(encryptedVector.length == c1Vectors.head.length)
+
+    val c1Sum = c1Vectors.transpose.map(_.foldLeft(infinityPoint){(sum, c1) => sum.add(c1)})
+
+    encryptedVector.zipWithIndex.map{case (unit, i) => discreteLog(unit._2.subtract(c1Sum(i)))}
   }
 
   /* Implements Elliptic Curve version of classic ElGamal decryption.

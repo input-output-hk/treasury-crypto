@@ -28,8 +28,10 @@ object LagrangeInterpolation
     coeff
   }
 
-  def restoreSecret(cs: Cryptosystem, shares: Seq[OpenedShare]): BigInteger =
+  def restoreSecret(cs: Cryptosystem, shares_in: Seq[OpenedShare], threshold: Int): BigInteger =
   {
+    val shares = shares_in.take(threshold)
+
     var restoredSecret = new BigInteger("0")
     for(i <- shares.indices)
     {
@@ -62,7 +64,7 @@ object LagrangeInterpolation
     // Delete random number of shares (imitation of committee members disqualification)
     shares = shares.patch(patchIndex, Nil, patchLength)
 
-    val restoredSecret = restoreSecret(cs, shares)
+    val restoredSecret = restoreSecret(cs, shares, degree)
 
     secret.equals(restoredSecret)
   }

@@ -132,7 +132,7 @@ class DistrKeyGenPerformance {
 
   def start() =
   {
-    val membersNum = List(10, 20, 50, 100)
+    val membersNum = List(10, 20, 40, 50, 60, 80, 100)
     val violatorsPercentage = List(0, 25, 50)
 
     for(i <- membersNum.indices;

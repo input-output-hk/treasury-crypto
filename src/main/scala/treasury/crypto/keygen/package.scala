@@ -1,6 +1,6 @@
 package treasury.crypto
 
-import treasury.crypto.core._
+import treasury.crypto.core.{Ciphertext, _}
 import treasury.crypto.nizk.ElgamalDecrNIZK.ElgamalDecrNIZKProof
 
 package object keygen {
@@ -151,4 +151,12 @@ package object keygen {
       violatorsSecretKeys.foldLeft(0) {(totalSize, currentElement) => totalSize + currentElement.size}
     }
   }
+
+  //----------------------------------------------------------
+  // Tally decryption data structures
+  //
+  case class DelegationsC1 (decryptedC1:  Seq[Point])
+
+  case class VotesC1 (decryptedC1Regular: Seq[Point],
+                      decryptedC1Experts: Seq[Point])
 }

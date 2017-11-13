@@ -115,7 +115,7 @@ object Tally {
     var regularVotersBallots  = ballots.filter(_.isInstanceOf[VoterBallot]).map(_.asInstanceOf[VoterBallot])
     var expertsBallots        = ballots.filter(_.isInstanceOf[ExpertBallot]).map(_.asInstanceOf[ExpertBallot])
 
-    // Exponentiation of the regular voters ddelegations and votes to the power of their stake
+    // Exponentiation of the regular voters delegations and votes to the power of their stake
     //
     for(i <- 0 until regularVotersBallots.size)
     {

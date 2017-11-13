@@ -316,7 +316,7 @@ class DistrKeyGen(cs:                       Cryptosystem,
     }
 
     val violatorsSecretKeys = for(i <- violatorsShares.indices) yield {
-      SecretKey(violatorsShares(i).violatorID, LagrangeInterpolation.restoreSecret(cs, violatorsShares(i).violatorShares).toByteArray)
+      SecretKey(violatorsShares(i).violatorID, LagrangeInterpolation.restoreSecret(cs, violatorsShares(i).violatorShares, t).toByteArray)
     }
 
     val violatorsPublicKeys = for(i <- violatorsSecretKeys.indices) yield {
