@@ -69,21 +69,6 @@ class Cryptosystem {
     (rG.normalize, MrPk.normalize)
   }
 
-  def decryptC1(privKey: PrivKey, ciphertext: Ciphertext): Point = {
-    ciphertext._1.multiply(privKey)
-  }
-
-  // Unit-wise decryption of a vector, using sum of corresponding decrypted C1
-  def decryptVectorOnC1(c1Vectors: Seq[Seq[Point]], encryptedVector: Seq[Ciphertext]): Seq[BigInteger] = {
-
-    assert(c1Vectors.forall(_.length == c1Vectors.head.length))
-    assert(encryptedVector.length == c1Vectors.head.length)
-
-    val c1Sum = c1Vectors.transpose.map(_.foldLeft(infinityPoint){(sum, c1) => sum.add(c1)})
-
-    encryptedVector.zipWithIndex.map{case (unit, i) => discreteLog(unit._2.subtract(c1Sum(i)))}
-  }
-
   /* Implements Elliptic Curve version of classic ElGamal decryption.
   *  A plaintext is represented as point on the curve.
   * */
@@ -178,17 +163,8 @@ class Cryptosystem {
     curve.decodePoint(point)
   }
 
-  /* TODO: Conversion algorithm (msg -> ECPoint) should be implemented.
-   * Currently it is a stub that returns a constant point on the curve. */
-  private def msgToPoint(msg: Int): ECPoint = {
-    ecSpec.getCurve.createPoint(
-      new BigInteger("fc648429e72021c5f9694ebbbecd920802e7356d84711f8962a0a38270f4ecfd", 16),
-      new BigInteger("b54f04e7ffea143d639857295cc7989d4ee998314ef5c0d6e3d6f27ad6252da7", 16)
-    )
-  }
-
   /* Solve discrete logarithm for m*G. Assuming that the degree space is not big */
-  private def discreteLog(plaintextPoint: ECPoint): BigInteger = {
+  def discreteLog(plaintextPoint: ECPoint): BigInteger = {
     var P = ecSpec.getG
 
     if (P.multiply(Zero).equals(plaintextPoint))
@@ -205,5 +181,14 @@ class Cryptosystem {
         return BigInteger.valueOf(msg)
     }
     BigInteger.valueOf(-1)
+  }
+
+  /* TODO: Conversion algorithm (msg -> ECPoint) should be implemented.
+   * Currently it is a stub that returns a constant point on the curve. */
+  private def msgToPoint(msg: Int): ECPoint = {
+    ecSpec.getCurve.createPoint(
+      new BigInteger("fc648429e72021c5f9694ebbbecd920802e7356d84711f8962a0a38270f4ecfd", 16),
+      new BigInteger("b54f04e7ffea143d639857295cc7989d4ee998314ef5c0d6e3d6f27ad6252da7", 16)
+    )
   }
 }

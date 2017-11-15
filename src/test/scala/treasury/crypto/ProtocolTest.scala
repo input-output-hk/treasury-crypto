@@ -4,7 +4,7 @@ import java.math.BigInteger
 
 import org.scalatest.FunSuite
 import treasury.crypto.core.{Cryptosystem, PubKey, VoteCases, Zero}
-import treasury.crypto.keygen.{CommitteeMember, R1Data, R3Data}
+import treasury.crypto.keygen.{CommitteeMember, DecryptionManager, R1Data, R3Data}
 import treasury.crypto.voting.{Expert, RegularVoter, Tally}
 
 class ProtocolTest extends FunSuite {
@@ -58,20 +58,21 @@ class ProtocolTest extends FunSuite {
     //
     val ballots = elections.run(sharedPubKey)
 
+    // Each committee member creates a DecryptionManager (parametrized by hiz priv key) that encapsulates all decryption logic
+    //
+    val decryptionManagers = committeeMembers.map(m => new DecryptionManager(cs, m.secretKey, ballots))
+
     // Joint decryption of the delegations C1-keys by committee members
     //
-    val decryptedC1ForDelegations = for(i <- committeeMembers.indices) yield
-      committeeMembers(i).decryptC1ForDelegations(ballots)
+    val decryptedC1ForDelegations = decryptionManagers.map(_.decryptC1ForDelegations())
 
     // Joint decryption of the votes C1-keys by committee members
     //
-    val decryptedC1ForVotes = for(i <- committeeMembers.indices) yield
-      committeeMembers(i).decryptC1ForVotes(ballots, decryptedC1ForDelegations)
+    val decryptedC1ForChoices = decryptionManagers.map(_.decryptC1ForChoices(decryptedC1ForDelegations))
 
     // Joint decryption of the tally by committee members
     //
-    val tallyResults = for(i <- committeeMembers.indices) yield
-      committeeMembers(i).decryptTally(decryptedC1ForVotes)
+    val tallyResults = decryptionManagers.map(_.decryptTally(decryptedC1ForChoices))
 
     assert(tallyResults.forall(_.equals(tallyResults.head)))
 

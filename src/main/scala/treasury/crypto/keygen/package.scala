@@ -155,8 +155,6 @@ package object keygen {
   //----------------------------------------------------------
   // Tally decryption data structures
   //
-  case class DelegationsC1 (decryptedC1:  Seq[Point])
-
-  case class VotesC1 (decryptedC1Regular: Seq[Point],
-                      decryptedC1Experts: Seq[Point])
+  type DelegationsC1 = Seq[Point]
+  type ChoicesC1 = Seq[Point]
 }

@@ -10,7 +10,7 @@ trait Ballot {
   val proposalId: Int
   val proof: SHVZKProof
 
-  def getUnitVector(): Array[Ciphertext]
+  def getUnitVector: Array[Ciphertext]
 }
 
 case class VoterBallot(override val proposalId: Int,
