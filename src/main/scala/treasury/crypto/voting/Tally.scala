@@ -12,58 +12,43 @@ object Tally {
   // NOTE: The privateKey parameter is temporary for simplified testing. In full version the decrypted by each committee member C1 part of ElGamal ciphertext should be obtained and multiplicated to each other for decryption of the each element of the unit vector.
   def countVotes(cs: Cryptosystem, expertsNum: Int, ballots: Seq[Ballot], privateKey: PrivKey): Result = {
     val votersBallots = ballots.filter(_.isInstanceOf[VoterBallot]).map(_.asInstanceOf[VoterBallot])
+    val expertsBallots = ballots.filter(_.isInstanceOf[ExpertBallot]).map(_.asInstanceOf[ExpertBallot])
 
-    // Create an accumulator where we will collect the sum of all of the voter's delegations
-    // Put the head ballot as initial state of the acc and don't forget to raise an encrypted delegation to the stake amount
-    val acc = votersBallots.head.uvDelegations.map {
-      c => cs.multiply(c, votersBallots.head.stake)
-    }
-    assert(acc.size == expertsNum)
-
-    // Sum up all other delegation vectors from voters. Each coordinate of the vector is multiplied to the
+    // Sum up all delegation vectors from voters. Each coordinate of the vector is multiplied to the
     // corresponding element of the other vector
-    val delegations = votersBallots.tail.foldLeft(acc) {
-      (acc, ballot) => {
-        for (i <- 0 until expertsNum) {
-          val Ci = cs.multiply(ballot.uvDelegations(i), ballot.stake)
-          acc(i) = cs.add(acc(i), Ci)
-        }
-        acc
+    val delegations = votersBallots.map(_.uvDelegations).transpose.map { x =>
+      val deleg = x.zip(votersBallots).foldLeft((cs.infinityPoint, cs.infinityPoint)) {
+        (sum, next) =>
+          val (delegated, ballot) = next
+          cs.add(cs.multiply(delegated, ballot.stake), sum)
       }
+      cs.decrypt(privateKey, deleg)
     }
+    assert(delegations.size == expertsNum)
 
     // The choice vector of an expert should be raised to the power of the amount of the delegated stake
-    val expertsChoices = ballots.filter(_.isInstanceOf[ExpertBallot]).map {
-      (ballot) => {
-        val expertBallot = ballot.asInstanceOf[ExpertBallot]
-        val expertChoice = expertBallot.uvChoice
-
-        val delegatedStake = cs.decrypt(privateKey, delegations(expertBallot.expertId))
-        expertChoice.map(c => cs.multiply(c, delegatedStake))
+    // Then sum up all choice vectors from experts
+    val expertsChoicesSum = expertsBallots.map(_.uvChoice).transpose.map(
+      _.zip(expertsBallots).foldLeft((cs.infinityPoint, cs.infinityPoint)) {
+        (sum, next) =>
+          val (delegated, ballot) = next
+          cs.add(cs.multiply(delegated, delegations(ballot.expertId)), sum)
       }
-    }
-
-    // Sum up all choice vectors from experts
-    val expertsRes = expertsChoices.tail.foldLeft(expertsChoices.head) {
-      (acc, choice) => {
-        for (i <- 0 until Voter.VOTER_CHOISES_NUM)
-          acc(i) = cs.add(acc(i), choice(i))
-        acc
-      }
-    }
-    assert(expertsRes.size == Voter.VOTER_CHOISES_NUM)
+    )
+    assert(expertsChoicesSum.size == Voter.VOTER_CHOISES_NUM)
 
     // Sum up all choice vectors from voters (taking into account their stake)
-    val totalRes = votersBallots.foldLeft(expertsRes) {
-      (acc, ballot) => {
-        for (i <- 0 until Voter.VOTER_CHOISES_NUM) {
-          val v = cs.multiply(ballot.uvChoice(i), ballot.stake)
-          acc(i) = cs.add(acc(i), v)
-        }
-        acc
+    val regularChoicesSum = votersBallots.map(_.uvChoice).transpose.map(
+      _.zipWithIndex.foldLeft((cs.infinityPoint, cs.infinityPoint)) {
+        (sum, next) =>
+          val (delegated, i) = next
+          cs.add(cs.multiply(delegated, votersBallots(i).stake), sum)
       }
-    }
-    assert(totalRes.size == Voter.VOTER_CHOISES_NUM)
+    )
+    assert(regularChoicesSum.size == Voter.VOTER_CHOISES_NUM)
+
+    // Combine experts and regular voters choices
+    val totalRes = expertsChoicesSum.zip(regularChoicesSum).map(x => cs.add(x._1, x._2))
 
     Result(
       cs.decrypt(privateKey, totalRes(0)),

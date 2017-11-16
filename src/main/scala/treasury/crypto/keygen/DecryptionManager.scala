@@ -101,7 +101,7 @@ class DecryptionManager(val cs: Cryptosystem,
   }
 
   // Unit-wise decryption of a vector, using sum of corresponding decrypted C1
-  private def decryptVectorOnC1(c1Vectors: Seq[DelegationsC1], encryptedVector: Seq[Ciphertext]): Seq[BigInteger] = {
+  private def decryptVectorOnC1(c1Vectors: Seq[Seq[Point]], encryptedVector: Seq[Ciphertext]): Seq[BigInteger] = {
 
     assert(c1Vectors.forall(_.length == c1Vectors.head.length))
     assert(encryptedVector.length == c1Vectors.head.length)
