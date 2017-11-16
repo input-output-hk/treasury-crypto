@@ -15,9 +15,11 @@ import treasury.crypto.voting.{Ballot, ExpertBallot, Tally, VoterBallot}
 *
 * Note that there is an internal state used for simpli
 */
-class DecryptionManager(val cs: Cryptosystem,
-                        val secretKey: PrivKey,
-                        ballots: Seq[Ballot]) {
+class DecryptionManager(cs:                   Cryptosystem,
+                        ownId:                Integer,
+                        secretKey:            PrivKey,
+                        violatorsSecretKeys:  Array[BigInteger],
+                        ballots:              Seq[Ballot]) {
 
   private lazy val votersBallots = ballots.filter(_.isInstanceOf[VoterBallot]).map(_.asInstanceOf[VoterBallot])
   assert(votersBallots.forall(_.uvDelegations.length == votersBallots.head.uvDelegations.length))
@@ -31,28 +33,33 @@ class DecryptionManager(val cs: Cryptosystem,
   def decryptC1ForDelegations(): DelegationsC1 =
   {
     delegationsSum = Tally.computeDelegationsSum(cs, votersBallots)
-    delegationsSum.map(d => d._1.multiply(secretKey).normalize)
+    DelegationsC1(ownId, delegationsSum.map(_._1.multiply(secretKey).normalize))
   }
 
-  def decryptC1ForChoices(decryptedC1ForDelegations: Seq[DelegationsC1]): ChoicesC1 =
+  def decryptC1ForChoices(decryptedC1ForDelegationsIn: Seq[DelegationsC1]): ChoicesC1 =
   {
     if (delegationsSum == null)
       delegationsSum = Tally.computeDelegationsSum(cs, votersBallots)
 
-    val delegationsResult = Tally.decryptVectorOnC1(cs, decryptedC1ForDelegations, delegationsSum)
+    val violatorsC1 = violatorsSecretKeys.map(sk => delegationsSum.map(_._1.multiply(sk)))
+
+    val decryptedC1ForDelegations = decryptedC1ForDelegationsIn.map(_.decryptedC1)
+    val delegationsResult = Tally.decryptVectorOnC1(cs, decryptedC1ForDelegations ++ violatorsC1, delegationsSum)
     choicesSum = Tally.computeChoicesSum(cs, votersBallots, expertsBallots, delegationsResult)
 
     // Decryption shares of the summed votes
     //
-    choicesSum.map(c => c._1.multiply(secretKey).normalize)
+    ChoicesC1(ownId, choicesSum.map(c => c._1.multiply(secretKey).normalize))
   }
 
   def decryptTally(votesC1: Seq[ChoicesC1]): Result =
   {
     if (choicesSum == null)
-      throw new UninitializedFieldError("choicesSum is uninitialized")
+      throw UninitializedFieldError("choicesSum is uninitialized")
 
-    val votesResult = Tally.decryptVectorOnC1(cs, votesC1, choicesSum)
+    val violatorsC1 = violatorsSecretKeys.map(sk => choicesSum.map(_._1.multiply(sk)))
+
+    val votesResult = Tally.decryptVectorOnC1(cs, votesC1.map(_.decryptedC1) ++ violatorsC1, choicesSum)
     Result(
       votesResult(0),
       votesResult(1),

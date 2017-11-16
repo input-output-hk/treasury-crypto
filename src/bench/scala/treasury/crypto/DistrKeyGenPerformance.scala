@@ -7,22 +7,6 @@ import treasury.crypto.core.{TimeUtils, VoteCases}
 
 class DistrKeyGenPerformance {
 
-  def patchR3Data(cs: Cryptosystem, r3Data: Seq[R3Data], numOfPatches: Int): Seq[R3Data] =
-  {
-    assert(numOfPatches <= r3Data.length)
-
-    var r3DataPatched = r3Data
-
-    var indexesToPatch = Array.fill[Boolean](numOfPatches)(true) ++ Array.fill[Boolean](r3Data.length - numOfPatches)(false)
-    indexesToPatch = Random.shuffle(indexesToPatch.toSeq).toArray
-
-    for(i <- r3Data.indices)
-      if(indexesToPatch(i))
-        r3DataPatched(i).commitments(0) = cs.infinityPoint.getEncoded(true)
-
-    r3DataPatched
-  }
-
   def Run(commiteeMembersNum: Int, violatorsPercentage: Int): Unit = {
 //    println("--------------------------------------------------------------------------------------")
 //    println("Performance test")

@@ -4,35 +4,28 @@ import java.math.BigInteger
 
 import org.scalatest.FunSuite
 import treasury.crypto.core.{Cryptosystem, PubKey, VoteCases, Zero}
-import treasury.crypto.keygen.{CommitteeMember, DecryptionManager, R1Data, R3Data}
+import treasury.crypto.keygen._
 import treasury.crypto.voting.{Expert, RegularVoter, Tally}
 
 class ProtocolTest extends FunSuite {
 
-  def getSharedPublicKey(cs: Cryptosystem, committeeMembers: Seq[CommitteeMember]): PubKey = {
+  def getSharedPublicKey(cs: Cryptosystem, committeeMembers: Seq[CommitteeMember]): PubKey =
+  {
+    val r1Data    = committeeMembers.map(_.setKeyR1   ())
+    val r2Data    = committeeMembers.map(_.setKeyR2   (r1Data))
+    val r3Data    = committeeMembers.map(_.setKeyR3   (r2Data))
 
-    val r1Data = for (i <- committeeMembers.indices) yield
-      committeeMembers(i).setKeyR1()
+//    val r3DataPatched = patchR3Data(cs, r3Data, 1)
+    val r3DataPatched = r3Data
 
-    val r2Data = for (i <- committeeMembers.indices) yield
-      committeeMembers(i).setKeyR2(r1Data)
-
-    val r3Data = for (i <- committeeMembers.indices) yield
-      committeeMembers(i).setKeyR3(r2Data)
-
-    val r4Data = for (i <- committeeMembers.indices) yield
-      committeeMembers(i).setKeyR4(r3Data)
-
-    val r5_1Data = for (i <- committeeMembers.indices) yield
-      committeeMembers(i).setKeyR5_1(r4Data)
-
-    val r5_2Data = for (i <- committeeMembers.indices) yield
-       committeeMembers(i).setKeyR5_2(r5_1Data)
+    val r4Data    = committeeMembers.map(_.setKeyR4   (r3DataPatched))
+    val r5_1Data  = committeeMembers.map(_.setKeyR5_1 (r4Data))
+    val r5_2Data  = committeeMembers.map(_.setKeyR5_2 (r5_1Data))
 
     val sharedPublicKeys = r5_2Data.map(_.sharedPublicKey).map(cs.decodePoint)
 
-    assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys(0))))
-    sharedPublicKeys(0)
+    assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys.head)))
+    sharedPublicKeys.head
   }
 
   def doTest(cs: Cryptosystem, elections: Elections): Boolean =
@@ -58,36 +51,31 @@ class ProtocolTest extends FunSuite {
     //
     val ballots = elections.run(sharedPubKey)
 
-    // Each committee member creates a DecryptionManager (parametrized by hiz priv key) that encapsulates all decryption logic
-    //
-    val decryptionManagers = committeeMembers.map(m => new DecryptionManager(cs, m.secretKey, ballots))
-
     // Joint decryption of the delegations C1-keys by committee members
     //
-    val decryptedC1ForDelegations = decryptionManagers.map(_.decryptC1ForDelegations())
+    val decryptedC1ForDelegations = committeeMembers.map(_.decryptTallyR1(ballots))
 
     // Joint decryption of the votes C1-keys by committee members
     //
-    val decryptedC1ForChoices = decryptionManagers.map(_.decryptC1ForChoices(decryptedC1ForDelegations))
+    val decryptedC1ForChoices = committeeMembers.map(_.decryptTallyR2(decryptedC1ForDelegations))
 
     // Joint decryption of the tally by committee members
     //
-    val tallyResults = decryptionManagers.map(_.decryptTally(decryptedC1ForChoices))
+    val tallyResults = committeeMembers.map(_.decryptTallyR3(decryptedC1ForChoices))
 
     assert(tallyResults.forall(_.equals(tallyResults.head)))
 
     val distributedDecryption = elections.verify(tallyResults.head)
 
-//    // Centralized verification of the elections results
-//    //
-//    val sharedSecretKey = committeeMembers.foldLeft(BigInteger.valueOf(0)){(sharedSK, currentMember) => sharedSK.add(currentMember.secretKey)}
-//    val tallyResult = Tally.countVotesV2(cs, ballots, sharedSecretKey)
-//
-//    val centralizedDecryption = elections.verify(tallyResult)
-//
-//    val identicalResults = tallyResults.forall(_.equals(tallyResult))
+    // Verification of the elections results by regular member
+    //
+    val tallyResult = Tally.countVotes(cs, ballots, decryptedC1ForDelegations, decryptedC1ForChoices)
 
-    distributedDecryption /*&& centralizedDecryption && identicalResults*/
+    val individualDecryption = elections.verify(tallyResult)
+
+    val identicalResults = tallyResults.forall(_.equals(tallyResult))
+
+    distributedDecryption && individualDecryption && identicalResults
   }
 
   test("test protocol"){

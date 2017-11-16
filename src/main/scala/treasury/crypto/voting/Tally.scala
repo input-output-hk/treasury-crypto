@@ -21,19 +21,18 @@ object Tally {
 
     // Sum up all delegation vectors from voters. Each coordinate of the vector is multiplied to the
     // corresponding element of the other vector
-    val delegationsSum = Tally.computeDelegationsSum(cs, votersBallots)
-    assert(delegationsSum.size == delegationsC1.size)
+    val delegationsSum = computeDelegationsSum(cs, votersBallots)
 
     // Decrypt summed delegations
-    val delegations = Tally.decryptVectorOnC1(cs, delegationsC1, delegationsSum)
+    val delegations = decryptVectorOnC1(cs, delegationsC1.map(_.decryptedC1), delegationsSum)
 
     // Sum up all choice vectors
     // The choice vector of an expert should be raised to the power of the amount of the delegated stake
     // The choice vector of a voter should be raised to the power of the voter stake
-    val choicesSum = Tally.computeChoicesSum(cs, votersBallots, expertsBallots, delegations)
+    val choicesSum = computeChoicesSum(cs, votersBallots, expertsBallots, delegations)
 
     // Decrypt summed choices
-    val tallyRes = Tally.decryptVectorOnC1(cs, choicesC1, choicesSum)
+    val tallyRes = decryptVectorOnC1(cs, choicesC1.map(_.decryptedC1), choicesSum)
     assert(tallyRes.size == Voter.VOTER_CHOISES_NUM)
 
     Result(tallyRes(0), tallyRes(1), tallyRes(2))
