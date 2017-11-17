@@ -157,11 +157,13 @@ package object keygen {
   //----------------------------------------------------------
   // Tally decryption data structures
   //
-  case class DelegationsC1 (issuerID:     Integer,
-                            decryptedC1:  Seq[Point])
+  case class DelegationsC1 (issuerID:           Integer,
+                            decryptedC1:        Seq[Point],
+                            decryptedC1Proofs:  Seq[ElgamalDecrNIZKProof])
 
-  case class ChoicesC1 (issuerID:     Integer,
-                        decryptedC1:  Seq[Point])
+  case class ChoicesC1 (issuerID:           Integer,
+                        decryptedC1:        Seq[Point],
+                        decryptedC1Proofs:  Seq[ElgamalDecrNIZKProof])
 
   //----------------------------------------------------------
   // For testing purposes

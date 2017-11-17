@@ -3,6 +3,7 @@ package treasury.crypto.keygen
 import java.math.BigInteger
 
 import treasury.crypto.core._
+import treasury.crypto.nizk.ElgamalDecrNIZK
 import treasury.crypto.voting.Tally.Result
 import treasury.crypto.voting.{Ballot, ExpertBallot, Tally, VoterBallot}
 
@@ -33,7 +34,11 @@ class DecryptionManager(cs:                   Cryptosystem,
   def decryptC1ForDelegations(): DelegationsC1 =
   {
     delegationsSum = Tally.computeDelegationsSum(cs, votersBallots)
-    DelegationsC1(ownId, delegationsSum.map(_._1.multiply(secretKey).normalize))
+
+    val decryptionShares = delegationsSum.map(_._1.multiply(secretKey).normalize)
+    val decSharesProofs = delegationsSum.map(ElgamalDecrNIZK.produceNIZK(cs, _, secretKey))
+
+    DelegationsC1(ownId, decryptionShares, decSharesProofs)
   }
 
   def decryptC1ForChoices(decryptedC1ForDelegationsIn: Seq[DelegationsC1]): ChoicesC1 =
@@ -49,7 +54,10 @@ class DecryptionManager(cs:                   Cryptosystem,
 
     // Decryption shares of the summed votes
     //
-    ChoicesC1(ownId, choicesSum.map(c => c._1.multiply(secretKey).normalize))
+    val decryptionShares = choicesSum.map(_._1.multiply(secretKey).normalize)
+    val decSharesProofs = choicesSum.map(ElgamalDecrNIZK.produceNIZK(cs, _, secretKey))
+
+    ChoicesC1(ownId, decryptionShares, decSharesProofs)
   }
 
   def decryptTally(votesC1: Seq[ChoicesC1]): Result =
