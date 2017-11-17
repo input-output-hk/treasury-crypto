@@ -35,7 +35,7 @@ class RegularVoter(val cs: Cryptosystem,
                    val publicKey: PubKey,
                    val stake: BigInteger) extends Voter {
 
-  def produceVote(proposalID: Integer, choice: VoteCases.Value): Ballot = {
+  def produceVote(proposalID: Integer, choice: VoteCases.Value, withProof: Boolean = true): VoterBallot = {
 
     val nonZeroPos = choice match {
       case VoteCases.Yes      => 0
@@ -45,19 +45,24 @@ class RegularVoter(val cs: Cryptosystem,
 
     val (uvDelegVector, uvDelegRand) = produceUnitVector(expertsNum, -1)
     val (uvChoiceVector, uvChoiceRand) = produceUnitVector(Voter.VOTER_CHOISES_NUM, nonZeroPos)
-    val proof = new SHVZKGen(cs, publicKey,
-      uvDelegVector ++ uvChoiceVector, expertsNum + nonZeroPos, uvDelegRand ++ uvChoiceRand).produceNIZK()
+    val proof =
+      if (withProof)
+        new SHVZKGen(cs, publicKey, uvDelegVector ++ uvChoiceVector,
+          expertsNum + nonZeroPos, uvDelegRand ++ uvChoiceRand).produceNIZK()
+      else null
 
     VoterBallot(proposalID, uvDelegVector, uvChoiceVector, proof, stake)
   }
 
-  def produceDelegatedVote(proposalID: Integer, delegate: Int): Ballot = {
+  def produceDelegatedVote(proposalID: Integer, delegate: Int, withProof: Boolean = true): VoterBallot = {
     assert(delegate >= 0 && delegate < expertsNum)
 
     val (uvDelegVector, uvDelegRand) = produceUnitVector(expertsNum, delegate)
     val (uvChoiceVector, uvChoiceRand) = produceUnitVector(Voter.VOTER_CHOISES_NUM, -1)
-    val proof = new SHVZKGen(cs, publicKey,
-      uvDelegVector ++ uvChoiceVector, delegate, uvDelegRand ++ uvChoiceRand).produceNIZK()
+    val proof =
+      if (withProof)
+        new SHVZKGen(cs, publicKey, uvDelegVector ++ uvChoiceVector, delegate, uvDelegRand ++ uvChoiceRand).produceNIZK()
+      else null
 
     VoterBallot(proposalID, uvDelegVector, uvChoiceVector, proof, stake)
   }
@@ -67,7 +72,7 @@ case class Expert(val cs: Cryptosystem,
                   val expertId: Int,
                   val publicKey: PubKey) extends Voter {
 
-  def produceVote(proposalID: Integer, choice: VoteCases.Value): Ballot = {
+  def produceVote(proposalID: Integer, choice: VoteCases.Value, withProof: Boolean = true): ExpertBallot = {
 
     val nonZeroPos = choice match {
       case VoteCases.Yes      => 0
@@ -76,7 +81,10 @@ case class Expert(val cs: Cryptosystem,
     }
 
     val (uvChoiceVector, uvChoiceRand) = produceUnitVector(Voter.VOTER_CHOISES_NUM, nonZeroPos)
-    val proof = new SHVZKGen(cs, publicKey, uvChoiceVector, nonZeroPos, uvChoiceRand).produceNIZK()
+    val proof =
+      if (withProof)
+        new SHVZKGen(cs, publicKey, uvChoiceVector, nonZeroPos, uvChoiceRand).produceNIZK()
+      else null
 
     ExpertBallot(proposalID, expertId, uvChoiceVector, proof)
   }

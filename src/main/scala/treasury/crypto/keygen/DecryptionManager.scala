@@ -18,7 +18,7 @@ import treasury.crypto.voting.{Ballot, ExpertBallot, Tally, VoterBallot}
 class DecryptionManager(cs:                   Cryptosystem,
                         ownId:                Integer,
                         secretKey:            PrivKey,
-                        violatorsSecretKeys:  Array[BigInteger],
+                        violatorsSecretKeys:  Seq[BigInteger],
                         ballots:              Seq[Ballot]) {
 
   private lazy val votersBallots = ballots.filter(_.isInstanceOf[VoterBallot]).map(_.asInstanceOf[VoterBallot])
