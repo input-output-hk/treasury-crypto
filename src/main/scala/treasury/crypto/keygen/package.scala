@@ -1,5 +1,7 @@
 package treasury.crypto
 
+import java.math.BigInteger
+
 import treasury.crypto.core.{Ciphertext, _}
 import treasury.crypto.nizk.ElgamalDecrNIZK.ElgamalDecrNIZKProof
 
@@ -157,13 +159,15 @@ package object keygen {
   //----------------------------------------------------------
   // Tally decryption data structures
   //
-  case class DelegationsC1 (issuerID:           Integer,
-                            decryptedC1:        Seq[Point],
-                            decryptedC1Proofs:  Seq[ElgamalDecrNIZKProof])
+  case class C1(issuerID:           Integer,
+                decryptedC1:        Seq[Point],
+                decryptedC1Proofs:  Seq[ElgamalDecrNIZKProof])
 
-  case class ChoicesC1 (issuerID:           Integer,
-                        decryptedC1:        Seq[Point],
-                        decryptedC1Proofs:  Seq[ElgamalDecrNIZKProof])
+  case class SKShare(ownerID: Integer,
+                     share:   BigInteger)
+
+  case class KeyShares(issuerID:    Integer,
+                       keyShares:   Seq[SKShare])
 
   //----------------------------------------------------------
   // For testing purposes

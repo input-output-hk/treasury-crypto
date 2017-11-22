@@ -12,7 +12,7 @@ import org.bouncycastle.jce.interfaces.{ECPrivateKey, ECPublicKey}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.jce.spec.ECParameterSpec
 import org.bouncycastle.math.ec.ECPoint
-import treasury.crypto.keygen.DelegationsC1
+import treasury.crypto.keygen.C1
 
 /* Holds common params for Elliptic Curve cryptosystem that are used throughout the library
 */

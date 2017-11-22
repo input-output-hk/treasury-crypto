@@ -28,9 +28,9 @@ object LagrangeInterpolation
     coeff
   }
 
-  def restoreSecret(cs: Cryptosystem, shares_in: Seq[OpenedShare], threshold: Int): BigInteger =
+  def restoreSecret(cs: Cryptosystem, shares_in: Seq[OpenedShare], threshold: Int = 0): BigInteger =
   {
-    val shares = shares_in.take(threshold)
+    val shares = shares_in.take(if(threshold != 0) threshold else shares_in.length)
 
     var restoredSecret = new BigInteger("0")
     for(i <- shares.indices)

@@ -15,8 +15,8 @@ class ProtocolTest extends FunSuite {
     val r2Data    = committeeMembers.map(_.setKeyR2   (r1Data))
     val r3Data    = committeeMembers.map(_.setKeyR3   (r2Data))
 
-//    val r3DataPatched = patchR3Data(cs, r3Data, 1)
-    val r3DataPatched = r3Data
+    val r3DataPatched = patchR3Data(cs, r3Data, 1)
+//    val r3DataPatched = r3Data
 
     val r4Data    = committeeMembers.map(_.setKeyR4   (r3DataPatched))
     val r5_1Data  = committeeMembers.map(_.setKeyR5_1 (r4Data))
@@ -33,7 +33,6 @@ class ProtocolTest extends FunSuite {
     val crs_h = cs.basePoint.multiply(cs.getRand)
 
     // Generating keypairs for every commitee member
-    //
     val keyPairs = for(id <- 1 to 10) yield cs.createKeyPair
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
@@ -44,32 +43,41 @@ class ProtocolTest extends FunSuite {
     }
 
     // Generating shared public key by committee members (by running the DKG protocol between them)
-    //
     val sharedPubKey = getSharedPublicKey(cs, committeeMembers)
 
     // Running elections by specific scenario
-    //
     val ballots = elections.run(sharedPubKey)
 
+    val R1_ABSENTEES_NUM = 2
+    val R2_ABSENTEES_NUM = 2
+
+    // Imitation of the disappearance from the delegations decryption phase the R1_ABSENTEES_NUM number of commitee members
+    val committeeMembersR1 = committeeMembers.take(committeeMembers.length - R1_ABSENTEES_NUM)
+
     // Joint decryption of the delegations C1-keys by committee members
-    //
-    val decryptedC1ForDelegations = committeeMembers.map(_.decryptTallyR1(ballots))
+    val decryptedC1ForDelegations = committeeMembersR1.map(_.decryptTallyR1(ballots))
+
+    // Publishing secret key shares of absent commitee members on delegations decryption phase
+    val skSharesR1 = committeeMembersR1.map(_.keysRecoveryR1(decryptedC1ForDelegations))
+
+    // Imitation of the disappearance from the choises decryption phase the R2_ABSENTEES_NUM number of commitee members
+    val committeeMembersR2 = committeeMembersR1.take(committeeMembersR1.length - R2_ABSENTEES_NUM)
 
     // Joint decryption of the votes C1-keys by committee members
-    //
-    val decryptedC1ForChoices = committeeMembers.map(_.decryptTallyR2(decryptedC1ForDelegations))
+    val decryptedC1ForChoices = committeeMembersR2.map(_.decryptTallyR2(decryptedC1ForDelegations, skSharesR1))
+
+    // Publishing secret key shares of absent commitee members on choises decryption phase
+    val skSharesR2 = committeeMembersR2.map(_.keysRecoveryR2(decryptedC1ForChoices))
 
     // Joint decryption of the tally by committee members
-    //
-    val tallyResults = committeeMembers.map(_.decryptTallyR3(decryptedC1ForChoices))
+    val tallyResults = committeeMembersR2.map(_.decryptTallyR3(decryptedC1ForChoices, skSharesR2))
 
     assert(tallyResults.forall(_.equals(tallyResults.head)))
 
     val distributedDecryption = elections.verify(tallyResults.head)
 
     // Verification of the elections results by regular member
-    //
-    val tallyResult = Tally.countVotes(cs, ballots, decryptedC1ForDelegations, decryptedC1ForChoices)
+    val tallyResult = Tally.countVotes(cs, ballots, decryptedC1ForDelegations, decryptedC1ForChoices, skSharesR1, skSharesR2)
 
     val individualDecryption = elections.verify(tallyResult)
 

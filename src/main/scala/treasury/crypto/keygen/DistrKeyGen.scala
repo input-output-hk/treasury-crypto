@@ -36,6 +36,16 @@ class DistrKeyGen(cs:                       Cryptosystem,
   private val ownPublicKey  = transportKeyPair._2.normalize()
   val ownID: Integer = memberIdentifier.getId(ownPublicKey).get.intValue()
 
+  def getShare(id: Integer): BigInteger =
+  {
+    val share = shares.find(_.issuerID == id)
+
+    if(share.isDefined)
+      new BigInteger(share.get.share_a.S.decryptedMessage)
+    else
+      null
+  }
+
   def doRound1(secretKey: Array[Byte]): R1Data =
   {
     val poly_a = new Polynomial(cs, new BigInteger(secretKey), t)
