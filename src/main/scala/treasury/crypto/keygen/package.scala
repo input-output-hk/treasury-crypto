@@ -160,6 +160,7 @@ package object keygen {
   // Tally decryption data structures
   //
   case class C1(issuerID:           Integer,
+                issuerPubKey:       PubKey,
                 decryptedC1:        Seq[Point],
                 decryptedC1Proofs:  Seq[ElgamalDecrNIZKProof])
 

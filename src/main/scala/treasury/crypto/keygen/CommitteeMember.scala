@@ -18,6 +18,7 @@ class CommitteeMember(val cs: Cryptosystem,
   private val dkg = new DistrKeyGen(cs, h, transportKeyPair, committeeMembersPubKeys)
 
   val secretKey = cs.getRand
+  val publicKey = cs.basePoint.multiply(secretKey).normalize()
   val ownId: Integer = dkg.ownID
 
   var violatorsSecretKeys: Array[BigInteger] = Array[BigInteger]()
@@ -74,14 +75,15 @@ class CommitteeMember(val cs: Cryptosystem,
   def decryptTallyR1(ballots: Seq[Ballot]): C1 =
   {
     // Initialization of the decryptor
-    decryptor = new DecryptionManager(cs, ownId, secretKey, violatorsSecretKeys, ballots)
+    decryptor = new DecryptionManager(cs, ownId, (secretKey, publicKey), violatorsSecretKeys, ballots)
     decryptor.decryptC1ForDelegations()
   }
 
   def keysRecoveryR1(c1ForDelegationsIn: Seq[C1]): KeyShares =
   {
-    val c1ForDelegations = c1ForDelegationsIn.filter(x => !dkgViolatorsIds.contains(x.issuerID))
-//      .filter(c1 => decryptor.validateC1(c1, memberIdentifier.getPubKey(BigInteger.valueOf(c1.issuerID.toLong)).get))
+    val c1ForDelegations = c1ForDelegationsIn
+      .filter(x => !dkgViolatorsIds.contains(x.issuerID))
+      .filter(c1 => decryptor.validateDelegationsC1(c1))
 
     getSkShares(c1ForDelegations.map(_.issuerID))
   }
@@ -104,9 +106,11 @@ class CommitteeMember(val cs: Cryptosystem,
 
   def keysRecoveryR2(c1ForChoicesIn: Seq[C1]): KeyShares =
   {
-    val c1ForChoices = c1ForChoicesIn.filter(
-      x =>
-        !dkgViolatorsIds.contains(x.issuerID) && !decryptionViolatorsIds.contains(x.issuerID))
+    val c1ForChoices = c1ForChoicesIn
+      .filter(
+        x =>
+          !dkgViolatorsIds.contains(x.issuerID) && !decryptionViolatorsIds.contains(x.issuerID))
+      .filter(c1 => decryptor.validateChoicesC1(c1))
 
     getSkShares(c1ForChoices.map(_.issuerID))
   }

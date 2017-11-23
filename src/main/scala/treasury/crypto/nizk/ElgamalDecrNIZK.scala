@@ -20,6 +20,7 @@ object ElgamalDecrNIZK {
   def produceNIZK(cs: Cryptosystem,
                   ciphertext: Ciphertext,
                   privKey: PrivKey): ElgamalDecrNIZKProof = {
+
     val w = cs.getRand
     val A1 = cs.basePoint.multiply(w)
     val A2 = ciphertext._1.multiply(w)

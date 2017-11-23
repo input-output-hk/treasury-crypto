@@ -20,9 +20,11 @@ import scala.collection.mutable.ArrayBuffer
 */
 class DecryptionManager(cs:               Cryptosystem,
                         ownId:            Integer,
-                        secretKey:        PrivKey,
+                        keyPair:          KeyPair,
                         dkgViolatorsSKs:  Seq[BigInteger],
                         ballots:          Seq[Ballot]) {
+
+  private lazy val (secretKey, publicKey) = keyPair
 
   private lazy val votersBallots = ballots.filter(_.isInstanceOf[VoterBallot]).map(_.asInstanceOf[VoterBallot])
   assert(votersBallots.forall(_.uvDelegations.length == votersBallots.head.uvDelegations.length))
@@ -35,18 +37,29 @@ class DecryptionManager(cs:               Cryptosystem,
 
   private var decryptionViolatorsSKs = new ArrayBuffer[BigInteger]()
 
-//  def validateC1(c1: C1, publicKey: PubKey): Boolean =
-//  {
-////    delegationsSum.zip(c1.decryptedC1).zip(c1.decryptedC1Proofs).forall(
-////      unit =>
-////        ElgamalDecrNIZK.verifyNIZK(cs, publicKey, unit._1._1, unit._1._2, unit._2))
-//
-//    var num = 0
-//    for(i <- delegationsSum.indices)
-//      if(ElgamalDecrNIZK.verifyNIZK(cs, publicKey, delegationsSum(i), c1.decryptedC1(i), c1.decryptedC1Proofs(i)))
-//        num += 1
-//    num == delegationsSum.length
-//  }
+  private def validateC1(c1: C1, vectorForValidation: Seq[Ciphertext]): Boolean =
+  {
+    (vectorForValidation, c1.decryptedC1, c1.decryptedC1Proofs).zipped.toList.forall
+    {
+      unit =>
+        val ciphertext = unit._1
+        val C1sk = unit._2
+        val plaintext = ciphertext._2.subtract(C1sk)
+        val proof = unit._3
+
+        ElgamalDecrNIZK.verifyNIZK(cs, c1.issuerPubKey, ciphertext, plaintext, proof)
+    }
+  }
+
+  def validateDelegationsC1(c1: C1): Boolean =
+  {
+    validateC1(c1, delegationsSum)
+  }
+
+  def validateChoicesC1(c1: C1): Boolean =
+  {
+    validateC1(c1, choicesSum)
+  }
 
   def decryptC1ForDelegations(): C1 =
   {
@@ -55,7 +68,7 @@ class DecryptionManager(cs:               Cryptosystem,
     val decryptionShares = delegationsSum.map(_._1.multiply(secretKey).normalize)
     val decSharesProofs = delegationsSum.map(ElgamalDecrNIZK.produceNIZK(cs, _, secretKey))
 
-    C1(ownId, decryptionShares, decSharesProofs)
+    C1(ownId, publicKey, decryptionShares, decSharesProofs)
   }
 
   def decryptC1ForChoices(decryptedC1ForDelegationsIn: Seq[C1], skShares: Seq[KeyShares] = Seq[KeyShares]()): C1 =
@@ -77,7 +90,7 @@ class DecryptionManager(cs:               Cryptosystem,
     val decryptionShares = choicesSum.map(_._1.multiply(secretKey).normalize)
     val decSharesProofs = choicesSum.map(ElgamalDecrNIZK.produceNIZK(cs, _, secretKey))
 
-    C1(ownId, decryptionShares, decSharesProofs)
+    C1(ownId, publicKey, decryptionShares, decSharesProofs)
   }
 
   def decryptTally(votesC1: Seq[C1], skShares: Seq[KeyShares] = Seq[KeyShares]()): Result =

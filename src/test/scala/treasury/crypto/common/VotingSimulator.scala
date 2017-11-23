@@ -80,7 +80,7 @@ class VotingSimulator(val numberOfCommitteeMembers: Int,
   }
 
   def prepareDecryptionShares(ballots: Seq[Ballot]): Seq[(C1, C1)] = {
-    val managers = committeeMembers.map(m => new DecryptionManager(cs, 0, m._1, Array[BigInteger](), ballots))
+    val managers = committeeMembers.map(m => new DecryptionManager(cs, 0, m, Array[BigInteger](), ballots))
     val delegationsC1 = managers.map(_.decryptC1ForDelegations())
     val choicesC1 = managers.map(_.decryptC1ForChoices(delegationsC1))
 

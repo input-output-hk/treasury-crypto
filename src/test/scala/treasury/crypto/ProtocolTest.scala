@@ -15,8 +15,8 @@ class ProtocolTest extends FunSuite {
     val r2Data    = committeeMembers.map(_.setKeyR2   (r1Data))
     val r3Data    = committeeMembers.map(_.setKeyR3   (r2Data))
 
-    val r3DataPatched = patchR3Data(cs, r3Data, 1)
-//    val r3DataPatched = r3Data
+//    val r3DataPatched = patchR3Data(cs, r3Data, 1)
+    val r3DataPatched = r3Data
 
     val r4Data    = committeeMembers.map(_.setKeyR4   (r3DataPatched))
     val r5_1Data  = committeeMembers.map(_.setKeyR5_1 (r4Data))
