@@ -7,7 +7,13 @@ import treasury.crypto.keygen._
 
 object Tally {
 
-  case class Result(yes: BigInteger, no: BigInteger, abstain: BigInteger)
+  case class Result(yes: BigInteger, no: BigInteger, abstain: BigInteger) extends HasSize
+  {
+    def size: Int =
+    {
+      yes.toByteArray.size + no.toByteArray.size + abstain.toByteArray.size
+    }
+  }
 
   // Calculates the total result of voting (based on all existing ballots of voters and experts)
   // The decryption of the final result is performed by obtaining C1 components of the result (raised to the private key) from committee members

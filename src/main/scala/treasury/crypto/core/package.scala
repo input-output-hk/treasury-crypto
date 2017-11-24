@@ -15,6 +15,10 @@ package object core {
   type Element = BigInteger
   type Point = ECPoint
 
+  trait HasSize {
+    def size: Int
+  }
+
   val Zero: BigInteger = BigInteger.valueOf(0)
   val One:  BigInteger = BigInteger.valueOf(1)
 
@@ -84,6 +88,19 @@ package object core {
         block
       }
       println(msg + " " + time.value.toInt  + " ms")
+    }
+  }
+
+  object SizeUtils
+  {
+    def getSize[T <: HasSize](vector: Seq[T]): Int =
+    {
+      val maxSize = vector.maxBy(_.size).size
+      val totalSize = vector.foldLeft(0){(totalSize, currentElement) => totalSize + currentElement.size}
+
+      println(maxSize + " B;\t" + totalSize + " B")
+
+      totalSize
     }
   }
 }

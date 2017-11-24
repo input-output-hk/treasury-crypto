@@ -2,7 +2,7 @@ package treasury.crypto
 
 import java.math.BigInteger
 
-import treasury.crypto.core.{Ciphertext, _}
+import treasury.crypto.core._
 import treasury.crypto.nizk.ElgamalDecrNIZK.ElgamalDecrNIZKProof
 
 import scala.util.Random
@@ -14,6 +14,7 @@ package object keygen {
   //
   case class SecretShare (receiverID:  Integer,
                           S:           HybridCiphertext)
+    extends HasSize
   {
     def size: Int =
     {
@@ -24,6 +25,7 @@ package object keygen {
 
   case class OpenedShare (receiverID:  Integer,
                           S:           HybridPlaintext)
+    extends HasSize
   {
     def size: Int =
     {
@@ -35,7 +37,8 @@ package object keygen {
   case class R1Data (issuerID: Integer,            // ID of commitments and shares issuer
                      E:        Array[Array[Byte]], // CRS commitments for coefficients of the both polynomials (E = g * a_i + h * b_i; i = [0; t) )
                      S_a:      Array[SecretShare], // poly_a shares for each of k = n-1 committee members
-                     S_b:      Array[SecretShare])  // poly_b shares for each of k = n-1 committee members
+                     S_b:      Array[SecretShare]) // poly_b shares for each of k = n-1 committee members
+    extends HasSize
   {
     def size: Int =
     {
@@ -52,6 +55,7 @@ package object keygen {
   case class ShareProof (encryptedShare:  HybridCiphertext,
                          decryptedShare:  HybridPlaintext,
                          NIZKProof:       ElgamalDecrNIZKProof)
+    extends HasSize
   {
     def size: Int =
     {
@@ -65,6 +69,7 @@ package object keygen {
                          issuerPublicKey:   PubKey,
                          shareProof_a:      ShareProof,
                          shareProof_b:      ShareProof)
+    extends HasSize
   {
     def size: Int =
     {
@@ -76,6 +81,7 @@ package object keygen {
   }
 
   case class R2Data (complaints: Array[ComplaintR2])
+    extends HasSize
   {
     def size: Int =
     {
@@ -88,6 +94,7 @@ package object keygen {
   //
   case class R3Data (issuerID:    Integer,
                      commitments: Array[Array[Byte]])
+    extends HasSize
   {
     def size: Int =
     {
@@ -102,6 +109,7 @@ package object keygen {
   case class ComplaintR4(violatorID:  Integer,
                          share_a:     OpenedShare,
                          share_b:     OpenedShare)
+    extends HasSize
   {
     def size: Int =
     {
@@ -113,6 +121,7 @@ package object keygen {
 
   case class R4Data (issuerID:    Integer,
                      complaints:  Array[ComplaintR4])
+    extends HasSize
   {
     def size: Int =
     {
@@ -126,6 +135,7 @@ package object keygen {
   //
   case class R5_1Data (issuerID:        Integer,
                        violatorsShares: Array[(Integer, OpenedShare)]) // decrypted share from violator to issuer of this message
+    extends HasSize
   {
     def size: Int =
     {
@@ -139,6 +149,7 @@ package object keygen {
   type SharedPublicKey = Array[Byte]
 
   case class SecretKey (ownerID: Integer, secretKey: Array[Byte])
+    extends HasSize
   {
     def size: Int =
     {
@@ -148,6 +159,7 @@ package object keygen {
   }
   case class R5_2Data (sharedPublicKey:     SharedPublicKey,
                        violatorsSecretKeys: Array[SecretKey])
+    extends HasSize
   {
     def size: Int =
     {
@@ -163,12 +175,38 @@ package object keygen {
                 issuerPubKey:       PubKey,
                 decryptedC1:        Seq[Point],
                 decryptedC1Proofs:  Seq[ElgamalDecrNIZKProof])
+    extends HasSize
+  {
+    def size: Int =
+    {
+      Integer.BYTES +
+      issuerPubKey.getEncoded(true).size +
+      decryptedC1.foldLeft(0) {(totalSize, currentElement) => totalSize + currentElement.getEncoded(true).size} +
+      decryptedC1Proofs.foldLeft(0) {(totalSize, currentElement) => totalSize + currentElement.size}
+    }
+  }
 
   case class SKShare(ownerID: Integer,
                      share:   BigInteger)
+    extends HasSize
+  {
+    def size: Int =
+    {
+      Integer.BYTES +
+      share.toByteArray.size
+    }
+  }
 
   case class KeyShares(issuerID:    Integer,
                        keyShares:   Seq[SKShare])
+    extends HasSize
+  {
+    def size: Int =
+    {
+      Integer.BYTES +
+      keyShares.foldLeft(0){(totalSize, currentElement) => totalSize + currentElement.size}
+    }
+  }
 
   //----------------------------------------------------------
   // For testing purposes
@@ -187,5 +225,24 @@ package object keygen {
         r3DataPatched(i).commitments(0) = cs.infinityPoint.getEncoded(true)
 
     r3DataPatched
+  }
+
+  def getSharedPublicKey(cs: Cryptosystem, committeeMembers: Seq[CommitteeMember]): PubKey =
+  {
+    val r1Data    = committeeMembers.map(_.setKeyR1   ())
+    val r2Data    = committeeMembers.map(_.setKeyR2   (r1Data))
+    val r3Data    = committeeMembers.map(_.setKeyR3   (r2Data))
+
+    //    val r3DataPatched = patchR3Data(cs, r3Data, 1)
+    val r3DataPatched = r3Data
+
+    val r4Data    = committeeMembers.map(_.setKeyR4   (r3DataPatched))
+    val r5_1Data  = committeeMembers.map(_.setKeyR5_1 (r4Data))
+    val r5_2Data  = committeeMembers.map(_.setKeyR5_2 (r5_1Data))
+
+    val sharedPublicKeys = r5_2Data.map(_.sharedPublicKey).map(cs.decodePoint)
+
+    assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys.head)))
+    sharedPublicKeys.head
   }
 }

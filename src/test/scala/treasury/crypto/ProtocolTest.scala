@@ -1,32 +1,11 @@
 package treasury.crypto
 
-import java.math.BigInteger
-
 import org.scalatest.FunSuite
 import treasury.crypto.core.{Cryptosystem, PubKey, VoteCases, Zero}
 import treasury.crypto.keygen._
 import treasury.crypto.voting.{Expert, RegularVoter, Tally}
 
 class ProtocolTest extends FunSuite {
-
-  def getSharedPublicKey(cs: Cryptosystem, committeeMembers: Seq[CommitteeMember]): PubKey =
-  {
-    val r1Data    = committeeMembers.map(_.setKeyR1   ())
-    val r2Data    = committeeMembers.map(_.setKeyR2   (r1Data))
-    val r3Data    = committeeMembers.map(_.setKeyR3   (r2Data))
-
-//    val r3DataPatched = patchR3Data(cs, r3Data, 1)
-    val r3DataPatched = r3Data
-
-    val r4Data    = committeeMembers.map(_.setKeyR4   (r3DataPatched))
-    val r5_1Data  = committeeMembers.map(_.setKeyR5_1 (r4Data))
-    val r5_2Data  = committeeMembers.map(_.setKeyR5_2 (r5_1Data))
-
-    val sharedPublicKeys = r5_2Data.map(_.sharedPublicKey).map(cs.decodePoint)
-
-    assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys.head)))
-    sharedPublicKeys.head
-  }
 
   def doTest(cs: Cryptosystem, elections: Elections): Boolean =
   {

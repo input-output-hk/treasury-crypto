@@ -11,13 +11,18 @@ class VotingSimulator(val numberOfCommitteeMembers: Int,
                       val numberOfExperts: Int,
                       val numberOfVoters: Int,
                       val stakePerVoter: Int = 1,
-                      val withProofs: Boolean = false) {
+                      val withProofs: Boolean = false,
+                      val sharedPubKey: PubKey = null) {
 
   protected val cs = new Cryptosystem
   protected val committeeMembers = Array.fill(numberOfCommitteeMembers)(cs.createKeyPair)
-  protected val sharedPublicKey = committeeMembers.foldLeft(cs.infinityPoint) {
-    (sum,next) => sum.add(next._2)
-  }
+  protected val sharedPublicKey =
+    if(sharedPubKey == null)
+      committeeMembers.foldLeft(cs.infinityPoint) {
+        (sum,next) => sum.add(next._2)
+      }
+    else
+      sharedPubKey
 
   def createVoterBallot(voterId: Int,
                         projectId: Int,
