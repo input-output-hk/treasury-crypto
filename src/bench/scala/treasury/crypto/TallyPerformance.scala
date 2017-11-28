@@ -11,8 +11,8 @@ class TallyPerformance {
   {
     val violatorsNum = (commiteeMembersNum.toFloat * (violatorsPercentage.toFloat / 100)).ceil.toInt
 
-    val numberOfExperts = 50
-    val numberOfVoters = 100
+    val numberOfExperts = 100
+    val numberOfVoters = 1000
 
     println("Commitee members:\t" + commiteeMembersNum)
     println("Commitee violators:\t" + violatorsNum + " (" + violatorsPercentage + "%)")
@@ -46,7 +46,7 @@ class TallyPerformance {
 
     var overallBytes = 0
 
-    val decryptedC1ForDelegations = TimeUtils.time_average_s(
+    val (decryptedC1ForDelegations, timeR1) = TimeUtils.get_time_average_s(
       "Round 1:",
       committeeMembersR1.map(_.decryptTallyR1(ballots)),
       committeeMembersR1.length
@@ -54,7 +54,7 @@ class TallyPerformance {
 
     overallBytes += SizeUtils.getSize(decryptedC1ForDelegations)
 
-    val skSharesR1 = TimeUtils.time_average_s(
+    val (skSharesR1, timeRecovery1) = TimeUtils.get_time_average_s(
       "Recovery 1:",
       committeeMembersR1.map(_.keysRecoveryR1(decryptedC1ForDelegations)),
       committeeMembersR1.length
@@ -62,7 +62,7 @@ class TallyPerformance {
 
     overallBytes += SizeUtils.getSize(skSharesR1)
 
-    val decryptedC1ForChoices = TimeUtils.time_average_s(
+    val (decryptedC1ForChoices, timeR2) = TimeUtils.get_time_average_s(
       "Round 2:",
       committeeMembersR2.map(_.decryptTallyR2(decryptedC1ForDelegations, skSharesR1)),
       committeeMembersR2.length
@@ -70,7 +70,7 @@ class TallyPerformance {
 
     overallBytes += SizeUtils.getSize(decryptedC1ForChoices)
 
-    val skSharesR2 = TimeUtils.time_average_s(
+    val (skSharesR2, timeRecovery2) = TimeUtils.get_time_average_s(
       "Recovery 2:",
       committeeMembersR2.map(_.keysRecoveryR2(decryptedC1ForChoices)),
       committeeMembersR2.length
@@ -78,15 +78,17 @@ class TallyPerformance {
 
     overallBytes += SizeUtils.getSize(skSharesR2)
 
-    val tallyResults = TimeUtils.time_average_s(
+    val (tallyResults, timeR3) = TimeUtils.get_time_average_s(
       "Round 3:",
       committeeMembersR2.map(_.decryptTallyR3(decryptedC1ForChoices, skSharesR2)),
       committeeMembersR2.length
     )
 
     overallBytes += SizeUtils.getSize(tallyResults)
+    val overallTime = timeR1 + timeRecovery1 + timeR2 + timeRecovery2 + timeR3
 
     println("----------------------------------")
+    println("Overall time:    " + overallTime + " sec")
     println("Overall traffic: " + overallBytes + " Bytes" + " (" + overallBytes / 1024 + " KB)")
     println("-----------------------------------")
 

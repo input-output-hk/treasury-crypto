@@ -25,7 +25,7 @@ class DistrKeyGen(cs:                       Cryptosystem,
   private val violatorsIDs    = new ArrayBuffer[Integer]()        // ID' s of committee members-violators
 
   private val n = committeeMembersPubKeys.size  // Total number of protocol participants
-  private val t = (n.toFloat / 2).ceil.toInt    // Threshold number of participants
+          val t = (n.toFloat / 2).ceil.toInt    // Threshold number of participants
   private val A = new Array[ECPoint](t)         // Own commitments
 
   private val g = cs.basePoint

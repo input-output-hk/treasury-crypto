@@ -29,21 +29,21 @@ class DistrKeyGenPerformance {
 
     var overallBytes = 0
 
-    val r1Data = TimeUtils.time_average_s(
+    val (r1Data, timeR1) = TimeUtils.get_time_average_s(
       "Round 1:",
       for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).setKeyR1(),
       commiteeMembersNum)
 
     overallBytes += SizeUtils.getSize(r1Data)
 
-    val r2Data = TimeUtils.time_average_s(
+    val (r2Data, timeR2) = TimeUtils.get_time_average_s(
       "Round 2:",
       for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).setKeyR2(r1Data),
       commiteeMembersNum)
 
     overallBytes += SizeUtils.getSize(r2Data)
 
-    val r3Data = TimeUtils.time_average_s(
+    val (r3Data, timeR3) = TimeUtils.get_time_average_s(
       "Round 3:",
       for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).setKeyR3(r2Data),
       commiteeMembersNum)
@@ -52,28 +52,31 @@ class DistrKeyGenPerformance {
 
     val r3DataPatched = patchR3Data(cs, r3Data, violatorsNum)
 
-    val r4Data = TimeUtils.time_average_s(
+    val (r4Data, timeR4) = TimeUtils.get_time_average_s(
       "Round 4:",
       for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).setKeyR4(r3DataPatched),
       commiteeMembersNum)
 
     overallBytes += SizeUtils.getSize(r4Data)
 
-    val r5_1Data = TimeUtils.time_average_s(
+    val (r5_1Data, timeR5_1) = TimeUtils.get_time_average_s(
       "Round 5.1:",
       for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).setKeyR5_1(r4Data),
       commiteeMembersNum)
 
     overallBytes += SizeUtils.getSize(r5_1Data)
 
-    val r5_2Data = TimeUtils.time_average_s(
+    val (r5_2Data, timeR5_2) = TimeUtils.get_time_average_s(
       "Round 5.2:",
       for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).setKeyR5_2(r5_1Data),
       commiteeMembersNum)
 
     overallBytes += SizeUtils.getSize(r5_2Data)
 
+    val overallTime = timeR1 + timeR2 + timeR3 + timeR4 + timeR5_1 + timeR5_2
+
     println("------------------------")
+    println("Overall time:    " + overallTime + " sec")
     println("Overall traffic: " + overallBytes + " Bytes" + " (" + overallBytes / 1024 + " KB)")
     println("--------------------------------------------------------------------------------------")
 

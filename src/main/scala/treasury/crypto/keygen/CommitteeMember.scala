@@ -21,7 +21,7 @@ class CommitteeMember(val cs: Cryptosystem,
   val publicKey = cs.basePoint.multiply(secretKey).normalize()
   val ownId: Integer = dkg.ownID
 
-  var violatorsSecretKeys: Array[BigInteger] = Array[BigInteger]()
+  var dkgViolatorsSKs: Array[BigInteger] = Array[BigInteger]()
   var dkgViolatorsIds: Set[Integer] = Set()
   var decryptionViolatorsIds: Set[Int] = Set()
 
@@ -51,7 +51,7 @@ class CommitteeMember(val cs: Cryptosystem,
 
     val data = dkg.doRound5_2(r5_1Data)
 
-    violatorsSecretKeys = data.violatorsSecretKeys.map(sk => new BigInteger(sk.secretKey))
+    dkgViolatorsSKs = data.violatorsSecretKeys.map(sk => new BigInteger(sk.secretKey))
     dkgViolatorsIds = data.violatorsSecretKeys.map(_.ownerID).toSet
 
     data
@@ -75,7 +75,7 @@ class CommitteeMember(val cs: Cryptosystem,
   def decryptTallyR1(ballots: Seq[Ballot]): C1 =
   {
     // Initialization of the decryptor
-    decryptor = new DecryptionManager(cs, ownId, (secretKey, publicKey), violatorsSecretKeys, ballots)
+    decryptor = new DecryptionManager(cs, ownId, (secretKey, publicKey), dkgViolatorsSKs, ballots, dkg.t)
     decryptor.decryptC1ForDelegations()
   }
 

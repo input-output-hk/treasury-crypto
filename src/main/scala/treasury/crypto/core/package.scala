@@ -69,12 +69,13 @@ package object core {
       result
     }
 
-    def time_average_s[R](msg: String, block: => R, n: Int): R = {
+    def get_time_average_s[R](msg: String, block: => R, n: Int): (R, Float) = {
       val t0 = System.nanoTime()
       val result = block
       val t1 = System.nanoTime()
-      print(msg + "\t" + ((t1-t0).toFloat/1000000000)/n + " s;\t")
-      result
+      val time = ((t1-t0).toFloat/1000000000)/n
+      print(msg + "\t" + time + " s;\t")
+      (result, time)
     }
 
     def accurate_time[R](msg: String, block: => R): Unit = {

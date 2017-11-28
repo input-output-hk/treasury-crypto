@@ -22,7 +22,8 @@ class DecryptionManager(cs:               Cryptosystem,
                         ownId:            Integer,
                         keyPair:          KeyPair,
                         dkgViolatorsSKs:  Seq[BigInteger],
-                        ballots:          Seq[Ballot]) {
+                        ballots:          Seq[Ballot],
+                        recoveryThreshold: Integer = 0) {
 
   private lazy val (secretKey, publicKey) = keyPair
 
@@ -76,7 +77,7 @@ class DecryptionManager(cs:               Cryptosystem,
     if (delegationsSum == null)
       delegationsSum = Tally.computeDelegationsSum(cs, votersBallots)
 
-    decryptionViolatorsSKs ++= Tally.reconstructSecretKeys(cs, skShares)
+    decryptionViolatorsSKs ++= Tally.reconstructSecretKeys(cs, skShares, recoveryThreshold)
 
     val decryptionViolatorsC1 = decryptionViolatorsSKs.map(sk => delegationsSum.map(_._1.multiply(sk)))
     val dkgViolatorsC1 = dkgViolatorsSKs.map(sk => delegationsSum.map(_._1.multiply(sk)))
@@ -98,7 +99,7 @@ class DecryptionManager(cs:               Cryptosystem,
     if (choicesSum == null)
       throw UninitializedFieldError("choicesSum is uninitialized")
 
-    decryptionViolatorsSKs ++= Tally.reconstructSecretKeys(cs, skShares)
+    decryptionViolatorsSKs ++= Tally.reconstructSecretKeys(cs, skShares, recoveryThreshold)
 
     val decryptionViolatorsC1 = decryptionViolatorsSKs.map(sk => choicesSum.map(_._1.multiply(sk)))
     val dkgViolatorsC1 = dkgViolatorsSKs.map(sk => choicesSum.map(_._1.multiply(sk)))

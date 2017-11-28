@@ -55,8 +55,11 @@ class ProtocolTest extends FunSuite {
 
     val distributedDecryption = elections.verify(tallyResults.head)
 
+    // DKG recovered secret keys taken from an arbitrary commitee member (this data is broadcasted by all committee members during DKG stage)
+    val dgkRecoveredKeys = committeeMembersR2(0).dkgViolatorsIds.toSeq.zip(committeeMembersR2(0).dkgViolatorsSKs)
+
     // Verification of the elections results by regular member
-    val tallyResult = Tally.countVotes(cs, ballots, decryptedC1ForDelegations, decryptedC1ForChoices, skSharesR1, skSharesR2)
+    val tallyResult = Tally.countVotes(cs, ballots, decryptedC1ForDelegations, decryptedC1ForChoices, dgkRecoveredKeys, skSharesR1, skSharesR2)
 
     val individualDecryption = elections.verify(tallyResult)
 
