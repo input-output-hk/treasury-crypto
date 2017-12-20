@@ -6,11 +6,13 @@ import treasury.crypto.core._
 import treasury.crypto.math.BigIntPolynomial
 
 /* This class implements generation of Special Honest Verifier Zero Knowledge proof for unit vector */
-class SHVZKGen(cs: Cryptosystem,
-               pubKey: PubKey,
-               unitVector: Seq[Ciphertext],
-               val choiceIndex: Int,
-               val randomness: Seq[Randomness]) extends SHVZKCommon(cs, pubKey, unitVector){
+class SHVZKGen(
+  cs: Cryptosystem,
+  pubKey: PubKey,
+  unitVector: Seq[Ciphertext],
+  val choiceIndex: Int,
+  val randomness: Seq[Randomness]
+) extends SHVZKCommon(cs, pubKey, unitVector) {
 
   private class Commitment(val idxBit: Byte) {
     assert(idxBit == 0 || idxBit == 1)
@@ -43,7 +45,7 @@ class SHVZKGen(cs: Cryptosystem,
   assert(unitVector.size > choiceIndex)
   assert(unitVector.size == randomness.size)
 
-  def produceNIZK() = {
+  def produceNIZK(): SHVZKProof = {
     /* We want a unit vector to be the size of perfect power of 2. So pad unit vector with Enc(0,0) if it is not.
      * Actually for NIZK generation we need only to pad randomness because we will not hash padded elements during
      * challenges calculation */

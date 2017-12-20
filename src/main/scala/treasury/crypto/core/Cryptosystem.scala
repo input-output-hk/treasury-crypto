@@ -12,7 +12,6 @@ import org.bouncycastle.jce.interfaces.{ECPrivateKey, ECPublicKey}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.jce.spec.ECParameterSpec
 import org.bouncycastle.math.ec.ECPoint
-import treasury.crypto.keygen.C1
 
 /* Holds common params for Elliptic Curve cryptosystem that are used throughout the library
 */
@@ -77,7 +76,7 @@ class Cryptosystem {
     ciphertext._2.subtract(rPk).normalize
   }
 
-  private def AESEncryptDecrypt(msg: Array[Byte], keyMaterial: Array[Byte], mode: Int): Array[Byte] = {
+  private def aesEncryptDecrypt(msg: Array[Byte], keyMaterial: Array[Byte], mode: Int): Array[Byte] = {
 
     assert(keyMaterial.length == 32)
 
@@ -99,7 +98,7 @@ class Cryptosystem {
 
     val keyMaterial = hash256(randomPoint.getEncoded(true))
 
-    val encryptedMessage = AESEncryptDecrypt(msg, keyMaterial, Cipher.ENCRYPT_MODE)
+    val encryptedMessage = aesEncryptDecrypt(msg, keyMaterial, Cipher.ENCRYPT_MODE)
 
     HybridCiphertext(encryptPoint(pubKey, getRand, randomPoint), encryptedMessage)
   }
@@ -109,7 +108,7 @@ class Cryptosystem {
     val randomPoint = decryptPoint(privKey, ciphertext.encryptedKey)
     val keyMaterial = hash256(randomPoint.getEncoded(true))
 
-    val decryptedMessage = AESEncryptDecrypt(ciphertext.encryptedMessage, keyMaterial, Cipher.DECRYPT_MODE)
+    val decryptedMessage = aesEncryptDecrypt(ciphertext.encryptedMessage, keyMaterial, Cipher.DECRYPT_MODE)
 
     HybridPlaintext(randomPoint, decryptedMessage)
   }

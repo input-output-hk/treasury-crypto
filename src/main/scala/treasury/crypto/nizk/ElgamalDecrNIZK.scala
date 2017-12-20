@@ -2,24 +2,23 @@ package treasury.crypto.nizk
 
 import java.math.BigInteger
 
-import treasury.crypto._
 import treasury.crypto.core._
 
 object ElgamalDecrNIZK {
 
-  case class ElgamalDecrNIZKProof(A1: Point, A2: Point, z: Element)
-  {
-    def size: Int =
-    {
+  case class ElgamalDecrNIZKProof(A1: Point, A2: Point, z: Element) {
+    def size: Int = {
       A1.getEncoded(true).size +
       A2.getEncoded(true).size +
       z.toByteArray.size
     }
   }
 
-  def produceNIZK(cs: Cryptosystem,
-                  ciphertext: Ciphertext,
-                  privKey: PrivKey): ElgamalDecrNIZKProof = {
+  def produceNIZK(
+    cs: Cryptosystem,
+    ciphertext: Ciphertext,
+    privKey: PrivKey
+  ): ElgamalDecrNIZKProof = {
 
     val w = cs.getRand
     val A1 = cs.basePoint.multiply(w)
@@ -40,11 +39,13 @@ object ElgamalDecrNIZK {
     ElgamalDecrNIZKProof(A1.normalize(), A2.normalize(), z)
   }
 
-  def verifyNIZK(cs: Cryptosystem,
-                 pubKey: PubKey,
-                 ciphertext: Ciphertext,
-                 plaintext: Point,
-                 proof: ElgamalDecrNIZKProof): Boolean = {
+  def verifyNIZK(
+    cs: Cryptosystem,
+    pubKey: PubKey,
+    ciphertext: Ciphertext,
+    plaintext: Point,
+    proof: ElgamalDecrNIZKProof
+  ): Boolean = {
 
     val D = ciphertext._2.subtract(plaintext)
     val e = new BigInteger(

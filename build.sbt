@@ -2,7 +2,7 @@ name := "treasury-crypto"
 
 version := "0.1"
 
-scalaVersion := "2.12.3"
+scalaVersion := "2.12.4"
 
 resolvers += "Sonatype OSS Snapshots" at
   "https://oss.sonatype.org/content/repositories/snapshots"
@@ -14,6 +14,13 @@ libraryDependencies ++= Seq(
   "com.storm-enroute" %% "scalameter" % "0.8.2" % "bench",
   "com.storm-enroute" %% "scalameter-core" % "0.8.2"
 )
+
+////////////////////////////////////////////
+// Run scalastyle as part of the tests
+// TODO Uncomment the following three lines
+// lazy val compileScalastyle = taskKey[Unit]("compileScalastyle")
+// compileScalastyle := scalastyle.in(Compile).toTask("").value
+// (compile in Compile) := ((compile in Compile) dependsOn compileScalastyle).value
 
 testFrameworks += new TestFramework(
   "org.scalameter.ScalaMeterFramework")

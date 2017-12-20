@@ -13,9 +13,11 @@ object UVSumNIZK {
 
   case class UVSumNIZKProof(A1: Point, A2: Point, z: Element)
 
-  def produceNIZK(cs: Cryptosystem,
-                  pubKey: PubKey,
-                  ciphertexts: Seq[(Ciphertext, Randomness)]): UVSumNIZKProof = {
+  def produceNIZK(
+    cs: Cryptosystem,
+    pubKey: PubKey,
+    ciphertexts: Seq[(Ciphertext, Randomness)]
+  ): UVSumNIZKProof = {
 
     val C = ciphertexts.foldLeft((cs.infinityPoint, cs.infinityPoint)) {
       (acc, c) => (acc._1.add(c._1._1), acc._2.add(c._1._2))
@@ -42,10 +44,13 @@ object UVSumNIZK {
     UVSumNIZKProof(A1, A2, z)
   }
 
-  def verifyNIZK(cs: Cryptosystem,
-                 pubKey: PubKey,
-                 ciphertexts: Seq[(Ciphertext)],
-                 proof: UVSumNIZKProof): Boolean = {
+  def verifyNIZK(
+    cs: Cryptosystem,
+    pubKey: PubKey,
+    ciphertexts: Seq[(Ciphertext)],
+    proof: UVSumNIZKProof
+  ): Boolean = {
+
     val C = ciphertexts.foldLeft((cs.infinityPoint, cs.infinityPoint)) {
       (acc, c) => (acc._1.add(c._1), acc._2.add(c._2))
     }

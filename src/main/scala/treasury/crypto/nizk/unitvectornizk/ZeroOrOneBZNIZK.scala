@@ -10,11 +10,13 @@ import treasury.crypto.core._
 object ZeroOrOneBZNIZK {
   case class ZeroOrOneBZNIZKProof(A: Ciphertext, B: Ciphertext, f: Element, w: Element, v: Element)
 
-  def produceNIZK(cs: Cryptosystem,
-                  pubKey: PubKey,
-                  plaintext: BigInteger,
-                  ciphertext: Ciphertext,
-                  r: Randomness): ZeroOrOneBZNIZKProof = {
+  def produceNIZK(
+    cs: Cryptosystem,
+    pubKey: PubKey,
+    plaintext: BigInteger,
+    ciphertext: Ciphertext,
+    r: Randomness
+  ): ZeroOrOneBZNIZKProof = {
     val beta = cs.getRand
     val gamma = cs.getRand
     val delta = cs.getRand

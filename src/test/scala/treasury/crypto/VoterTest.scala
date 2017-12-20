@@ -17,7 +17,7 @@ class VoterTest extends FunSuite {
     val ballot = voter.produceVote(0, VoteCases.Abstain)
 
     assert(voter.verifyBallot(ballot))
-    assert(ballot.getUnitVector.size == numberOfExperts + Voter.VOTER_CHOISES_NUM)
+    assert(ballot.unitVector.size == numberOfExperts + Voter.VOTER_CHOISES_NUM)
   }
 
   test("test zero knowledge proof for Expert ballot") {
@@ -27,6 +27,6 @@ class VoterTest extends FunSuite {
     val ballot = voter.produceVote(0, VoteCases.Abstain)
 
     assert(voter.verifyBallot(ballot))
-    assert(ballot.getUnitVector.size == Voter.VOTER_CHOISES_NUM)
+    assert(ballot.unitVector.size == Voter.VOTER_CHOISES_NUM)
   }
 }

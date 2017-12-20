@@ -5,20 +5,17 @@ import treasury.crypto.core.{Cryptosystem, PubKey, VoteCases, Zero}
 import treasury.crypto.voting.Tally.Result
 import treasury.crypto.voting.{Ballot, Expert, RegularVoter}
 
-trait Elections
-{
+trait Elections {
   def run(sharedPubKey: PubKey): Seq[Ballot]
   def verify(tallyRes: Result): Boolean
 }
 
-case class ElectionsScenario1(cs: Cryptosystem) extends Elections
-{
+case class ElectionsScenario1(cs: Cryptosystem) extends Elections {
   private val proposalID = 1
   private val votersNum = 2
   private val expertsNum = 2
 
-  def run(sharedPubKey: PubKey): Seq[Ballot] =
-  {
+  def run(sharedPubKey: PubKey): Seq[Ballot] = {
     val votersBallots =
       for (voterId <- expertsNum until (expertsNum + votersNum)) yield {
         new RegularVoter(cs, expertsNum, sharedPubKey, BigInteger.valueOf(3))
@@ -34,8 +31,7 @@ case class ElectionsScenario1(cs: Cryptosystem) extends Elections
     votersBallots ++ expertsBallots
   }
 
-  def verify(tallyRes: Result): Boolean =
-  {
+  def verify(tallyRes: Result): Boolean = {
     tallyRes.yes.equals(BigInteger.valueOf(6))&&
     tallyRes.no.equals(Zero) &&
     tallyRes.abstain.equals(Zero)
@@ -74,8 +70,7 @@ case class ElectionsScenario2(cs: Cryptosystem) extends Elections
     votersBallots ++ votersDelegatedBallots ++ expertsBallots
   }
 
-  def verify(tallyRes: Result): Boolean =
-  {
+  def verify(tallyRes: Result): Boolean = {
     tallyRes.yes.equals(BigInteger.valueOf(15 * MULTIPLIER)) &&
     tallyRes.no.equals(BigInteger.valueOf(40 * MULTIPLIER)) &&
     tallyRes.abstain.equals(BigInteger.valueOf(15 * MULTIPLIER))

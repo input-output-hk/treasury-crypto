@@ -11,11 +11,14 @@ object ZeroOrOneSigmaNIZK {
 
   case class ZeroOrOneSigmaNIZKProof(A1: Point, A2: Point, B1: Point, B2: Point, e2: Array[Byte], z1: Element, z2: Element)
 
-  def produceNIZK(cs: Cryptosystem,
-                  pubKey: PubKey,
-                  plaintext: Element,
-                  ciphertext: Ciphertext,
-                  r: Randomness): ZeroOrOneSigmaNIZKProof = {
+  def produceNIZK(
+    cs: Cryptosystem,
+    pubKey: PubKey,
+    plaintext: Element,
+    ciphertext: Ciphertext,
+    r: Randomness
+  ): ZeroOrOneSigmaNIZKProof = {
+
     if (plaintext.equals(Zero)) {
       val w = cs.getRand
       val z2 = cs.getRand

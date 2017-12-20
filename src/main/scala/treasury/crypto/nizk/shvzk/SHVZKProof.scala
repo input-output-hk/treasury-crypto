@@ -2,11 +2,14 @@ package treasury.crypto.nizk.shvzk
 
 import treasury.crypto.core._
 
-class SHVZKProof(val IBA: Seq[(Point, Point, Point)],
-                 val Dk: Seq[Ciphertext],
-                 val zwv: Seq[(Element, Element, Element)],
-                 val R: Element) {
-  def size = {
+class SHVZKProof(
+  val IBA: Seq[(Point, Point, Point)],
+  val Dk: Seq[Ciphertext],
+  val zwv: Seq[(Element, Element, Element)],
+  val R: Element
+) {
+
+  def size: Int = {
     IBA.foldLeft(0) { (a,x) =>
       a + x._1.getEncoded(true).size + x._2.getEncoded(true).size + x._3.getEncoded(true).size
     } +

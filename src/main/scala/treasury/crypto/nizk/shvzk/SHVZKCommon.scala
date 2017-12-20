@@ -2,12 +2,12 @@ package treasury.crypto.nizk.shvzk
 
 import java.math.BigInteger
 
-import treasury.crypto._
 import treasury.crypto.core._
 
-class SHVZKCommon(val cs: Cryptosystem,
-                  val pubKey: PubKey,
-                  val unitVector: Seq[Ciphertext]) {
+class SHVZKCommon(
+  val cs: Cryptosystem,
+  val pubKey: PubKey,
+  val unitVector: Seq[Ciphertext]) {
 
   protected val log = scala.math.ceil(SHVZKCommon.log2(unitVector.size)).toInt
   protected val uvSize = scala.math.pow(2, log).toInt
@@ -55,12 +55,12 @@ class SHVZKCommon(val cs: Cryptosystem,
 
 
 object SHVZKCommon {
-  def log2(x: Double) = scala.math.log10(x)/scala.math.log10(2.0)
+  def log2(x: Double): Double = scala.math.log10(x)/scala.math.log10(2.0)
 
   def intToBinArray(i: Int, digits: Int): Array[Byte] = {
-    assert(i < scala.math.pow(2, digits))
+    require(i < scala.math.pow(2, digits))
     val bin = i.toBinaryString.map(s => if(s == '0') 0.toByte else 1.toByte).toArray
-    if (bin.size == digits) bin
-    else Array.fill[Byte](digits - bin.size)(0) ++ bin
+    if(bin.length == digits) bin
+    else Array.fill[Byte](digits - bin.length)(0) ++ bin
   }
 }

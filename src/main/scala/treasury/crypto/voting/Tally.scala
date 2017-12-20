@@ -7,20 +7,20 @@ import treasury.crypto.keygen._
 
 object Tally {
 
-  case class Result(yes: BigInteger, no: BigInteger, abstain: BigInteger) extends HasSize
-  {
-    def size: Int =
-    {
-      yes.toByteArray.size + no.toByteArray.size + abstain.toByteArray.size
+  case class Result(yes: BigInteger, no: BigInteger, abstain: BigInteger) extends HasSize {
+    def size: Int = {
+      yes.toByteArray.length + no.toByteArray.length + abstain.toByteArray.length
     }
   }
 
   // Removes C1 decryption shares received from violators of DKG and Tally phases
-  private def filterC1( c1:                 Seq[C1],
-                        dgkRecoveredKeys:   Seq[(Integer, BigInteger)],
-                        skDelegationShares: Seq[KeyShares],
-                        skChoisesShares:    Seq[KeyShares] = null): Seq[C1] =
-  {
+  private def filterC1(
+    c1:                 Seq[C1],
+    dgkRecoveredKeys:   Seq[(Integer, BigInteger)],
+    skDelegationShares: Seq[KeyShares],
+    skChoisesShares:    Seq[KeyShares] = null
+  ): Seq[C1] = {
+
     val dgkViolatorsIds = dgkRecoveredKeys.map(_._1)
     val decrDelegViolatorsIds = skDelegationShares.map(_.keyShares).head.map(_.ownerID)
     val decrChoisesViolatorsIds =
@@ -36,13 +36,15 @@ object Tally {
 
   // Calculates the total result of voting (based on all existing ballots of voters and experts)
   // The decryption of the final result is performed by obtaining C1 components of the result (raised to the private key) from committee members
-  def countVotes(cs:                  Cryptosystem,
-                 ballots:             Seq[Ballot],
-                 delegationsC1In:     Seq[C1],
-                 choicesC1In:         Seq[C1],
-                 dgkRecoveredKeys:    Seq[(Integer, BigInteger)] = Seq[(Integer, BigInteger)](),
-                 skSharesDelegations: Seq[KeyShares] = Seq[KeyShares](),
-                 skSharesChoises:     Seq[KeyShares] = Seq[KeyShares]()): Result = {
+  def countVotes(
+    cs:                  Cryptosystem,
+    ballots:             Seq[Ballot],
+    delegationsC1In:     Seq[C1],
+    choicesC1In:         Seq[C1],
+    dgkRecoveredKeys:    Seq[(Integer, BigInteger)] = Seq[(Integer, BigInteger)](),
+    skSharesDelegations: Seq[KeyShares] = Seq[KeyShares](),
+    skSharesChoises:     Seq[KeyShares] = Seq[KeyShares]()
+  ): Result = {
 
     val votersBallots = ballots.filter(_.isInstanceOf[VoterBallot]).map(_.asInstanceOf[VoterBallot])
     val expertsBallots = ballots.filter(_.isInstanceOf[ExpertBallot]).map(_.asInstanceOf[ExpertBallot])
@@ -95,10 +97,12 @@ object Tally {
     )
   }
 
-  def computeChoicesSum(cs: Cryptosystem,
-                        votersBallots: Seq[VoterBallot],
-                        expertsBallots: Seq[ExpertBallot],
-                        delegations: Seq[Element]): Seq[Ciphertext] = {
+  def computeChoicesSum(
+    cs: Cryptosystem,
+    votersBallots: Seq[VoterBallot],
+    expertsBallots: Seq[ExpertBallot],
+    delegations: Seq[Element]
+  ): Seq[Ciphertext] = {
     // Unit-wise summation of the weighted experts votes
     //
     val expertsChoicesSum = expertsBallots.map(_.uvChoice).transpose.map(
@@ -134,8 +138,7 @@ object Tally {
     encryptedVector.zip(c1Sum).map{case (unit, c1) => cs.discreteLog(unit._2.subtract(c1))}
   }
 
-  def reconstructSecretKeys(cs: Cryptosystem, skShares: Seq[KeyShares], threshold: Integer = 0): Array[BigInteger] =
-  {
+  def reconstructSecretKeys(cs: Cryptosystem, skShares: Seq[KeyShares], threshold: Integer = 0): Array[BigInteger] = {
     val decryptionViolatorsShares = skShares.map(
       member =>
         member.keyShares.map(

@@ -19,24 +19,20 @@ package object core {
     def size: Int
   }
 
-  val Zero: BigInteger = BigInteger.valueOf(0)
-  val One:  BigInteger = BigInteger.valueOf(1)
+  val Zero: BigInteger = BigInteger.ZERO
+  val One:  BigInteger = BigInteger.ONE
 
-  case class HybridCiphertext(encryptedKey: Ciphertext, encryptedMessage: Array[Byte])
-  {
-    def size: Int =
-    {
-      encryptedKey._1.getEncoded(true).size +
-      encryptedKey._2.getEncoded(true).size
-      encryptedMessage.size
+  case class HybridCiphertext(encryptedKey: Ciphertext, encryptedMessage: Array[Byte]) {
+    def size: Int = {
+      encryptedKey._1.getEncoded(true).length +
+      encryptedKey._2.getEncoded(true).length
+      encryptedMessage.length
     }
   }
-  case class HybridPlaintext (decryptedKey: Point, decryptedMessage: Array[Byte])
-  {
-    def size: Int =
-    {
-      decryptedKey.getEncoded(true).size +
-      decryptedMessage.size
+  case class HybridPlaintext(decryptedKey: Point, decryptedMessage: Array[Byte]) {
+    def size: Int = {
+      decryptedKey.getEncoded(true).length +
+      decryptedMessage.length
     }
   }
 
@@ -92,10 +88,8 @@ package object core {
     }
   }
 
-  object SizeUtils
-  {
-    def getSize[T <: HasSize](vector: Seq[T]): Int =
-    {
+  object SizeUtils {
+    def getSize[T <: HasSize](vector: Seq[T]): Int = {
       val maxSize = vector.maxBy(_.size).size
       val totalSize = vector.foldLeft(0){(totalSize, currentElement) => totalSize + currentElement.size}
 

@@ -6,11 +6,11 @@ import treasury.crypto.core._
 import treasury.crypto.nizk.shvzk.{SHVZKGen, SHVZKVerifier}
 
 abstract class Voter {
-  val cs: Cryptosystem
-  val publicKey: PubKey
+  def cs: Cryptosystem
+  def publicKey: PubKey
 
   def verifyBallot(ballot: Ballot): Boolean = {
-    new SHVZKVerifier(cs, publicKey, ballot.getUnitVector, ballot.proof).verifyProof()
+    new SHVZKVerifier(cs, publicKey, ballot.unitVector, ballot.proof).verifyProof()
   }
 
   protected def produceUnitVector(size: Int, nonZeroPos: Int): (Array[Ciphertext], Array[Randomness]) = {
@@ -68,9 +68,11 @@ class RegularVoter(val cs: Cryptosystem,
   }
 }
 
-case class Expert(val cs: Cryptosystem,
-                  val expertId: Int,
-                  val publicKey: PubKey) extends Voter {
+case class Expert(
+  cs: Cryptosystem,
+  expertId: Int,
+  publicKey: PubKey
+) extends Voter {
 
   def produceVote(proposalID: Integer, choice: VoteCases.Value, withProof: Boolean = true): ExpertBallot = {
 

@@ -6,14 +6,11 @@ import java.security.SecureRandom
 import treasury.crypto.core.Cryptosystem
 import treasury.crypto.core.HybridPlaintext
 
-object LagrangeInterpolation
-{
-  private def getLagrangeCoeff(cs: Cryptosystem, x: Integer, shares: Seq[OpenedShare]): BigInteger =
-  {
+object LagrangeInterpolation {
+  private def getLagrangeCoeff(cs: Cryptosystem, x: Integer, shares: Seq[OpenedShare]): BigInteger = {
     var coeff = new BigInteger("1")
 
-    for(j <- shares.indices)
-    {
+    for(j <- shares.indices) {
       if(shares(j).receiverID != x)
       {
         val J = BigInteger.valueOf(shares(j).receiverID.toLong)
@@ -28,13 +25,11 @@ object LagrangeInterpolation
     coeff
   }
 
-  def restoreSecret(cs: Cryptosystem, shares_in: Seq[OpenedShare], threshold: Int = 0): BigInteger =
-  {
+  def restoreSecret(cs: Cryptosystem, shares_in: Seq[OpenedShare], threshold: Int = 0): BigInteger = {
     val shares = shares_in.take(if(threshold != 0) threshold else shares_in.length)
 
     var restoredSecret = new BigInteger("0")
-    for(i <- shares.indices)
-    {
+    for(i <- shares.indices) {
       val L_i = getLagrangeCoeff(cs, shares(i).receiverID, shares)
       val p_i = new BigInteger(shares(i).S.decryptedMessage)
 
@@ -43,8 +38,7 @@ object LagrangeInterpolation
     restoredSecret
   }
 
-  def testInterpolation(cs: Cryptosystem, degree: Int): Boolean =
-  {
+  def testInterpolation(cs: Cryptosystem, degree: Int): Boolean = {
     val secret = new BigInteger(cs.orderOfBasePoint.bitLength(), new SecureRandom()).mod(cs.orderOfBasePoint)
     val poly = new Polynomial(cs, secret, degree)
 

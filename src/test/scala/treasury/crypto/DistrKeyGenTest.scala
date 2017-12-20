@@ -6,7 +6,7 @@ import treasury.crypto.keygen._
 
 class DistrKeyGenTest  extends FunSuite {
 
-  test("dkg_interpolation"){
+  test("dkg_interpolation") {
 
     val cs = new Cryptosystem
 
@@ -26,7 +26,7 @@ class DistrKeyGenTest  extends FunSuite {
 
   //--------------------------------------------------------------------------------------------------------------
 
-  test("dkg_functionality"){
+  test("dkg_functionality") {
 
     val cs = new Cryptosystem
     val crs_h = cs.basePoint.multiply(cs.getRand)
@@ -44,10 +44,8 @@ class DistrKeyGenTest  extends FunSuite {
 
     // Changing commitments of some committee members to get complain on them
     //
-    r1Data.map
-    {
-      (x) =>
-      {
+    r1Data.map {
+      (x) => {
         val E = x.E
 //        if(rand.nextBoolean())
         if(x.issuerID == 1)
@@ -69,10 +67,8 @@ class DistrKeyGenTest  extends FunSuite {
 
     // Changing commitments of some committee members to get complain on them
     //
-    r3Data.map
-    {
-      (x) =>
-      {
+    r3Data.map {
+      (x) => {
         val commitments = x.commitments
 //        if(rand.nextBoolean())
         if(x.issuerID == 2 || x.issuerID == 3)
@@ -108,10 +104,8 @@ class DistrKeyGenTest  extends FunSuite {
     var sharedPublicKeysAfterR2 = r5_2Data
 
     // Violators detected on the 2-nd round doesn't participate in the shared public key generation at all
-    for(i <- r2Data.indices)
-    {
-      for(j <- r2Data(i).complaints.indices)
-      {
+    for(i <- r2Data.indices) {
+      for(j <- r2Data(i).complaints.indices) {
         val violatorID = r2Data(i).complaints(j).violatorID
 
         individualPublicKeys = individualPublicKeys.filter(_._1 != violatorID)

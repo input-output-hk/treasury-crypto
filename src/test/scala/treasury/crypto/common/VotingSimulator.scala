@@ -7,12 +7,14 @@ import treasury.crypto.keygen.{C1, DecryptionManager}
 import treasury.crypto.voting._
 
 
-class VotingSimulator(val numberOfCommitteeMembers: Int,
-                      val numberOfExperts: Int,
-                      val numberOfVoters: Int,
-                      val stakePerVoter: Int = 1,
-                      val withProofs: Boolean = false,
-                      val sharedPubKey: PubKey = null) {
+class VotingSimulator(
+  val numberOfCommitteeMembers: Int,
+  val numberOfExperts: Int,
+  val numberOfVoters: Int,
+  val stakePerVoter: Int = 1,
+  val withProofs: Boolean = false,
+  val sharedPubKey: PubKey = null
+) {
 
   protected val cs = new Cryptosystem
   protected val committeeMembers = Array.fill(numberOfCommitteeMembers)(cs.createKeyPair)
@@ -24,10 +26,13 @@ class VotingSimulator(val numberOfCommitteeMembers: Int,
     else
       sharedPubKey
 
-  def createVoterBallot(voterId: Int,
-                        projectId: Int,
-                        delegation: Int,
-                        choice: VoteCases.Value): VoterBallot = {
+  def createVoterBallot(
+    voterId: Int,
+    projectId: Int,
+    delegation: Int,
+    choice: VoteCases.Value
+  ): VoterBallot = {
+
     val voter = new RegularVoter(cs, numberOfExperts, sharedPublicKey, BigInteger.valueOf(stakePerVoter))
     if (delegation >= 0 && delegation < numberOfExperts)
       voter.produceDelegatedVote(projectId, delegation, withProofs)
@@ -40,7 +45,7 @@ class VotingSimulator(val numberOfCommitteeMembers: Int,
   }
 
   def prepareExpertBallots(yes: Int, no: Int, abstain: Int): Seq[ExpertBallot] = {
-    assert((yes + no + abstain) == numberOfExperts)
+    require((yes + no + abstain) == numberOfExperts)
 
     val yesBallots = for (expertId <- (0 until yes).par) yield {
       createExpertBallot(expertId, 0, VoteCases.Yes)
@@ -56,8 +61,8 @@ class VotingSimulator(val numberOfCommitteeMembers: Int,
   }
 
   def prepareVotersBallots(deleg: (Int, Int), yes: Int, no: Int, abstain: Int): Seq[VoterBallot] = {
-    assert((deleg._2 + yes + no + abstain) == numberOfVoters)
-    assert(deleg._1 >= 0 && deleg._1 < numberOfExperts)
+    require((deleg._2 + yes + no + abstain) == numberOfVoters)
+    require(deleg._1 >= 0 && deleg._1 < numberOfExperts)
 
     val delegBallots = for (voterId <- (0 until deleg._2).par) yield {
       createVoterBallot(voterId, 0, deleg._1, VoteCases.Yes)
@@ -94,10 +99,12 @@ class VotingSimulator(val numberOfCommitteeMembers: Int,
 
   /* Consumes a list of ballots and decryption shares.
    * Returns tally results */
-  def doTally(ballots: Seq[Ballot],
-              decryptionShares: Seq[(C1, C1)]): Tally.Result = {
+  def doTally(
+    ballots: Seq[Ballot],
+    decryptionShares: Seq[(C1, C1)]
+  ): Tally.Result = {
 
-    assert(decryptionShares.size == numberOfCommitteeMembers)
+    require(decryptionShares.size == numberOfCommitteeMembers)
     Tally.countVotes(cs, ballots, decryptionShares.map(_._1), decryptionShares.map(_._2))
   }
 }

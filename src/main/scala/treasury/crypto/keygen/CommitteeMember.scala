@@ -4,9 +4,8 @@ import java.math.BigInteger
 
 import treasury.crypto.core._
 import treasury.crypto.voting.Tally.Result
-import treasury.crypto.voting.{Ballot, Tally}
+import treasury.crypto.voting.Ballot
 
-import scala.collection.mutable.ArrayBuffer
 
 class CommitteeMember(val cs: Cryptosystem,
                       val h: Point,

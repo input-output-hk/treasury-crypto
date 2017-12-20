@@ -7,24 +7,29 @@ import treasury.crypto.nizk.shvzk.SHVZKProof
 
 // The data structure for storing of the individual voter's/expert's choice
 trait Ballot {
-  val proposalId: Int
-  val proof: SHVZKProof
+  def proposalId: Int
+  def proof: SHVZKProof
 
-  def getUnitVector: Array[Ciphertext]
+  def unitVector: Array[Ciphertext]
 }
 
-case class VoterBallot(override val proposalId: Int,
-                       val uvDelegations: Array[Ciphertext],
-                       val uvChoice: Array[Ciphertext],
-                       override val proof: SHVZKProof,
-                       val stake: BigInteger) extends Ballot {
+case class VoterBallot(
+  proposalId: Int,
+  uvDelegations: Array[Ciphertext],
+  uvChoice: Array[Ciphertext],
+  proof: SHVZKProof,
+  stake: BigInteger
+) extends Ballot {
 
-  override def getUnitVector() = uvDelegations ++ uvChoice
+  def unitVector: Array[Ciphertext] = uvDelegations ++ uvChoice
 }
 
-case class ExpertBallot(override val proposalId: Int,
-                        val expertId: Int,
-                        val uvChoice: Array[Ciphertext],
-                        override val proof: SHVZKProof) extends Ballot {
-  override def getUnitVector() = uvChoice
+case class ExpertBallot(
+  proposalId: Int,
+  expertId: Int,
+  uvChoice: Array[Ciphertext],
+  proof: SHVZKProof
+) extends Ballot {
+
+  def unitVector: Array[Ciphertext] = uvChoice
 }

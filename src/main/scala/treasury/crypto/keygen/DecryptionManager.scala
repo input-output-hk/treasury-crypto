@@ -40,8 +40,7 @@ class DecryptionManager(cs:               Cryptosystem,
 
   private def validateC1(c1: C1, vectorForValidation: Seq[Ciphertext]): Boolean =
   {
-    (vectorForValidation, c1.decryptedC1, c1.decryptedC1Proofs).zipped.toList.forall
-    {
+    (vectorForValidation, c1.decryptedC1, c1.decryptedC1Proofs).zipped.toList.forall {
       unit =>
         val ciphertext = unit._1
         val C1sk = unit._2
@@ -52,18 +51,15 @@ class DecryptionManager(cs:               Cryptosystem,
     }
   }
 
-  def validateDelegationsC1(c1: C1): Boolean =
-  {
+  def validateDelegationsC1(c1: C1): Boolean = {
     validateC1(c1, delegationsSum)
   }
 
-  def validateChoicesC1(c1: C1): Boolean =
-  {
+  def validateChoicesC1(c1: C1): Boolean = {
     validateC1(c1, choicesSum)
   }
 
-  def decryptC1ForDelegations(): C1 =
-  {
+  def decryptC1ForDelegations(): C1 = {
     delegationsSum = Tally.computeDelegationsSum(cs, votersBallots)
 
     val decryptionShares = delegationsSum.map(_._1.multiply(secretKey).normalize)
@@ -72,8 +68,7 @@ class DecryptionManager(cs:               Cryptosystem,
     C1(ownId, publicKey, decryptionShares, decSharesProofs)
   }
 
-  def decryptC1ForChoices(decryptedC1ForDelegationsIn: Seq[C1], skShares: Seq[KeyShares] = Seq[KeyShares]()): C1 =
-  {
+  def decryptC1ForChoices(decryptedC1ForDelegationsIn: Seq[C1], skShares: Seq[KeyShares] = Seq[KeyShares]()): C1 = {
     if (delegationsSum == null)
       delegationsSum = Tally.computeDelegationsSum(cs, votersBallots)
 
@@ -94,8 +89,7 @@ class DecryptionManager(cs:               Cryptosystem,
     C1(ownId, publicKey, decryptionShares, decSharesProofs)
   }
 
-  def decryptTally(votesC1: Seq[C1], skShares: Seq[KeyShares] = Seq[KeyShares]()): Result =
-  {
+  def decryptTally(votesC1: Seq[C1], skShares: Seq[KeyShares] = Seq[KeyShares]()): Result = {
     if (choicesSum == null)
       throw UninitializedFieldError("choicesSum is uninitialized")
 
