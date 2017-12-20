@@ -18,13 +18,19 @@ object Tally {
     c1:                 Seq[C1],
     dgkRecoveredKeys:   Seq[(Integer, BigInteger)],
     skDelegationShares: Seq[KeyShares],
-    skChoisesShares:    Seq[KeyShares] = null
+    skChoisesShares:    Seq[KeyShares] = Seq[KeyShares]()
   ): Seq[C1] = {
 
     val dgkViolatorsIds = dgkRecoveredKeys.map(_._1)
-    val decrDelegViolatorsIds = skDelegationShares.map(_.keyShares).head.map(_.ownerID)
+
+    val decrDelegViolatorsIds =
+      if(skDelegationShares.nonEmpty)
+        skDelegationShares.map(_.keyShares).head.map(_.ownerID)
+      else
+        Seq[Integer]()
+
     val decrChoisesViolatorsIds =
-      if(skChoisesShares != null)
+      if(skChoisesShares.nonEmpty)
         skChoisesShares.map(_.keyShares).head.map(_.ownerID)
       else
         Seq[Integer]()
@@ -41,7 +47,7 @@ object Tally {
     ballots:             Seq[Ballot],
     delegationsC1In:     Seq[C1],
     choicesC1In:         Seq[C1],
-    dgkRecoveredKeys:    Seq[(Integer, BigInteger)] = Seq[(Integer, BigInteger)](),
+    dkgRecoveredKeys:    Seq[(Integer, BigInteger)] = Seq[(Integer, BigInteger)](),
     skSharesDelegations: Seq[KeyShares] = Seq[KeyShares](),
     skSharesChoises:     Seq[KeyShares] = Seq[KeyShares]()
   ): Result = {
@@ -49,15 +55,15 @@ object Tally {
     val votersBallots = ballots.filter(_.isInstanceOf[VoterBallot]).map(_.asInstanceOf[VoterBallot])
     val expertsBallots = ballots.filter(_.isInstanceOf[ExpertBallot]).map(_.asInstanceOf[ExpertBallot])
 
-    val delegationsC1 = filterC1(delegationsC1In, dgkRecoveredKeys, skSharesDelegations)
-    val choicesC1 = filterC1(choicesC1In, dgkRecoveredKeys, skSharesDelegations, skSharesChoises)
+    val delegationsC1 = filterC1(delegationsC1In, dkgRecoveredKeys, skSharesDelegations)
+    val choicesC1 = filterC1(choicesC1In, dkgRecoveredKeys, skSharesDelegations, skSharesChoises)
 
     // Sum up all delegation vectors from voters. Each coordinate of the vector is multiplied to the
     // corresponding element of the other vector
     val delegationsSum = computeDelegationsSum(cs, votersBallots)
 
     // Get decrypted C1 for delegations using secret keys of DKG stage violators
-    val dkgDelegationsC1 = dgkRecoveredKeys.map(sk => delegationsSum.map(_._1.multiply(sk._2)))
+    val dkgDelegationsC1 = dkgRecoveredKeys.map(sk => delegationsSum.map(_._1.multiply(sk._2)))
 
     // Reconstruct secret keys of commitee members had been absent on delegations decryption phase and get decrypted C1 using them
     val delegationsDecryptionSKs = reconstructSecretKeys(cs, skSharesDelegations)
@@ -72,7 +78,7 @@ object Tally {
     val choicesSum = computeChoicesSum(cs, votersBallots, expertsBallots, delegations)
 
     // Get decrypted C1 for choises using secret keys of DKG stage violators
-    val dkgChoisesC1 = dgkRecoveredKeys.map(sk => choicesSum.map(_._1.multiply(sk._2)))
+    val dkgChoisesC1 = dkgRecoveredKeys.map(sk => choicesSum.map(_._1.multiply(sk._2)))
 
     // Reconstruct secret keys of commitee members had been absent on choises decryption phase and get decrypted C1 using them
     val choisesDecryptionSKs = reconstructSecretKeys(cs, skSharesChoises)
