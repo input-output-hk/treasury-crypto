@@ -7,7 +7,7 @@ import treasury.crypto.core._
 
 class TallyPerformance {
 
-  def Run(commiteeMembersNum: Int, violatorsPercentage: Int): Unit =
+  def run(commiteeMembersNum: Int, violatorsPercentage: Int): Unit =
   {
     val violatorsNum = (commiteeMembersNum.toFloat * (violatorsPercentage.toFloat / 100)).ceil.toInt
 
@@ -36,7 +36,7 @@ class TallyPerformance {
     // Generating shared public key by committee members (by running the DKG protocol between them)
     val sharedPubKey = getSharedPublicKey(cs, committeeMembers)
 
-    val ballots = new VotingSimulator(commiteeMembersNum, numberOfExperts, numberOfVoters, 1, false, sharedPubKey).prepareBallots()
+    val ballots = new VotingSimulator(commiteeMembersNum, numberOfExperts, numberOfVoters, 1, false, Some(sharedPubKey)).prepareBallots()
 
     val R1_ABSENTEES_NUM = violatorsNum / 2
     val R2_ABSENTEES_NUM = violatorsNum - R1_ABSENTEES_NUM
@@ -102,7 +102,7 @@ class TallyPerformance {
 
     for(i <- commiteeMembersNum.indices;
         j <- violatorsPercentage.indices)
-      Run(commiteeMembersNum(i), violatorsPercentage(j))
+      run(commiteeMembersNum(i), violatorsPercentage(j))
   }
 }
 
