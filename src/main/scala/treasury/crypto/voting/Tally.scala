@@ -4,6 +4,7 @@ import java.math.BigInteger
 
 import treasury.crypto.core._
 import treasury.crypto.keygen._
+import treasury.crypto.voting.ballots.{Ballot, ExpertBallot, VoterBallot}
 
 object Tally {
 

@@ -4,7 +4,7 @@ import java.math.BigInteger
 
 import treasury.crypto.core._
 import treasury.crypto.voting.Tally.Result
-import treasury.crypto.voting.Ballot
+import treasury.crypto.voting.ballots.Ballot
 
 
 class CommitteeMember(val cs: Cryptosystem,

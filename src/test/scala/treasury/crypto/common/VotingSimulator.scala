@@ -5,6 +5,7 @@ import java.math.BigInteger
 import treasury.crypto.core._
 import treasury.crypto.keygen.{C1, DecryptionManager}
 import treasury.crypto.voting._
+import treasury.crypto.voting.ballots.{Ballot, ExpertBallot, VoterBallot}
 
 
 class VotingSimulator(

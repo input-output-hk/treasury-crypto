@@ -3,7 +3,8 @@ import java.math.BigInteger
 
 import treasury.crypto.core.{Cryptosystem, PubKey, VoteCases, Zero}
 import treasury.crypto.voting.Tally.Result
-import treasury.crypto.voting.{Ballot, Expert, RegularVoter}
+import treasury.crypto.voting.ballots.Ballot
+import treasury.crypto.voting.{Expert, RegularVoter}
 
 trait Elections {
   def run(sharedPubKey: PubKey): Seq[Ballot]

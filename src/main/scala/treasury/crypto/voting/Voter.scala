@@ -4,6 +4,7 @@ import java.math.BigInteger
 
 import treasury.crypto.core._
 import treasury.crypto.nizk.shvzk.{SHVZKGen, SHVZKVerifier}
+import treasury.crypto.voting.ballots.{Ballot, ExpertBallot, VoterBallot}
 
 abstract class Voter {
   def cs: Cryptosystem

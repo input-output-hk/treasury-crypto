@@ -5,7 +5,8 @@ import java.math.BigInteger
 import treasury.crypto.core._
 import treasury.crypto.nizk.ElgamalDecrNIZK
 import treasury.crypto.voting.Tally.Result
-import treasury.crypto.voting.{Ballot, ExpertBallot, Tally, VoterBallot}
+import treasury.crypto.voting.ballots.{Ballot, ExpertBallot, VoterBallot}
+import treasury.crypto.voting.Tally
 
 import scala.collection.mutable.ArrayBuffer
 
