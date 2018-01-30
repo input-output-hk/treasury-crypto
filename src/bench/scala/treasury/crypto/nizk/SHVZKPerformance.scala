@@ -28,10 +28,32 @@ class SHVZKPerformance {
       println("\tNIZK Proof size: " + proofsize + " bytes")
     }
   }
+
+  def run2(): Unit = {
+    val shvzkTest = new SHVZKTest()
+
+    val unitVectorSize = List(7, 9, 12, 15, 16, 21, 26, 31, 32, 40, 48, 56, 63, 64, 85, 106, 127, 128, 170, 212, 255)
+    for (size <- unitVectorSize) {
+      println("Running test for unit vector of size " + size + " ...")
+
+      val (uv, rand) = TimeUtils.time("\tUV creation: ", shvzkTest.createUnitVector(size, 1))
+
+      val proof = new SHVZKGen(shvzkTest.cs, shvzkTest.pubKey, uv, 1, rand).produceNIZK()
+      TimeUtils.accurate_time("\tSHV NIZK creation: ",
+        new SHVZKGen(shvzkTest.cs, shvzkTest.pubKey, uv, 1, rand).produceNIZK())
+
+      TimeUtils.accurate_time(
+        "\tSHV NIZK verification",
+        new SHVZKVerifier(shvzkTest.cs, shvzkTest.pubKey, uv, proof).verifyProof())
+
+      val proofsize: Int = proof.bytes.size
+      println("\tNIZK Proof size: " + proofsize + " bytes")
+    }
+  }
 }
 
 object SHVZKPerformance {
   def main(args: Array[String]) {
-    new SHVZKPerformance().run
+    new SHVZKPerformance().run2
   }
 }
