@@ -3,7 +3,7 @@ package treasury.crypto.common
 import java.math.BigInteger
 
 import treasury.crypto.core._
-import treasury.crypto.keygen.DecryptionManager
+import treasury.crypto.keygen.{DecryptionManager, DecryptionValidator}
 import treasury.crypto.keygen.datastructures.C1Share
 import treasury.crypto.nizk.ElgamalDecrNIZK
 import treasury.crypto.voting.Tally.decryptVectorOnC1
@@ -100,18 +100,15 @@ class VotingSimulator(
   }
 
   def verifyDecryptionShares(ballots: Seq[Ballot], decryptionShares: Seq[(C1Share, C1Share)]): Boolean = Try {
-    val managers = committeeMembers.map(m => new DecryptionManager(cs, 0, m, Array[BigInteger](), ballots))
-    val delegationsC1 = managers.map(_.decryptC1ForDelegations())
-    val choicesC1 = managers.map(_.decryptC1ForChoices(delegationsC1))
+    val validator = new DecryptionValidator(cs, ballots)
 
-    require(managers.length == decryptionShares.length)
+    val delegationsC1 = decryptionShares.map(_._1)
+    val choicesC1 = decryptionShares.map(_._2)
 
-    for (i <- managers.indices) {
-      if (!managers(i).validateDelegationsC1(decryptionShares(i)._1))
-        throw ValidationException("Bad proof")
-      if (!managers(i).validateChoicesC1(decryptionShares(i)._2))
-        throw ValidationException("Bad proof")
-    }
+    val failedDeleg = delegationsC1.exists(!validator.validateDelegationsC1(_))
+    val failedChoices = choicesC1.exists(!validator.validateChoicesC1(_, delegationsC1))
+
+    !failedDeleg && !failedChoices
   }.isSuccess
 
   /* Consumes a list of ballots and decryption shares.

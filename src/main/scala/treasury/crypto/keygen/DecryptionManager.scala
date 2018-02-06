@@ -29,10 +29,10 @@ class DecryptionManager(cs:               Cryptosystem,
 
   private lazy val (secretKey, publicKey) = keyPair
 
-  private lazy val votersBallots = ballots.filter(_.isInstanceOf[VoterBallot]).map(_.asInstanceOf[VoterBallot])
+  private lazy val votersBallots = ballots.collect { case b: VoterBallot => b }
   assert(votersBallots.forall(_.uvDelegations.length == votersBallots.head.uvDelegations.length))
 
-  private lazy val expertsBallots = ballots.filter(_.isInstanceOf[ExpertBallot]).map(_.asInstanceOf[ExpertBallot])
+  private lazy val expertsBallots = ballots.collect { case b: ExpertBallot => b }
   assert(votersBallots.forall(_.uvChoice.length == votersBallots.head.uvChoice.length))
 
   private var delegationsSum:   Seq[Ciphertext] = null
