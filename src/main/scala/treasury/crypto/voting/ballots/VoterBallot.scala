@@ -5,7 +5,7 @@ import java.math.BigInteger
 import com.google.common.primitives.{Bytes, Ints, Shorts}
 import treasury.crypto.core.{Ciphertext, Cryptosystem}
 import treasury.crypto.core.serialization.Serializer
-import treasury.crypto.nizk.shvzk.{SHVZKProof, SHVZKProofCompanion}
+import treasury.crypto.nizk.shvzk.{SHVZKProof, SHVZKProofSerializer}
 import treasury.crypto.voting.Voter
 
 import scala.util.Try
@@ -67,7 +67,7 @@ object VoterBallotCompanion extends Serializer[VoterBallot] {
     val (uvDelegations, uvChoices) = unitVector.splitAt(unitVector.length - Voter.VOTER_CHOISES_NUM)
 
     val proofLen = Ints.fromByteArray(bytes.slice(position, position+4))
-    val proof = SHVZKProofCompanion.parseBytes(bytes.slice(position+4, position+4+proofLen), cs).get
+    val proof = SHVZKProofSerializer.parseBytes(bytes.slice(position+4, position+4+proofLen), cs).get
     position = position + 4 + proofLen
 
     val stakeLen = bytes(position)

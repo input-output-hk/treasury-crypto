@@ -3,7 +3,8 @@ package treasury.crypto.common
 import java.math.BigInteger
 
 import treasury.crypto.core._
-import treasury.crypto.keygen.{C1, DecryptionManager}
+import treasury.crypto.keygen.DecryptionManager
+import treasury.crypto.keygen.datastructures.C1Share
 import treasury.crypto.voting._
 import treasury.crypto.voting.ballots.{Ballot, ExpertBallot, VoterBallot}
 
@@ -85,7 +86,7 @@ class VotingSimulator(
     expertsBallots.seq ++ votersBallots.seq
   }
 
-  def prepareDecryptionShares(ballots: Seq[Ballot]): Seq[(C1, C1)] = {
+  def prepareDecryptionShares(ballots: Seq[Ballot]): Seq[(C1Share, C1Share)] = {
     val managers = committeeMembers.map(m => new DecryptionManager(cs, 0, m, Array[BigInteger](), ballots))
     val delegationsC1 = managers.map(_.decryptC1ForDelegations())
     val choicesC1 = managers.map(_.decryptC1ForChoices(delegationsC1))
@@ -97,7 +98,7 @@ class VotingSimulator(
    * Returns tally results */
   def doTally(
     ballots: Seq[Ballot],
-    decryptionShares: Seq[(C1, C1)]
+    decryptionShares: Seq[(C1Share, C1Share)]
   ): Tally.Result = {
 
     require(decryptionShares.size == numberOfCommitteeMembers)

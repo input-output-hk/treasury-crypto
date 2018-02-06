@@ -4,6 +4,7 @@ import java.math.BigInteger
 
 import treasury.crypto.core._
 import treasury.crypto.keygen._
+import treasury.crypto.keygen.datastructures.C1Share
 import treasury.crypto.voting.ballots.{Ballot, ExpertBallot, VoterBallot}
 
 object Tally {
@@ -16,11 +17,11 @@ object Tally {
 
   // Removes C1 decryption shares received from violators of DKG and Tally phases
   private def filterC1(
-    c1:                 Seq[C1],
-    dgkRecoveredKeys:   Seq[(Integer, BigInteger)],
-    skDelegationShares: Seq[KeyShares],
-    skChoisesShares:    Seq[KeyShares] = Seq[KeyShares]()
-  ): Seq[C1] = {
+                        c1:                 Seq[C1Share],
+                        dgkRecoveredKeys:   Seq[(Integer, BigInteger)],
+                        skDelegationShares: Seq[KeyShares],
+                        skChoisesShares:    Seq[KeyShares] = Seq[KeyShares]()
+  ): Seq[C1Share] = {
 
     val dgkViolatorsIds = dgkRecoveredKeys.map(_._1)
 
@@ -44,13 +45,13 @@ object Tally {
   // Calculates the total result of voting (based on all existing ballots of voters and experts)
   // The decryption of the final result is performed by obtaining C1 components of the result (raised to the private key) from committee members
   def countVotes(
-    cs:                  Cryptosystem,
-    ballots:             Seq[Ballot],
-    delegationsC1In:     Seq[C1],
-    choicesC1In:         Seq[C1],
-    dkgRecoveredKeys:    Seq[(Integer, BigInteger)] = Seq[(Integer, BigInteger)](),
-    skSharesDelegations: Seq[KeyShares] = Seq[KeyShares](),
-    skSharesChoises:     Seq[KeyShares] = Seq[KeyShares]()
+                  cs:                  Cryptosystem,
+                  ballots:             Seq[Ballot],
+                  delegationsC1In:     Seq[C1Share],
+                  choicesC1In:         Seq[C1Share],
+                  dkgRecoveredKeys:    Seq[(Integer, BigInteger)] = Seq[(Integer, BigInteger)](),
+                  skSharesDelegations: Seq[KeyShares] = Seq[KeyShares](),
+                  skSharesChoises:     Seq[KeyShares] = Seq[KeyShares]()
   ): Result = {
 
     val votersBallots = ballots.filter(_.isInstanceOf[VoterBallot]).map(_.asInstanceOf[VoterBallot])

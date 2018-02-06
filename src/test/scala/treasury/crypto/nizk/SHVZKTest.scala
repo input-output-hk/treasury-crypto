@@ -2,7 +2,7 @@ package treasury.crypto.nizk
 
 import org.scalatest.FunSuite
 import treasury.crypto.core._
-import treasury.crypto.nizk.shvzk.{SHVZKCommon, SHVZKGen, SHVZKProofCompanion, SHVZKVerifier}
+import treasury.crypto.nizk.shvzk.{SHVZKCommon, SHVZKGen, SHVZKProofSerializer, SHVZKVerifier}
 
 class SHVZKTest extends FunSuite {
 
@@ -101,7 +101,7 @@ class SHVZKTest extends FunSuite {
   test("serialization") {
     val (uv, rand) = createUnitVector(5, 0)
     val proofBytes = new SHVZKGen(cs, pubKey, uv, 0, rand).produceNIZK().bytes
-    val proof = SHVZKProofCompanion.parseBytes(proofBytes, cs)
+    val proof = SHVZKProofSerializer.parseBytes(proofBytes, cs)
 
     assert(new SHVZKVerifier(cs, pubKey, uv, proof.get).verifyProof())
   }

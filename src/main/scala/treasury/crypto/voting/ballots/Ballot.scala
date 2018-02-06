@@ -5,7 +5,7 @@ import java.math.BigInteger
 import com.google.common.primitives.{Bytes, Ints, Shorts}
 import treasury.crypto.core._
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
-import treasury.crypto.nizk.shvzk.{SHVZKProof, SHVZKProofCompanion}
+import treasury.crypto.nizk.shvzk.{SHVZKProof, SHVZKProofSerializer}
 import treasury.crypto.voting._
 
 import scala.util.Try

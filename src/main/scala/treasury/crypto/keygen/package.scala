@@ -162,20 +162,6 @@ package object keygen {
   //----------------------------------------------------------
   // Tally decryption data structures
   //
-  case class C1(
-    issuerID:           Integer,
-    issuerPubKey:       PubKey,
-    decryptedC1:        Seq[Point],
-    decryptedC1Proofs:  Seq[ElgamalDecrNIZKProof]
-  ) extends HasSize {
-
-    def size: Int = {
-      Integer.BYTES +
-      issuerPubKey.getEncoded(true).size +
-      decryptedC1.foldLeft(0) {(totalSize, currentElement) => totalSize + currentElement.getEncoded(true).size} +
-      decryptedC1Proofs.foldLeft(0) {(totalSize, currentElement) => totalSize + currentElement.size}
-    }
-  }
 
   case class SKShare(
     ownerID: Integer,

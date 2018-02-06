@@ -17,12 +17,12 @@ case class SHVZKProof(
 ) extends BytesSerializable {
 
   override type M = SHVZKProof
-  override val serializer = SHVZKProofCompanion
+  override val serializer = SHVZKProofSerializer
 
   def size: Int = bytes.length
 }
 
-object SHVZKProofCompanion extends Serializer[SHVZKProof] {
+object SHVZKProofSerializer extends Serializer[SHVZKProof] {
 
   override def toBytes(p: SHVZKProof): Array[Byte] = {
     val IBAbytes = p.IBA.foldLeft(Array[Byte]()) { (acc, b) =>

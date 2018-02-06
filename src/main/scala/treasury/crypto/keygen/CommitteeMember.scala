@@ -3,6 +3,7 @@ package treasury.crypto.keygen
 import java.math.BigInteger
 
 import treasury.crypto.core._
+import treasury.crypto.keygen.datastructures.C1Share
 import treasury.crypto.voting.Tally.Result
 import treasury.crypto.voting.ballots.Ballot
 
@@ -71,14 +72,14 @@ class CommitteeMember(val cs: Cryptosystem,
     KeyShares(ownId, absenteesIds.map(x => SKShare(x, dkg.getShare(x))))
   }
 
-  def decryptTallyR1(ballots: Seq[Ballot]): C1 =
+  def decryptTallyR1(ballots: Seq[Ballot]): C1Share =
   {
     // Initialization of the decryptor
     decryptor = new DecryptionManager(cs, ownId, (secretKey, publicKey), dkgViolatorsSKs, ballots, dkg.t)
     decryptor.decryptC1ForDelegations()
   }
 
-  def keysRecoveryR1(c1ForDelegationsIn: Seq[C1]): KeyShares =
+  def keysRecoveryR1(c1ForDelegationsIn: Seq[C1Share]): KeyShares =
   {
     val c1ForDelegations = c1ForDelegationsIn
       .filter(x => !dkgViolatorsIds.contains(x.issuerID))
@@ -87,7 +88,7 @@ class CommitteeMember(val cs: Cryptosystem,
     getSkShares(c1ForDelegations.map(_.issuerID))
   }
 
-  def decryptTallyR2(c1ForDelegationsIn: Seq[C1], skSharesIn: Seq[KeyShares]): C1 =
+  def decryptTallyR2(c1ForDelegationsIn: Seq[C1Share], skSharesIn: Seq[KeyShares]): C1Share =
   {
     val c1ForDelegations = c1ForDelegationsIn.filter(
       x =>
@@ -103,7 +104,7 @@ class CommitteeMember(val cs: Cryptosystem,
     decryptor.decryptC1ForChoices(c1ForDelegations, skShares)
   }
 
-  def keysRecoveryR2(c1ForChoicesIn: Seq[C1]): KeyShares =
+  def keysRecoveryR2(c1ForChoicesIn: Seq[C1Share]): KeyShares =
   {
     val c1ForChoices = c1ForChoicesIn
       .filter(
@@ -114,7 +115,7 @@ class CommitteeMember(val cs: Cryptosystem,
     getSkShares(c1ForChoices.map(_.issuerID))
   }
 
-  def decryptTallyR3(c1ForChoicesIn: Seq[C1], skSharesIn: Seq[KeyShares]): Result =
+  def decryptTallyR3(c1ForChoicesIn: Seq[C1Share], skSharesIn: Seq[KeyShares]): Result =
   {
     val c1ForChoices = c1ForChoicesIn.filter(
       x =>

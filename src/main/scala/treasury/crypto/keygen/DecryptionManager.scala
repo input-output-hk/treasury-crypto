@@ -3,10 +3,11 @@ package treasury.crypto.keygen
 import java.math.BigInteger
 
 import treasury.crypto.core._
+import treasury.crypto.keygen.datastructures.C1Share
 import treasury.crypto.nizk.ElgamalDecrNIZK
+import treasury.crypto.voting.Tally
 import treasury.crypto.voting.Tally.Result
 import treasury.crypto.voting.ballots.{Ballot, ExpertBallot, VoterBallot}
-import treasury.crypto.voting.Tally
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -39,7 +40,7 @@ class DecryptionManager(cs:               Cryptosystem,
 
   private var decryptionViolatorsSKs = new ArrayBuffer[BigInteger]()
 
-  private def validateC1(c1: C1, vectorForValidation: Seq[Ciphertext]): Boolean =
+  private def validateC1(c1: C1Share, vectorForValidation: Seq[Ciphertext]): Boolean =
   {
     (vectorForValidation, c1.decryptedC1, c1.decryptedC1Proofs).zipped.toList.forall {
       unit =>
@@ -52,24 +53,24 @@ class DecryptionManager(cs:               Cryptosystem,
     }
   }
 
-  def validateDelegationsC1(c1: C1): Boolean = {
+  def validateDelegationsC1(c1: C1Share): Boolean = {
     validateC1(c1, delegationsSum)
   }
 
-  def validateChoicesC1(c1: C1): Boolean = {
+  def validateChoicesC1(c1: C1Share): Boolean = {
     validateC1(c1, choicesSum)
   }
 
-  def decryptC1ForDelegations(): C1 = {
+  def decryptC1ForDelegations(): C1Share = {
     delegationsSum = Tally.computeDelegationsSum(cs, votersBallots)
 
     val decryptionShares = delegationsSum.map(_._1.multiply(secretKey).normalize)
     val decSharesProofs = delegationsSum.map(ElgamalDecrNIZK.produceNIZK(cs, _, secretKey))
 
-    C1(ownId, publicKey, decryptionShares, decSharesProofs)
+    C1Share(ownId, publicKey, decryptionShares, decSharesProofs)
   }
 
-  def decryptC1ForChoices(decryptedC1ForDelegationsIn: Seq[C1], skShares: Seq[KeyShares] = Seq[KeyShares]()): C1 = {
+  def decryptC1ForChoices(decryptedC1ForDelegationsIn: Seq[C1Share], skShares: Seq[KeyShares] = Seq[KeyShares]()): C1Share = {
     if (delegationsSum == null)
       delegationsSum = Tally.computeDelegationsSum(cs, votersBallots)
 
@@ -87,10 +88,10 @@ class DecryptionManager(cs:               Cryptosystem,
     val decryptionShares = choicesSum.map(_._1.multiply(secretKey).normalize)
     val decSharesProofs = choicesSum.map(ElgamalDecrNIZK.produceNIZK(cs, _, secretKey))
 
-    C1(ownId, publicKey, decryptionShares, decSharesProofs)
+    C1Share(ownId, publicKey, decryptionShares, decSharesProofs)
   }
 
-  def decryptTally(votesC1: Seq[C1], skShares: Seq[KeyShares] = Seq[KeyShares]()): Result = {
+  def decryptTally(votesC1: Seq[C1Share], skShares: Seq[KeyShares] = Seq[KeyShares]()): Result = {
     if (choicesSum == null)
       throw UninitializedFieldError("choicesSum is uninitialized")
 

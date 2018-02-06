@@ -3,7 +3,7 @@ package treasury.crypto.voting.ballots
 import com.google.common.primitives.{Bytes, Ints}
 import treasury.crypto.core.{Ciphertext, Cryptosystem}
 import treasury.crypto.core.serialization.Serializer
-import treasury.crypto.nizk.shvzk.{SHVZKProof, SHVZKProofCompanion}
+import treasury.crypto.nizk.shvzk.{SHVZKProof, SHVZKProofSerializer}
 import treasury.crypto.voting.Voter
 
 import scala.util.Try
@@ -62,7 +62,7 @@ object ExpertBallotCompanion extends Serializer[ExpertBallot] {
     }.toArray
 
     val proofLen = Ints.fromByteArray(bytes.slice(position, position+4))
-    val proof = SHVZKProofCompanion.parseBytes(bytes.slice(position+4, position+4+proofLen), cs).get
+    val proof = SHVZKProofSerializer.parseBytes(bytes.slice(position+4, position+4+proofLen), cs).get
 
     ExpertBallot(proposalId, expertId, uvChoice, proof)
   }
