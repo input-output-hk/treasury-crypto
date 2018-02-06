@@ -5,8 +5,13 @@ import java.math.BigInteger
 import treasury.crypto.core._
 import treasury.crypto.keygen.DecryptionManager
 import treasury.crypto.keygen.datastructures.C1Share
+import treasury.crypto.nizk.ElgamalDecrNIZK
+import treasury.crypto.voting.Tally.decryptVectorOnC1
 import treasury.crypto.voting._
 import treasury.crypto.voting.ballots.{Ballot, ExpertBallot, VoterBallot}
+
+import scala.util.Try
+import scala.xml.dtd.ValidationException
 
 
 class VotingSimulator(
@@ -18,7 +23,7 @@ class VotingSimulator(
   sharedPubKey: Option[PubKey] = None
 ) {
 
-  protected val cs = new Cryptosystem
+  val cs = new Cryptosystem
   protected lazy val committeeMembers = Array.fill(numberOfCommitteeMembers)(cs.createKeyPair)
   protected val sharedPublicKey = sharedPubKey.getOrElse(
     committeeMembers.foldLeft(cs.infinityPoint)((sum,next) => sum.add(next._2)))
@@ -93,6 +98,21 @@ class VotingSimulator(
 
     delegationsC1.zip(choicesC1)
   }
+
+  def verifyDecryptionShares(ballots: Seq[Ballot], decryptionShares: Seq[(C1Share, C1Share)]): Boolean = Try {
+    val managers = committeeMembers.map(m => new DecryptionManager(cs, 0, m, Array[BigInteger](), ballots))
+    val delegationsC1 = managers.map(_.decryptC1ForDelegations())
+    val choicesC1 = managers.map(_.decryptC1ForChoices(delegationsC1))
+
+    require(managers.length == decryptionShares.length)
+
+    for (i <- managers.indices) {
+      if (!managers(i).validateDelegationsC1(decryptionShares(i)._1))
+        throw ValidationException("Bad proof")
+      if (!managers(i).validateChoicesC1(decryptionShares(i)._2))
+        throw ValidationException("Bad proof")
+    }
+  }.isSuccess
 
   /* Consumes a list of ballots and decryption shares.
    * Returns tally results */

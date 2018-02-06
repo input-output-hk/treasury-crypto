@@ -3,7 +3,7 @@ package treasury.crypto
 import java.math.BigInteger
 
 import treasury.crypto.core._
-import treasury.crypto.nizk.ElgamalDecrNIZK.ElgamalDecrNIZKProof
+import treasury.crypto.nizk.ElgamalDecrNIZKProof
 
 import scala.util.Random
 

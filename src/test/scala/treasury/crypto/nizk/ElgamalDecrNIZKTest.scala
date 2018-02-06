@@ -19,6 +19,11 @@ class ElgamalDecrNIZKTest extends FunSuite {
     val verified = ElgamalDecrNIZK.verifyNIZK(cs, pubKey, ciphertext, decrypted, proof)
 
     assert(verified)
+
+    val corruptedProof = ElgamalDecrNIZKProof(proof.A1, proof.A2, proof.z.add(BigInteger.ONE))
+    val res = ElgamalDecrNIZK.verifyNIZK(cs, pubKey, ciphertext, decrypted, corruptedProof)
+
+    assert(!res)
   }
 
   test("inversion") {
@@ -29,5 +34,22 @@ class ElgamalDecrNIZKTest extends FunSuite {
 
     val res = cs.basePoint.equals(recover)
     assert(res)
+  }
+
+  test("serialization") {
+    val cs = new Cryptosystem
+    val (privKey, pubKey) = cs.createKeyPair
+    val plaintext = cs.basePoint.multiply(cs.getRand)
+    val ciphertext = cs.encryptPoint(pubKey, cs.getRand, plaintext)
+    val decrypted = cs.decryptPoint(privKey, ciphertext)
+
+    assert(plaintext.equals(decrypted))
+
+    val bytes = ElgamalDecrNIZK.produceNIZK(cs, ciphertext, privKey).bytes
+    val proof = ElgamalDecrNIZKProofSerializer.parseBytes(bytes, cs).get
+
+    val verified = ElgamalDecrNIZK.verifyNIZK(cs, pubKey, ciphertext, decrypted, proof)
+
+    assert(verified)
   }
 }
