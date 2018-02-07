@@ -72,7 +72,7 @@ class TallyPerformance {
 
     val (skSharesR2, timeRecovery2) = TimeUtils.get_time_average_s(
       "Recovery 2:",
-      committeeMembersR2.map(_.keysRecoveryR2(decryptedC1ForChoices)),
+      committeeMembersR2.map(_.keysRecoveryR2(decryptedC1ForDelegations, decryptedC1ForChoices)),
       committeeMembersR2.length
     )
 
@@ -80,7 +80,7 @@ class TallyPerformance {
 
     val (tallyResults, timeR3) = TimeUtils.get_time_average_s(
       "Round 3:",
-      committeeMembersR2.map(_.decryptTallyR3(decryptedC1ForChoices, skSharesR2)),
+      committeeMembersR2.map(_.decryptTallyR3(decryptedC1ForDelegations, skSharesR1, decryptedC1ForChoices, skSharesR2)),
       committeeMembersR2.length
     )
 

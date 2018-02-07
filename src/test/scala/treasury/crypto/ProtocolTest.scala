@@ -11,14 +11,12 @@ class ProtocolTest extends FunSuite {
     val crs_h = cs.basePoint.multiply(cs.getRand)
 
     // Generating keypairs for every commitee member
-    val keyPairs = for(id <- 1 to 10) yield cs.createKeyPair
+    val keyPairs = Array.fill(10)(cs.createKeyPair)
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     // Instantiating committee members
     //
-    val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(cs, crs_h, keyPairs(i), committeeMembersPubKeys)
-    }
+    val committeeMembers = keyPairs.map(k => new CommitteeMember(cs, crs_h, k, committeeMembersPubKeys))
 
     // Generating shared public key by committee members (by running the DKG protocol between them)
     val sharedPubKey = getSharedPublicKey(cs, committeeMembers)
@@ -45,10 +43,10 @@ class ProtocolTest extends FunSuite {
     val decryptedC1ForChoices = committeeMembersR2.map(_.decryptTallyR2(decryptedC1ForDelegations, skSharesR1))
 
     // Publishing secret key shares of absent commitee members on choises decryption phase
-    val skSharesR2 = committeeMembersR2.map(_.keysRecoveryR2(decryptedC1ForChoices))
+    val skSharesR2 = committeeMembersR2.map(_.keysRecoveryR2(decryptedC1ForDelegations, decryptedC1ForChoices))
 
     // Joint decryption of the tally by committee members
-    val tallyResults = committeeMembersR2.map(_.decryptTallyR3(decryptedC1ForChoices, skSharesR2))
+    val tallyResults = committeeMembersR2.map(_.decryptTallyR3(decryptedC1ForDelegations, skSharesR1, decryptedC1ForChoices, skSharesR2))
 
     assert(tallyResults.forall(_.equals(tallyResults.head)))
 

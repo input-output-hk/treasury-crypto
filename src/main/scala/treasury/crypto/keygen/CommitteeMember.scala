@@ -4,6 +4,7 @@ import java.math.BigInteger
 
 import treasury.crypto.core._
 import treasury.crypto.keygen.datastructures.C1Share
+import treasury.crypto.voting.Tally
 import treasury.crypto.voting.Tally.Result
 import treasury.crypto.voting.ballots.Ballot
 
@@ -24,6 +25,7 @@ class CommitteeMember(val cs: Cryptosystem,
   var dkgViolatorsSKs: Array[BigInteger] = Array[BigInteger]()
   var dkgViolatorsIds: Set[Integer] = Set()
   var decryptionViolatorsIds: Set[Int] = Set()
+  var delegationsC1: Option[Seq[C1Share]] = None
 
   val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
 
@@ -83,10 +85,17 @@ class CommitteeMember(val cs: Cryptosystem,
   {
     val c1ForDelegations = c1ForDelegationsIn
       .filter(x => !dkgViolatorsIds.contains(x.issuerID))
-      .filter(c1 => decryptor.validateDelegationsC1(c1))
+      .filter(c1 => decryptor.validateDelegationsC1(c1)) // TODO: do we really need validation here? Maybe only as an assert
 
     getSkShares(c1ForDelegations.map(_.issuerID))
   }
+
+//  def recoverC1SharesR1(skSharesIn: Seq[KeyShares]): Seq[C1Share] = {
+//    val skShares = skSharesIn.filter(x => !dkgViolatorsIds.contains(x.issuerID))
+//    val decryptionViolatorsSKs = Tally.reconstructSecretKeys(cs, skShares, dkg.t)
+//    val decryptionViolatorsC1 = decryptionViolatorsSKs.map(sk => delegationsSum.map(_._1.multiply(sk)))
+//    val dkgViolatorsC1 = dkgViolatorsSKs.map(sk => delegationsSum.map(_._1.multiply(sk)))
+//  }
 
   def decryptTallyR2(c1ForDelegationsIn: Seq[C1Share], skSharesIn: Seq[KeyShares]): C1Share =
   {
@@ -104,30 +113,33 @@ class CommitteeMember(val cs: Cryptosystem,
     decryptor.decryptC1ForChoices(c1ForDelegations, skShares)
   }
 
-  def keysRecoveryR2(c1ForChoicesIn: Seq[C1Share]): KeyShares =
+  def keysRecoveryR2(c1ForDelegationsIn: Seq[C1Share], c1ForChoicesIn: Seq[C1Share]): KeyShares =
   {
     val c1ForChoices = c1ForChoicesIn
       .filter(
         x =>
           !dkgViolatorsIds.contains(x.issuerID) && !decryptionViolatorsIds.contains(x.issuerID))
-      .filter(c1 => decryptor.validateChoicesC1(c1))
+      .filter(c1 => decryptor.validateChoicesC1(c1, c1ForDelegationsIn))
 
     getSkShares(c1ForChoices.map(_.issuerID))
   }
 
-  def decryptTallyR3(c1ForChoicesIn: Seq[C1Share], skSharesIn: Seq[KeyShares]): Result =
+  def decryptTallyR3(c1ForChoicesIn: Seq[C1Share],
+                     choicesSkSharesIn: Seq[KeyShares],
+                     c1ForDelegationsIn: Seq[C1Share],
+                     delegSkSharesIn: Seq[KeyShares]): Result =
   {
     val c1ForChoices = c1ForChoicesIn.filter(
       x =>
       !dkgViolatorsIds.contains(x.issuerID) && !decryptionViolatorsIds.contains(x.issuerID))
 
-    val skShares = skSharesIn.filter(
+    val skShares = choicesSkSharesIn.filter(
       x =>
         !dkgViolatorsIds.contains(x.issuerID) && !decryptionViolatorsIds.contains(x.issuerID))
 
     if(decryptor == null)
       throw UninitializedFieldError("decryptor is uninitialized. Run protocol from the 1-st round!")
 
-    decryptor.decryptTally(c1ForChoices, skShares)
+    decryptor.decryptTally(c1ForDelegationsIn, c1ForChoices, delegSkSharesIn, skShares)
   }
 }

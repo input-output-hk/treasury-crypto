@@ -35,10 +35,7 @@ class DecryptionManager(cs:               Cryptosystem,
   private lazy val expertsBallots = ballots.collect { case b: ExpertBallot => b }
   assert(votersBallots.forall(_.uvChoice.length == votersBallots.head.uvChoice.length))
 
-  private var delegationsSum:   Seq[Ciphertext] = null
-  private var choicesSum:  Seq[Ciphertext] = null
-
-  private var decryptionViolatorsSKs = new ArrayBuffer[BigInteger]()
+  private val delegationsSum: Seq[Ciphertext] = Tally.computeDelegationsSum(cs, votersBallots)
 
   private def validateC1(c1: C1Share, vectorForValidation: Seq[Ciphertext]): Boolean =
   {
@@ -57,31 +54,35 @@ class DecryptionManager(cs:               Cryptosystem,
     validateC1(c1, delegationsSum)
   }
 
-  def validateChoicesC1(c1: C1Share): Boolean = {
-    validateC1(c1, choicesSum)
+  def validateChoicesC1(choicesC1: C1Share, delegationsC1: Seq[C1Share]): Boolean = {
+    val delegationsResult = Tally.decryptVectorOnC1(cs, delegationsC1.map(_.decryptedC1), delegationsSum)
+    val choicesSum = Tally.computeChoicesSum(cs, votersBallots, expertsBallots, delegationsResult)
+    validateC1(choicesC1, choicesSum)
   }
 
   def decryptC1ForDelegations(): C1Share = {
-    delegationsSum = Tally.computeDelegationsSum(cs, votersBallots)
-
     val decryptionShares = delegationsSum.map(_._1.multiply(secretKey).normalize)
     val decSharesProofs = delegationsSum.map(ElgamalDecrNIZK.produceNIZK(cs, _, secretKey))
 
     C1Share(ownId, publicKey, decryptionShares, decSharesProofs)
   }
 
-  def decryptC1ForChoices(decryptedC1ForDelegationsIn: Seq[C1Share], skShares: Seq[KeyShares] = Seq[KeyShares]()): C1Share = {
-    if (delegationsSum == null)
-      delegationsSum = Tally.computeDelegationsSum(cs, votersBallots)
-
-    decryptionViolatorsSKs ++= Tally.reconstructSecretKeys(cs, skShares, recoveryThreshold)
+  private def computeChoicesSum(decryptedC1ForDelegationsIn: Seq[C1Share],
+                                skShares: Seq[KeyShares] = Seq()): Seq[Ciphertext] = {
+    val decryptionViolatorsSKs = Tally.reconstructSecretKeys(cs, skShares, recoveryThreshold)
 
     val decryptionViolatorsC1 = decryptionViolatorsSKs.map(sk => delegationsSum.map(_._1.multiply(sk)))
     val dkgViolatorsC1 = dkgViolatorsSKs.map(sk => delegationsSum.map(_._1.multiply(sk)))
 
     val decryptedC1ForDelegations = decryptedC1ForDelegationsIn.map(_.decryptedC1)
     val delegationsResult = Tally.decryptVectorOnC1(cs, decryptedC1ForDelegations ++ dkgViolatorsC1 ++ decryptionViolatorsC1, delegationsSum)
-    choicesSum = Tally.computeChoicesSum(cs, votersBallots, expertsBallots, delegationsResult)
+
+    Tally.computeChoicesSum(cs, votersBallots, expertsBallots, delegationsResult)
+  }
+
+  def decryptC1ForChoices(decryptedC1ForDelegationsIn: Seq[C1Share],
+                          skShares: Seq[KeyShares] = Seq()): C1Share = {
+    val choicesSum = computeChoicesSum(decryptedC1ForDelegationsIn, skShares)
 
     // Decryption shares of the summed votes
     //
@@ -91,16 +92,33 @@ class DecryptionManager(cs:               Cryptosystem,
     C1Share(ownId, publicKey, decryptionShares, decSharesProofs)
   }
 
-  def decryptTally(votesC1: Seq[C1Share], skShares: Seq[KeyShares] = Seq[KeyShares]()): Result = {
-    if (choicesSum == null)
-      throw UninitializedFieldError("choicesSum is uninitialized")
+  /**
+    * Compute final tally based on the decryption shares
+    *
+    * @param delegationsC1 decryption shares of the delegations bits of the unit vector
+    * @param choicesC1 decryptions shares of choices bits of the unit vector
+    * @param delegSkShares shares of the secret key of the committe members who failed to provide decryption shares
+    *                      for the DELEGATIONS bits. Having these secret key shares everyone is able to reconstruct
+    *                      a violator secret key and then compute missing decryption shares
+    * @param choicesSkShares shares of the secret key of the committe members who failed to provide decryption shares
+    *                        for the CHOICES bits. Having these secret key shares everyone is able to reconstruct
+    *                        a violator secret key and then compute missing decryption shares
+    * @return final result of the voting for the particular project
+    */
+  def decryptTally(delegationsC1: Seq[C1Share],
+                   choicesC1: Seq[C1Share],
+                   delegSkShares: Seq[KeyShares] = Seq(),
+                   choicesSkShares: Seq[KeyShares] = Seq()): Result = {
+    val choicesSum = computeChoicesSum(delegationsC1, delegSkShares)
 
-    decryptionViolatorsSKs ++= Tally.reconstructSecretKeys(cs, skShares, recoveryThreshold)
+    val decryptionViolatorsSKs = Tally.reconstructSecretKeys(cs, choicesSkShares, recoveryThreshold)
 
-    val decryptionViolatorsC1 = decryptionViolatorsSKs.map(sk => choicesSum.map(_._1.multiply(sk)))
-    val dkgViolatorsC1 = dkgViolatorsSKs.map(sk => choicesSum.map(_._1.multiply(sk)))
+    val decryptionViolatorsChoicesC1 = decryptionViolatorsSKs.map(sk => choicesSum.map(_._1.multiply(sk)))
+    val dkgViolatorsChoicesC1 = dkgViolatorsSKs.map(sk => choicesSum.map(_._1.multiply(sk)))
 
-    val votesResult = Tally.decryptVectorOnC1(cs, votesC1.map(_.decryptedC1) ++ dkgViolatorsC1 ++ decryptionViolatorsC1, choicesSum)
+    val allChoicesC1 = choicesC1.map(_.decryptedC1) ++ dkgViolatorsChoicesC1 ++ decryptionViolatorsChoicesC1
+
+    val votesResult = Tally.decryptVectorOnC1(cs, allChoicesC1, choicesSum)
     Result(
       votesResult(0),
       votesResult(1),
