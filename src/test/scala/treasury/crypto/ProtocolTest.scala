@@ -43,10 +43,10 @@ class ProtocolTest extends FunSuite {
     val decryptedC1ForChoices = committeeMembersR2.map(_.decryptTallyR2(decryptedC1ForDelegations, skSharesR1))
 
     // Publishing secret key shares of absent commitee members on choises decryption phase
-    val skSharesR2 = committeeMembersR2.map(_.keysRecoveryR2(decryptedC1ForDelegations, decryptedC1ForChoices))
+    val skSharesR2 = committeeMembersR2.map(_.keysRecoveryR2(decryptedC1ForChoices))
 
     // Joint decryption of the tally by committee members
-    val tallyResults = committeeMembersR2.map(_.decryptTallyR3(decryptedC1ForDelegations, skSharesR1, decryptedC1ForChoices, skSharesR2))
+    val tallyResults = committeeMembersR2.map(_.decryptTallyR3(decryptedC1ForChoices, skSharesR1, skSharesR2))
 
     assert(tallyResults.forall(_.equals(tallyResults.head)))
 

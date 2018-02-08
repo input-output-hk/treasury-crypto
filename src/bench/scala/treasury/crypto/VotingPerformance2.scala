@@ -6,7 +6,7 @@ import treasury.crypto.core.TimeUtils
 /* Benchmarking tally for different number of experts */
 class VotingPerformance2 {
 
-  def run() = {
+  def run(): Unit = {
     val numberOfCommitteeMembers = 5
     val numberOfExperts = (50 to 250).by(50)
     val numberOfVoters = 1000
@@ -19,7 +19,7 @@ class VotingPerformance2 {
       val ballots = TimeUtils.time("\tBallots creation: ", simulator.prepareBallots())
       val decryptionShares = TimeUtils.time("\tDecryption shares creation: ", simulator.prepareDecryptionShares(ballots))
 
-      TimeUtils.time("\tTally: ", simulator.doTally(ballots, decryptionShares))
+      TimeUtils.time("\tTally: ", simulator.doTally(ballots, decryptionShares.map(s => (s._1._2, s._2._2))))
     }
   }
 }

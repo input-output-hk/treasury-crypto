@@ -72,7 +72,7 @@ object Tally {
     val delegationsDecryptionC1 = delegationsDecryptionSKs.map(sk => delegationsSum.map(_._1.multiply(sk)))
 
     // Decrypt summed delegations
-    val delegations = decryptVectorOnC1(cs, delegationsC1.map(_.decryptedC1) ++ dkgDelegationsC1 ++ delegationsDecryptionC1, delegationsSum)
+    val delegations = decryptVectorOnC1(cs, delegationsC1.map(_.decryptedC1.map(_._1)) ++ dkgDelegationsC1 ++ delegationsDecryptionC1, delegationsSum)
 
     // Sum up all choice vectors
     // The choice vector of an expert should be raised to the power of the amount of the delegated stake
@@ -87,7 +87,7 @@ object Tally {
     val choicesDecryptionC1 = (delegationsDecryptionSKs ++ choisesDecryptionSKs).map(sk => choicesSum.map(_._1.multiply(sk)))
 
     // Decrypt summed choices
-    val tallyRes = decryptVectorOnC1(cs, choicesC1.map(_.decryptedC1) ++ dkgChoisesC1 ++ choicesDecryptionC1, choicesSum)
+    val tallyRes = decryptVectorOnC1(cs, choicesC1.map(_.decryptedC1.map(_._1)) ++ dkgChoisesC1 ++ choicesDecryptionC1, choicesSum)
     assert(tallyRes.size == Voter.VOTER_CHOISES_NUM)
 
     Result(tallyRes(0), tallyRes(1), tallyRes(2))

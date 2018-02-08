@@ -16,12 +16,12 @@ class DataStructuresTest extends FunSuite {
     val ballots = simulator.prepareVotersBallots((1, 1), voters - 1, 0, 0) ++ simulator.prepareExpertBallots(0, experts, 0)
 
     val decryptionSharesBytes = simulator.prepareDecryptionShares(ballots).map { case (deleg, choices) =>
-      (deleg.bytes, choices.bytes)
+      ((deleg._1, deleg._2.bytes), (choices._1, choices._2.bytes))
     }
 
     val decryptionShares = decryptionSharesBytes.map { case (deleg, choices) =>
-      (C1ShareSerializer.parseBytes(deleg, simulator.cs).get,
-        C1ShareSerializer.parseBytes(choices, simulator.cs).get)
+      ((deleg._1, C1ShareSerializer.parseBytes(deleg._2, simulator.cs).get),
+        (choices._1, C1ShareSerializer.parseBytes(choices._2, simulator.cs).get))
     }
 
     val verified = simulator.verifyDecryptionShares(ballots, decryptionShares)

@@ -11,10 +11,9 @@ import scala.util.Try
 // Tally decryption data structures
 //
 case class C1Share(
-    issuerID:           Integer,
-    issuerPubKey:       PubKey,
-    decryptedC1:        Seq[Point],
-    decryptedC1Proofs:  Seq[ElgamalDecrNIZKProof]
+    proposalId:   Int,
+    issuerID:     Integer,
+    decryptedC1:  Seq[(Point, ElgamalDecrNIZKProof)]
 ) extends HasSize with BytesSerializable {
 
   override type M = C1Share
@@ -26,46 +25,33 @@ case class C1Share(
 object C1ShareSerializer extends Serializer[C1Share] {
 
   override def toBytes(obj: C1Share): Array[Byte] = {
-    val pubKeyBytes = obj.issuerPubKey.getEncoded(true)
     val decryptedC1Bytes = obj.decryptedC1.foldLeft(Array[Byte]()) { (acc, c1) =>
-      val c1Bytes = c1.getEncoded(true)
-      Bytes.concat(acc, Array(c1Bytes.length.toByte), c1Bytes)
-    }
-    val proofsBytes = obj.decryptedC1Proofs.foldLeft(Array[Byte]()) { (acc, proof) =>
-      Bytes.concat(acc, proof.bytes)
+      val point = c1._1.getEncoded(true)
+      val proof = c1._2.bytes
+      Bytes.concat(acc, Array(point.length.toByte), point, proof)
     }
     Bytes.concat(
+      Ints.toByteArray(obj.proposalId),
       Ints.toByteArray(obj.issuerID),
-      Array(pubKeyBytes.length.toByte), pubKeyBytes,
       Shorts.toByteArray(obj.decryptedC1.length.toShort), decryptedC1Bytes,
-      Shorts.toByteArray(obj.decryptedC1Proofs.length.toShort), proofsBytes
     )
   }
 
   override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[C1Share] = Try {
-    val issuerID = Ints.fromByteArray(bytes.slice(0,4))
+    val proposalID = Ints.fromByteArray(bytes.slice(0,4))
+    val issuerID = Ints.fromByteArray(bytes.slice(4,8))
 
-    val pubKeyLen = bytes(4)
-    val pubKey = cs.decodePoint(bytes.slice(5,pubKeyLen+5))
-    var pos = 5+pubKeyLen
-
-    val decryptedC1Len = Shorts.fromByteArray(bytes.slice(pos, pos+2))
-    pos = pos + 2
+    val decryptedC1Len = Shorts.fromByteArray(bytes.slice(8, 10))
+    var pos = 10
     val decryptedC1 = (0 until decryptedC1Len).map { _ =>
       val len = bytes(pos)
       val point = cs.decodePoint(bytes.slice(pos+1, pos+1+len))
       pos = pos + len + 1
-      point
-    }
-
-    val proofsLen = Shorts.fromByteArray(bytes.slice(pos, pos+2))
-    pos = pos + 2
-    val decryptedC1Proofs = (0 until proofsLen).map { _ =>
       val proof = ElgamalDecrNIZKProofSerializer.parseBytes(bytes.drop(pos), cs).get
       pos = pos + proof.bytes.length
-      proof
+      (point, proof)
     }
 
-    C1Share(issuerID, pubKey, decryptedC1, decryptedC1Proofs)
+    C1Share(proposalID, issuerID, decryptedC1)
   }
 }

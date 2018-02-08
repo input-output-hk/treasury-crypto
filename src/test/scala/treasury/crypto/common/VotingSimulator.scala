@@ -3,7 +3,7 @@ package treasury.crypto.common
 import java.math.BigInteger
 
 import treasury.crypto.core._
-import treasury.crypto.keygen.{DecryptionManager, DecryptionValidator}
+import treasury.crypto.keygen.DecryptionManager
 import treasury.crypto.keygen.datastructures.C1Share
 import treasury.crypto.nizk.ElgamalDecrNIZK
 import treasury.crypto.voting.Tally.decryptVectorOnC1
@@ -91,22 +91,31 @@ class VotingSimulator(
     expertsBallots.seq ++ votersBallots.seq
   }
 
-  def prepareDecryptionShares(ballots: Seq[Ballot]): Seq[(C1Share, C1Share)] = {
-    val managers = committeeMembers.map(m => new DecryptionManager(cs, 0, m, Array[BigInteger](), ballots))
-    val delegationsC1 = managers.map(_.decryptC1ForDelegations())
-    val choicesC1 = managers.map(_.decryptC1ForChoices(delegationsC1))
+  def prepareDecryptionShares(ballots: Seq[Ballot]): Seq[((PubKey, C1Share), (PubKey, C1Share))] = {
+    val manager = new DecryptionManager(cs, ballots)
+    val delegationsC1 = for (i <- committeeMembers.indices) yield {
+      (committeeMembers(i)._2, manager.decryptC1ForDelegations(i, 0, committeeMembers(i)._1))
+    }
+
+    val delegations = manager.computeDelegations(delegationsC1.map(_._2.decryptedC1.map(_._1)))
+
+    val choicesC1 = for (i <- committeeMembers.indices) yield {
+      (committeeMembers(i)._2, manager.decryptC1ForChoices(i, 0, committeeMembers(i)._1, delegations))
+    }
 
     delegationsC1.zip(choicesC1)
   }
 
-  def verifyDecryptionShares(ballots: Seq[Ballot], decryptionShares: Seq[(C1Share, C1Share)]): Boolean = Try {
-    val validator = new DecryptionValidator(cs, ballots)
+  def verifyDecryptionShares(ballots: Seq[Ballot], decryptionShares: Seq[((PubKey, C1Share), (PubKey, C1Share))]): Boolean = Try {
+    val validator = new DecryptionManager(cs, ballots)
 
     val delegationsC1 = decryptionShares.map(_._1)
     val choicesC1 = decryptionShares.map(_._2)
 
-    val failedDeleg = delegationsC1.exists(!validator.validateDelegationsC1(_))
-    val failedChoices = choicesC1.exists(!validator.validateChoicesC1(_, delegationsC1))
+    val delegations = validator.computeDelegations(delegationsC1.map(_._2.decryptedC1.map(_._1)))
+
+    val failedDeleg = delegationsC1.exists(c => !validator.validateDelegationsC1(c._1, c._2).isSuccess)
+    val failedChoices = choicesC1.exists(c => !validator.validateChoicesC1(c._1, c._2, delegations).isSuccess)
 
     !failedDeleg && !failedChoices
   }.isSuccess

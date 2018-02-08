@@ -21,7 +21,7 @@ class TallyTest extends FunSuite {
                   simulator.prepareExpertBallots(2, 0, 0)
     val decryptionShares = simulator.prepareDecryptionShares(ballots)
 
-    val tallyRes = simulator.doTally(ballots, decryptionShares)
+    val tallyRes = simulator.doTally(ballots, decryptionShares.map(s => (s._1._2, s._2._2)))
 
     assert(tallyRes.yes.equals(BigInteger.valueOf(6)))
     assert(tallyRes.no.equals(Zero))
@@ -40,7 +40,7 @@ class TallyTest extends FunSuite {
                   simulator.prepareExpertBallots(0, experts, 0)
     val decryptionShares = simulator.prepareDecryptionShares(ballots)
 
-    val tallyRes = simulator.doTally(ballots, decryptionShares)
+    val tallyRes = simulator.doTally(ballots, decryptionShares.map(s => (s._1._2, s._2._2)))
 
     assert(tallyRes.yes.equals(BigInteger.valueOf(150)))
     assert(tallyRes.no.equals(BigInteger.valueOf(300)))
