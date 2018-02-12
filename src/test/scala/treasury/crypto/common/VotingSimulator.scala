@@ -128,6 +128,10 @@ class VotingSimulator(
   ): Tally.Result = {
 
     require(decryptionShares.size == numberOfCommitteeMembers)
-    Tally.countVotes(cs, ballots, decryptionShares.map(_._1), decryptionShares.map(_._2))
+
+    val d = new DecryptionManager(cs, ballots)
+    val delegations = d.computeDelegations(decryptionShares.map(_._1.decryptedC1.map(_._1)))
+
+    Tally.countVotes(cs, ballots, decryptionShares.map(_._2.decryptedC1.map(_._1)), delegations).get
   }
 }

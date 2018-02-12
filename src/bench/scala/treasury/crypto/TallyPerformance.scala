@@ -84,7 +84,6 @@ class TallyPerformance {
       committeeMembersR2.length
     )
 
-    overallBytes += SizeUtils.getSize(tallyResults)
     val overallTime = timeR1 + timeRecovery1 + timeR2 + timeRecovery2 + timeR3
 
     println("----------------------------------")

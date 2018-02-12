@@ -142,6 +142,6 @@ class CommitteeMember(val cs: Cryptosystem,
 
     val allChoicesC1 = dkgViolatorsC1 ++ decryptionViolatorsC1 ++ c1ForChoices.map(_.decryptedC1.map(_._1))
 
-    d.decryptTally(allChoicesC1, delegations.get)
+    Tally.countVotes(cs, d.votersBallots ++ d.expertsBallots, allChoicesC1, delegations.get).get
   }
 }
