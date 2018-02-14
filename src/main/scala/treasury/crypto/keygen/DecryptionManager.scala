@@ -191,13 +191,15 @@ class DecryptionManager(cs:               Cryptosystem,
     decryptionViolatorsShares.map(LagrangeInterpolation.restoreSecret(cs, _, recoveryThreshold)).toArray
   }
 
-  @deprecated("Better to use Tally.decryptVectorOnC1 directly")
   def computeDelegations(delegationsC1: Seq[Seq[Point]]): Seq[Element] = {
     Tally.decryptVectorOnC1(cs, delegationsC1, delegationsSum)
   }
 
-  @deprecated("Better to use Tally.computeChoicesSum directly")
   def computeChoicesSum(delegations: Seq[Element]): Seq[Ciphertext] = {
     Tally.computeChoicesSum(cs, votersBallots, expertsBallots, delegations)
+  }
+
+  def computeTally(choicesC1: Seq[Seq[Point]], delegations: Seq[Element]): Try[Tally.Result] = {
+    Tally.countVotes(cs, votersBallots ++ expertsBallots, choicesC1, delegations)
   }
 }
