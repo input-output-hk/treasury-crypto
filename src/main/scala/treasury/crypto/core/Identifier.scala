@@ -54,3 +54,24 @@ class CommitteeIdentifier(pubKeys: Seq[PubKey]) extends Identifier[BigInteger](p
     keysMap.get(id)
   }
 }
+
+
+/**
+  * SimpleIdentifier assigns ids to pub keys based on their index in the initial Seq
+  *
+  * @param pubKeys
+  */
+class SimpleIdentifier(pubKeys: Seq[PubKey]) extends Identifier[Int](pubKeys) {
+
+  override def getId(pubKey: PubKey): Option[Int] = {
+    val id = pubKeys.indexOf(pubKey)
+    if (id >= 0) Some(id)
+    else None
+  }
+
+  override def getPubKey(id: Int): Option[PubKey] = {
+    if (id >= 0 && id < pubKeys.size)
+      Some(pubKeys(id))
+    else None
+  }
+}

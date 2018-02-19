@@ -16,7 +16,8 @@ class CommitteeMember(val cs: Cryptosystem,
 
   // DistrKeyGen depends on common system parameters, committee member's keypair and set of committee members. It encapsulates the shared key generation logic.
   //
-  private val dkg = new DistrKeyGen(cs, h, transportKeyPair, committeeMembersPubKeys)
+  val memberIdentifier = new SimpleIdentifier(committeeMembersPubKeys)
+  private val dkg = new DistrKeyGen(cs, h, transportKeyPair, committeeMembersPubKeys, memberIdentifier)
 
   val secretKey = cs.getRand
   val publicKey = cs.basePoint.multiply(secretKey).normalize()
@@ -26,8 +27,6 @@ class CommitteeMember(val cs: Cryptosystem,
   var dkgViolatorsIds: Set[Integer] = Set()
   var decryptionViolatorsIds: Set[Int] = Set()
   var delegations: Option[Seq[Element]] = None
-
-  val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
 
   def setKeyR1(): R1Data = {
     dkg.doRound1(secretKey.toByteArray)

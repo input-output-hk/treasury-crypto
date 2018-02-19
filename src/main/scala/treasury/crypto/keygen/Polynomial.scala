@@ -3,7 +3,7 @@ package treasury.crypto.keygen
 import java.math.BigInteger
 import treasury.crypto.core.Cryptosystem
 
-class Polynomial(cs: Cryptosystem, a_0: BigInteger, degree: Integer) {
+class Polynomial(cs: Cryptosystem, a_0: BigInteger, degree: Int) {
   private val polynomial = new Array[BigInteger](degree)
 
   // Generating random polynomial coefficients
@@ -15,15 +15,15 @@ class Polynomial(cs: Cryptosystem, a_0: BigInteger, degree: Integer) {
   }
 
   // Computing the polynomial value for specified x argument
-  def apply(x: BigInteger): BigInteger = {
+  def evaluate(x: BigInteger): BigInteger = {
     var res = polynomial(0)
     for(i <- 1 until polynomial.length)
       res = polynomial(i).multiply(x.pow(i)).add(res).mod(cs.orderOfBasePoint)
     res
   }
 
+  def evaluate(x: Int): BigInteger = evaluate(BigInteger.valueOf(x))
+
   // Retrieving the value of coefficient by index
-  def apply(i: Integer): BigInteger = {
-    polynomial(i)
-  }
+  def apply(i: Int): BigInteger = polynomial(i)
 }

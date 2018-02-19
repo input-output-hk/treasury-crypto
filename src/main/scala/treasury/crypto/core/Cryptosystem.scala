@@ -89,12 +89,9 @@ class Cryptosystem {
     cipher.doFinal(msg)
   }
 
-  def hybridEncrypt(pubKey: PubKey, msg: Array[Byte], symmetricKey: Point = null): HybridCiphertext = {
+  def hybridEncrypt(pubKey: PubKey, msg: Array[Byte], symmetricKey: Option[Point] = None): HybridCiphertext = {
 
-    var randomPoint = symmetricKey
-
-    if(randomPoint == null)
-      randomPoint = basePoint.multiply(getRand).normalize
+    var randomPoint = symmetricKey.getOrElse(basePoint.multiply(getRand).normalize)
 
     val keyMaterial = hash256(randomPoint.getEncoded(true))
 

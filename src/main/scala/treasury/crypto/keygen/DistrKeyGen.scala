@@ -3,7 +3,7 @@ package treasury.crypto.keygen
 import java.math.BigInteger
 
 import org.bouncycastle.math.ec.ECPoint
-import treasury.crypto.core.{Cryptosystem, KeyPair, Point, PubKey, CommitteeIdentifier}
+import treasury.crypto.core._
 import treasury.crypto.nizk.ElgamalDecrNIZK
 
 import scala.collection.mutable.ArrayBuffer
@@ -13,7 +13,8 @@ import scala.collection.mutable.ArrayBuffer
 class DistrKeyGen(cs:                       Cryptosystem,
                   h:                        Point,
                   transportKeyPair:         KeyPair,     // key pair for shares encryption/decryption
-                  committeeMembersPubKeys:  Seq[PubKey]) // public keys of all committee members, including own public key from transportKeyPair
+                  committeeMembersPubKeys:  Seq[PubKey], // public keys of all committee members, including own public key from transportKeyPair
+                  memberIdentifier:         Identifier[Int])
 {
   case class CRS_commitment (issuerID: Integer, crs_commitment: Array[ECPoint])
   case class Commitment     (issuerID: Integer, commitment: Array[ECPoint])
@@ -30,8 +31,7 @@ class DistrKeyGen(cs:                       Cryptosystem,
 
   private val g = cs.basePoint
   private val infinityPoint = cs.infinityPoint
-
-  private val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
+  
   private val ownPrivateKey = transportKeyPair._1
   private val ownPublicKey  = transportKeyPair._2.normalize()
   val ownID: Integer = memberIdentifier.getId(ownPublicKey).get.intValue()
@@ -67,13 +67,13 @@ class DistrKeyGen(cs:                       Cryptosystem,
 
       if(receiverPublicKey != ownPublicKey)
       {
-        val x = memberIdentifier.getId(receiverPublicKey).get
-        val recipientID = x.intValue()
+        val recipientID = memberIdentifier.getId(receiverPublicKey).get
+        val x = recipientID + 1
 
-        assert(recipientID != 0) // avoid share for a_0 coefficient
+        assert(x != 0) // avoid share for a_0 coefficient
 
-        S_a += SecretShare(recipientID, cs.hybridEncrypt(receiverPublicKey, poly_a(x).toByteArray))
-        S_b += SecretShare(recipientID, cs.hybridEncrypt(receiverPublicKey, poly_b(x).toByteArray))
+        S_a += SecretShare(recipientID, cs.hybridEncrypt(receiverPublicKey, poly_a.evaluate(x).toByteArray))
+        S_b += SecretShare(recipientID, cs.hybridEncrypt(receiverPublicKey, poly_b.evaluate(x).toByteArray))
       }
     }
     R1Data(ownID, E.toArray, S_a.toArray, S_b.toArray)
@@ -83,7 +83,7 @@ class DistrKeyGen(cs:                       Cryptosystem,
     var E_sum: ECPoint = infinityPoint
 
     for(i <- E.indices) {
-        E_sum = E_sum.add(cs.decodePoint(E(i)).multiply(BigInteger.valueOf(share_a.receiverID.toLong).pow(i)))
+        E_sum = E_sum.add(cs.decodePoint(E(i)).multiply(BigInteger.valueOf(share_a.receiverID.toLong + 1).pow(i)))
     }
     val CRS_Shares = g.multiply(new BigInteger(share_a.S.decryptedMessage)).add(h.multiply(new BigInteger(share_b.S.decryptedMessage)))
 
@@ -141,7 +141,7 @@ class DistrKeyGen(cs:                       Cryptosystem,
         val ciphertext = cs.hybridEncrypt(
           ownPublicKey,                         // no matter what public key is used for this verification
           proof.decryptedShare.decryptedMessage,
-          proof.decryptedShare.decryptedKey)
+          Some(proof.decryptedShare.decryptedKey))
 
         ciphertext.encryptedMessage.sameElements(proof.encryptedShare.encryptedMessage)
       }
@@ -187,7 +187,7 @@ class DistrKeyGen(cs:                       Cryptosystem,
     var A_sum: ECPoint = infinityPoint
     val share = shares.find(_.issuerID == issuerID)
     if(share.isDefined) {
-      val X = BigInteger.valueOf(share.get.share_a.receiverID.toLong)
+      val X = BigInteger.valueOf(share.get.share_a.receiverID.toLong + 1)
 
       for(i <- A.indices) {
         A_sum = A_sum.add(A(i).multiply(X.pow(i)))
