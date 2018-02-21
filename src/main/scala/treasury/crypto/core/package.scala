@@ -2,8 +2,13 @@ package treasury.crypto
 
 import java.math.BigInteger
 
+import com.google.common.primitives.{Bytes, Ints}
 import org.bouncycastle.math.ec.ECPoint
 import org.scalameter._
+import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
+import treasury.crypto.keygen.IntAccumulator
+
+import scala.util.Try
 
 package object core {
 
@@ -22,17 +27,68 @@ package object core {
   val Zero: BigInteger = BigInteger.ZERO
   val One:  BigInteger = BigInteger.ONE
 
-  case class HybridCiphertext(encryptedKey: Ciphertext, encryptedMessage: Array[Byte]) {
-    def size: Int = {
-      encryptedKey._1.getEncoded(true).length +
-      encryptedKey._2.getEncoded(true).length
-      encryptedMessage.length
+  case class HybridCiphertext(encryptedKey: Ciphertext, encryptedMessage: Array[Byte])
+    extends BytesSerializable {
+
+    override type M = HybridCiphertext
+    override val serializer: Serializer[M] = HybridCiphertextSerializer
+
+    def size: Int = bytes.length
+  }
+
+  object HybridCiphertextSerializer extends Serializer[HybridCiphertext] {
+
+    override def toBytes(obj: HybridCiphertext): Array[Byte] =
+    {
+      val encryptedKeyBytes1 = obj.encryptedKey._1.getEncoded(true)
+      val encryptedKeyBytes2 = obj.encryptedKey._2.getEncoded(true)
+
+      Bytes.concat(
+        Ints.toByteArray(encryptedKeyBytes1.length),
+        encryptedKeyBytes1,
+
+        Ints.toByteArray(encryptedKeyBytes2.length),
+        encryptedKeyBytes2,
+
+        Ints.toByteArray(obj.encryptedMessage.length),
+        obj.encryptedMessage
+      )
+    }
+
+    override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[HybridCiphertext] = Try {
+
+      val offset = IntAccumulator(0)
+
+      val encryptedKeyBytes1Len = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
+      val encryptedKeyBytes1 = bytes.slice(offset.value, offset.plus(encryptedKeyBytes1Len))
+
+      val encryptedKeyBytes2Len = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
+      val encryptedKeyBytes2 = bytes.slice(offset.value, offset.plus(encryptedKeyBytes2Len))
+
+      val encryptedMessageLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
+      val encryptedMessage = bytes.slice(offset.value, offset.plus(encryptedMessageLen))
+
+      HybridCiphertext(
+        (cs.decodePoint(encryptedKeyBytes1), cs.decodePoint(encryptedKeyBytes2)),
+        encryptedMessage
+      )
     }
   }
+
   case class HybridPlaintext(decryptedKey: Point, decryptedMessage: Array[Byte]) {
-    def size: Int = {
-      decryptedKey.getEncoded(true).length +
-      decryptedMessage.length
+
+    def size: Int = bytes.length
+
+    def bytes: Array[Byte] = {
+
+      val decryptedKeyBytes = decryptedKey.getEncoded(true)
+
+      Bytes.concat(
+        Ints.toByteArray(decryptedKeyBytes.length),
+        decryptedKeyBytes,
+        Ints.toByteArray(decryptedMessage.length),
+        decryptedMessage
+      )
     }
   }
 
