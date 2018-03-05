@@ -5,6 +5,7 @@ import java.security.SecureRandom
 
 import treasury.crypto.core.Cryptosystem
 import treasury.crypto.core.HybridPlaintext
+import treasury.crypto.keygen.datastructures.round4.OpenedShare
 
 object LagrangeInterpolation {
   private def getLagrangeCoeff(cs: Cryptosystem, x: Integer, shares: Seq[OpenedShare]): BigInteger = {

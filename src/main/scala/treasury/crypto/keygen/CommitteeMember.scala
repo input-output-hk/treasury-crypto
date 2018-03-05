@@ -4,9 +4,17 @@ import java.math.BigInteger
 
 import treasury.crypto.core._
 import treasury.crypto.keygen.datastructures.C1Share
+import treasury.crypto.keygen.datastructures.round1.{R1Data, SecretShare}
+import treasury.crypto.keygen.datastructures.round2.{ComplaintR2, R2Data}
+import treasury.crypto.keygen.datastructures.round3.R3Data
+import treasury.crypto.keygen.datastructures.round4.{ComplaintR4, OpenedShare, R4Data}
+import treasury.crypto.keygen.datastructures.round5_1.R5_1Data
+import treasury.crypto.keygen.datastructures.round5_2.R5_2Data
 import treasury.crypto.voting.Tally
 import treasury.crypto.voting.Tally.Result
 import treasury.crypto.voting.ballots.Ballot
+
+import scala.util.Try
 
 
 class CommitteeMember(val cs: Cryptosystem,
@@ -14,13 +22,17 @@ class CommitteeMember(val cs: Cryptosystem,
                       val transportKeyPair: KeyPair,
                       val committeeMembersPubKeys: Seq[PubKey]) {
 
+//  // SimpleIdentifier is useful for debugging purposes, but in real it's better to not rely on an order stability of the externally provided public keys
+//  val memberIdentifier = SimpleIdentifier(committeeMembersPubKeys)
+
+  // Here public keys are forcibly sorted, thus their indices, which plays the role of member ID, will be always the same for the same set of public keys
+  val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
+
   // DistrKeyGen depends on common system parameters, committee member's keypair and set of committee members. It encapsulates the shared key generation logic.
-  //
-  val memberIdentifier = new SimpleIdentifier(committeeMembersPubKeys)
   private val dkg = new DistrKeyGen(cs, h, transportKeyPair, committeeMembersPubKeys, memberIdentifier)
 
-  val secretKey = cs.getRand
-  val publicKey = cs.basePoint.multiply(secretKey).normalize()
+  val secretKey = transportKeyPair._1
+  val publicKey = transportKeyPair._2
   val ownId: Integer = dkg.ownID
 
   var dkgViolatorsSKs: Array[BigInteger] = Array[BigInteger]()
@@ -28,29 +40,59 @@ class CommitteeMember(val cs: Cryptosystem,
   var decryptionViolatorsIds: Set[Int] = Set()
   var delegations: Option[Seq[Element]] = None
 
+  def setState(roundsData: RoundsData): Try[Option[SharedPublicKey]] = {
+    dkg.setState(secretKey.toByteArray, roundsData)
+  }
+
   def setKeyR1(): R1Data = {
-    dkg.doRound1(secretKey.toByteArray)
+    dkg.doRound1(secretKey.toByteArray) match {
+      case Some(data) => data
+      case None =>
+        println("doRound1 returned None")
+        R1Data(12345, Array[Array[Byte]](), Array[SecretShare](), Array[SecretShare]())
+    }
   }
 
   def setKeyR2(r1Data: Seq[R1Data]): R2Data = {
-    dkg.doRound2(r1Data)
+    dkg.doRound2(r1Data) match {
+      case Some(data) => data
+      case None =>
+        println("doRound2 returned None")
+        R2Data(12345, Array[ComplaintR2]())
+    }
   }
 
   def setKeyR3(r2Data: Seq[R2Data]): R3Data = {
-    dkg.doRound3(r2Data)
+    dkg.doRound3(r2Data) match {
+      case Some(data) => data
+      case None =>
+        println("doRound3 returned None")
+        R3Data(12345, Array[Array[Byte]]())
+    }
   }
 
   def setKeyR4(r3Data: Seq[R3Data]): R4Data = {
-    dkg.doRound4(r3Data)
+    dkg.doRound4(r3Data) match {
+      case Some(data) => data
+      case None =>
+        println("doRound4 returned None")
+        R4Data(12345, Array[ComplaintR4]())
+    }
   }
 
   def setKeyR5_1(r4Data: Seq[R4Data]): R5_1Data = {
-    dkg.doRound5_1(r4Data)
+
+    dkg.doRound5_1(r4Data) match {
+      case Some(data) => data
+      case None =>
+        println("doRound5_1 returned None")
+        R5_1Data(12345, Array[(Integer, OpenedShare)]())
+    }
   }
 
   def setKeyR5_2(r5_1Data: Seq[R5_1Data]): R5_2Data = {
 
-    val data = dkg.doRound5_2(r5_1Data)
+    val data = dkg.doRound5_2(r5_1Data).get
 
     dkgViolatorsSKs = data.violatorsSecretKeys.map(sk => new BigInteger(sk.secretKey))
     dkgViolatorsIds = data.violatorsSecretKeys.map(_.ownerID).toSet
@@ -70,7 +112,7 @@ class CommitteeMember(val cs: Cryptosystem,
 
     decryptionViolatorsIds ++= absenteesIds.toSet
 
-    KeyShares(ownId, absenteesIds.map(x => SKShare(x, dkg.getShare(x))))
+    KeyShares(ownId, absenteesIds.map(x => SKShare(x, dkg.getShare(x).getOrElse(new BigInteger("")))))
   }
 
   def decryptTallyR1(ballots: Seq[Ballot]): C1Share =

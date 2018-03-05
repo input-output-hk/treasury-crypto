@@ -1,8 +1,13 @@
 package treasury.crypto
 
 import org.scalatest.FunSuite
-import treasury.crypto.core.Cryptosystem
+import treasury.crypto.core.{CommitteeIdentifier, Cryptosystem}
 import treasury.crypto.keygen._
+import treasury.crypto.keygen.datastructures.round1.R1Data
+import treasury.crypto.keygen.datastructures.round3.R3Data
+
+import scala.collection.mutable.ArrayBuffer
+import scala.util.{Failure, Success}
 
 class DistrKeyGenTest  extends FunSuite {
 
@@ -10,17 +15,8 @@ class DistrKeyGenTest  extends FunSuite {
 
     val cs = new Cryptosystem
 
-    for(degree <- 2 to 10)
-    {
-      val result = LagrangeInterpolation.testInterpolation(cs, degree)
-
-      assert(result)
-
-      print("degree " + degree + " : ")
-      if (result)
-        println("OK")
-      else
-        println("ERR")
+    for(degree <- 2 to 10) {
+      assert(LagrangeInterpolation.testInterpolation(cs, degree))
     }
   }
 
@@ -123,5 +119,297 @@ class DistrKeyGenTest  extends FunSuite {
 
     // Verify, that shared public key is equal to the original public key
     assert(publicKeysSum.equals(sharedPublicKeys(0)))
+  }
+
+  //--------------------------------------------------------------------------------------------------------------
+
+  test("dkg_absentees") {
+
+    val cs = new Cryptosystem
+    val crs_h = cs.basePoint.multiply(cs.getRand)
+
+    val keyPairs = for(id <- 1 to 10) yield cs.createKeyPair
+    val committeeMembersPubKeys = keyPairs.map(_._2)
+
+    val committeeMembers = (for (i <- committeeMembersPubKeys.indices) yield {
+      new CommitteeMember(cs, crs_h, keyPairs(i), committeeMembersPubKeys)
+    }).toBuffer
+
+    val absenteesPublicKeys = ArrayBuffer[(Integer, org.bouncycastle.math.ec.ECPoint)]()
+    val absenteeIndex = 0
+
+    committeeMembers.remove(absenteeIndex)
+
+    val r1Data = for (i <- committeeMembers.indices) yield {
+      committeeMembers(i).setKeyR1()
+    }
+
+    absenteesPublicKeys += Tuple2(committeeMembers(absenteeIndex).ownId, cs.basePoint.multiply(committeeMembers(absenteeIndex).secretKey))
+    committeeMembers.remove(absenteeIndex)
+
+    val r2Data = for (i <- committeeMembers.indices) yield {
+      committeeMembers(i).setKeyR2(r1Data)
+    }
+
+    absenteesPublicKeys += Tuple2(committeeMembers(absenteeIndex).ownId, cs.basePoint.multiply(committeeMembers(absenteeIndex).secretKey))
+    committeeMembers.remove(absenteeIndex)
+
+    val r3Data = for (i <- committeeMembers.indices) yield {
+      committeeMembers(i).setKeyR3(r2Data)
+    }
+
+    absenteesPublicKeys += Tuple2(committeeMembers(absenteeIndex).ownId, cs.basePoint.multiply(committeeMembers(absenteeIndex).secretKey))
+    committeeMembers.remove(absenteeIndex)
+
+    // change commitment of the member with id = 0
+    r3Data(0).commitments(0) = cs.infinityPoint.getEncoded(true)
+
+    val r4Data = for (i <- committeeMembers.indices) yield {
+      committeeMembers(i).setKeyR4(r3Data)
+    }
+
+    absenteesPublicKeys += Tuple2(committeeMembers(absenteeIndex).ownId, cs.basePoint.multiply(committeeMembers(absenteeIndex).secretKey))
+    committeeMembers.remove(absenteeIndex)
+
+    val r5_1Data = for (i <- committeeMembers.indices) yield {
+      committeeMembers(i).setKeyR5_1(r4Data)
+    }
+
+    val r5_2Data = for (i <- committeeMembers.indices) yield {
+      (committeeMembers(i).ownId, committeeMembers(i).setKeyR5_2(r5_1Data))
+    }
+
+    //--------------------------------------------------------------------------------
+    val sharedPublicKeys = r5_2Data.map(_._2.sharedPublicKey).map(x => cs.decodePoint(x).normalize())
+
+    var individualPublicKeys = (for(i <- committeeMembers.indices) yield {
+      (committeeMembers(i).ownId, cs.basePoint.multiply(committeeMembers(i).secretKey))
+    }).toBuffer
+
+    individualPublicKeys ++= absenteesPublicKeys
+
+    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(cs.infinityPoint){(publicKeysSum, publicKey) => publicKeysSum.add(publicKey)}.normalize()
+
+    assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys(0))))
+    assert(publicKeysSum.equals(sharedPublicKeys(0)))
+  }
+
+  //--------------------------------------------------------------------------------------------------------------
+
+  test("dkg_state") {
+
+    val cs = new Cryptosystem
+    val crs_h = cs.basePoint.multiply(cs.getRand)
+
+    val keyPairs = for(id <- 1 to 10) yield cs.createKeyPair
+    val committeeMembersPubKeys = keyPairs.map(_._2)
+
+    val committeeMembers = (for (i <- committeeMembersPubKeys.indices) yield {
+      new CommitteeMember(cs, crs_h, keyPairs(i), committeeMembersPubKeys)
+    }).toBuffer
+
+    def reCreateMember(memberIndex: Int, roundsData: RoundsData){
+      committeeMembers(memberIndex) = new CommitteeMember(cs, crs_h, keyPairs(memberIndex), committeeMembersPubKeys)
+      committeeMembers(memberIndex).setState(roundsData)
+    }
+    val roundsData = RoundsData()
+
+    val r1Data = for (i <- committeeMembers.indices) yield {
+      committeeMembers(i).setKeyR1()
+    }
+
+    val violatorIndex = committeeMembers.length - 1
+    r1Data(violatorIndex).E(0) = cs.infinityPoint.getEncoded(true) // provoke complaints on the member
+    committeeMembers.remove(violatorIndex) // remove member, as he will be ignored anyway in the further rounds
+
+    roundsData.r1Data = r1Data
+    reCreateMember(0, roundsData)
+
+    val r2Data = for (i <- committeeMembers.indices) yield {
+      committeeMembers(i).setKeyR2(r1Data)
+    }
+
+    roundsData.r2Data = r2Data
+    reCreateMember(1, roundsData)
+
+    val r3Data = for (i <- committeeMembers.indices) yield {
+      committeeMembers(i).setKeyR3(r2Data)
+    }
+
+    // change commitment of the member with id = 0
+    r3Data(0).commitments(0) = cs.infinityPoint.getEncoded(true)
+
+    roundsData.r3Data = r3Data
+    reCreateMember(2, roundsData)
+
+    val r4Data = for (i <- committeeMembers.indices) yield {
+      committeeMembers(i).setKeyR4(r3Data)
+    }
+
+    roundsData.r4Data = r4Data
+    reCreateMember(3, roundsData)
+
+    val r5_1Data = for (i <- committeeMembers.indices) yield {
+      committeeMembers(i).setKeyR5_1(r4Data)
+    }
+
+    roundsData.r5_1Data = r5_1Data
+    reCreateMember(4, roundsData)
+
+    val r5_2Data = for (i <- committeeMembers.indices) yield {
+      (committeeMembers(i).ownId, committeeMembers(i).setKeyR5_2(r5_1Data))
+    }
+
+    roundsData.r5_2Data = r5_2Data.map(_._2)
+    reCreateMember(5, roundsData)
+
+    //--------------------------------------------------------------------------------
+    val memberIndex = 1
+    val dkg = new DistrKeyGen(cs, crs_h, keyPairs(memberIndex), committeeMembersPubKeys, new CommitteeIdentifier(committeeMembersPubKeys))
+
+    //    roundsData.r1Data.head.E(0) = Array.fill(1)(0.toByte)
+
+    val sharedPubKey = dkg.setState(committeeMembers(memberIndex).secretKey.toByteArray, roundsData) match {
+      case Success(sharedPubKeyOpt) =>
+        sharedPubKeyOpt match {
+          case Some(key) => cs.decodePoint(key).normalize()
+          case None => cs.infinityPoint
+        }
+      case Failure(e) => println("EXCEPTION: " + e.getMessage)
+    }
+    //--------------------------------------------------------------------------------
+    val sharedPublicKeys = r5_2Data.map(_._2.sharedPublicKey).map(x => cs.decodePoint(x).normalize())
+
+    val individualPublicKeys = (for(i <- committeeMembers.indices) yield {
+      (committeeMembers(i).ownId, cs.basePoint.multiply(committeeMembers(i).secretKey))
+    }).toBuffer
+    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(cs.infinityPoint){(publicKeysSum, publicKey) => publicKeysSum.add(publicKey)}.normalize()
+
+    assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys.head)))
+    assert(publicKeysSum.equals(sharedPublicKeys.head))
+    assert(publicKeysSum.equals(sharedPubKey))
+  }
+
+  //--------------------------------------------------------------------------------------------------------------
+
+  // state restoring together with presence of the protocol violators and absentees during protocol execution
+  test("dkg_complex") {
+
+    val cs = new Cryptosystem
+    val crs_h = cs.basePoint.multiply(cs.getRand)
+
+    val keyPairs = for(id <- 1 to 14) yield cs.createKeyPair
+    val committeeMembersPubKeys = keyPairs.map(_._2)
+
+    val committeeMembers = (for (i <- committeeMembersPubKeys.indices) yield {
+      new CommitteeMember(cs, crs_h, keyPairs(i), committeeMembersPubKeys)
+    }).toBuffer
+
+    def reCreateMember(memberIndex: Int, roundsData: RoundsData) {
+      committeeMembers(memberIndex) = new CommitteeMember(cs, crs_h, keyPairs(memberIndex), committeeMembersPubKeys)
+      committeeMembers(memberIndex).setState(roundsData)
+    }
+
+    def removeMemberFromEnd(absenteesPublicKeysAccumulator: ArrayBuffer[(Integer, org.bouncycastle.math.ec.ECPoint)]) {
+      val index = committeeMembers.length - 1
+      absenteesPublicKeysAccumulator += Tuple2(committeeMembers(index).ownId, cs.basePoint.multiply(committeeMembers(index).secretKey))
+      committeeMembers.remove(index)
+    }
+
+    val roundsData = RoundsData()
+    val absenteesPublicKeys = ArrayBuffer[(Integer, org.bouncycastle.math.ec.ECPoint)]()
+
+    // For round 1 there is no need to save public keys of violators, as the will not be used for shared public key creation
+    var violatorOfRound1Index = committeeMembers.length - 1
+    committeeMembers.remove(violatorOfRound1Index) // absentee and also a violator on the 1-st round
+
+    val r1Data = for (i <- committeeMembers.indices) yield {
+      committeeMembers(i).setKeyR1()
+    }
+
+    violatorOfRound1Index = committeeMembers.length - 1
+    r1Data(violatorOfRound1Index).E(0) = cs.infinityPoint.getEncoded(true) // provoke complaints on the member
+    committeeMembers.remove(violatorOfRound1Index) // remove member, as he will be ignored anyway in the further rounds
+
+    roundsData.r1Data = r1Data
+    reCreateMember(0, roundsData)
+
+    removeMemberFromEnd(absenteesPublicKeys) // absentee on the 2-nd and 3-rd rounds
+
+    val r2Data = for (i <- committeeMembers.indices) yield {
+      committeeMembers(i).setKeyR2(r1Data)
+    }
+
+    roundsData.r2Data = r2Data
+    reCreateMember(1, roundsData)
+
+    removeMemberFromEnd(absenteesPublicKeys) // absentee on the 3-rd round
+
+    val r3Data = for (i <- committeeMembers.indices) yield {
+      committeeMembers(i).setKeyR3(r2Data)
+    }
+
+    // change commitment of the member, which will not participate in rounds  5_1, 5_2
+    r3Data(committeeMembers.length - 2).commitments(0) = cs.infinityPoint.getEncoded(true) // protocol violator on the 3-rd round
+
+    roundsData.r3Data = r3Data
+    reCreateMember(2, roundsData)
+
+    removeMemberFromEnd(absenteesPublicKeys) // just member who will not participate in commitments verification and will not post the violators and absentees secret shares (in round 5_1)
+
+    val r4Data = for (i <- committeeMembers.indices) yield {
+      committeeMembers(i).setKeyR4(r3Data)
+    }
+
+    roundsData.r4Data = r4Data
+    reCreateMember(3, roundsData)
+
+    removeMemberFromEnd(absenteesPublicKeys) // just the member who will not post the violators and absentees secret shares
+
+    val r5_1Data = for (i <- committeeMembers.indices) yield {
+      committeeMembers(i).setKeyR5_1(r4Data)
+    }
+
+    roundsData.r5_1Data = r5_1Data
+    reCreateMember(4, roundsData)
+
+    removeMemberFromEnd(absenteesPublicKeys) // just the member who will not reconstruct the violators and absentees secrets and obtain a shared public key
+
+    val r5_2Data = for (i <- committeeMembers.indices) yield {
+      (committeeMembers(i).ownId, committeeMembers(i).setKeyR5_2(r5_1Data))
+    }
+
+    roundsData.r5_2Data = r5_2Data.map(_._2)
+    reCreateMember(5, roundsData)
+
+    //--------------------------------------------------------------------------------
+
+    val memberIndex = 6
+    val dkg = new DistrKeyGen(cs, crs_h, keyPairs(memberIndex), committeeMembersPubKeys, new CommitteeIdentifier(committeeMembersPubKeys))
+
+//    roundsData.r1Data.head.E(0) = Array.fill(1)(0.toByte)
+
+    val sharedPubKey = dkg.setState(committeeMembers(memberIndex).secretKey.toByteArray, roundsData) match {
+      case Success(sharedPubKeyOpt) =>
+        sharedPubKeyOpt match {
+          case Some(key) => cs.decodePoint(key).normalize()
+          case None => cs.infinityPoint
+      }
+      case Failure(e) => println("EXCEPTION: " + e.getMessage)
+    }
+    //--------------------------------------------------------------------------------
+    val sharedPublicKeys = r5_2Data.map(_._2.sharedPublicKey).map(x => cs.decodePoint(x).normalize())
+
+    var individualPublicKeys = (for(i <- committeeMembers.indices) yield {
+      (committeeMembers(i).ownId, cs.basePoint.multiply(committeeMembers(i).secretKey))
+    }).toBuffer
+
+    individualPublicKeys ++= absenteesPublicKeys
+
+    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(cs.infinityPoint){(publicKeysSum, publicKey) => publicKeysSum.add(publicKey)}.normalize()
+
+    assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys(0))))
+    assert(publicKeysSum.equals(sharedPublicKeys(0)))
+    assert(publicKeysSum.equals(sharedPubKey))
   }
 }

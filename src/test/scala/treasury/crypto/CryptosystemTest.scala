@@ -171,7 +171,7 @@ class CryptosystemTest extends FunSuite {
       val message = new Array[Byte](1 + rnd.nextInt(1024)) // message length in range [1, 1024]
       rnd.nextBytes(message)
 
-      val hybridCiphertext = cs.hybridEncrypt(pubKey, message)
+      val hybridCiphertext = cs.hybridEncrypt(pubKey, message, privKey.toByteArray)
       val decryptedMessage = cs.hybridDecrypt(privKey, hybridCiphertext)
 
       assert(message.sameElements(decryptedMessage.decryptedMessage))

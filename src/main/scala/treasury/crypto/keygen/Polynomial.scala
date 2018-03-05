@@ -1,17 +1,21 @@
 package treasury.crypto.keygen
 
 import java.math.BigInteger
-import treasury.crypto.core.Cryptosystem
+
+import treasury.crypto.core.{Cryptosystem, DRNG}
 
 class Polynomial(cs: Cryptosystem, a_0: BigInteger, degree: Int) {
+
   private val polynomial = new Array[BigInteger](degree)
+
+  val drng = DRNG(a_0.toByteArray, cs)
 
   // Generating random polynomial coefficients
   for(i <- polynomial.indices) {
-    if(i == 0)
+    if (i == 0)
       polynomial(0) = a_0
     else
-      polynomial(i) = cs.getRand
+      polynomial(i) = drng.getRand
   }
 
   // Computing the polynomial value for specified x argument

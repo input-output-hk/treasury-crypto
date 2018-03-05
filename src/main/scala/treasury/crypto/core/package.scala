@@ -3,6 +3,8 @@ package treasury.crypto
 import java.math.BigInteger
 
 import com.google.common.primitives.{Bytes, Ints}
+import org.bouncycastle.crypto.digests.SHA256Digest
+import org.bouncycastle.crypto.prng.drbg.HashSP800DRBG
 import org.bouncycastle.math.ec.ECPoint
 import org.scalameter._
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
@@ -26,6 +28,18 @@ package object core {
 
   val Zero: BigInteger = BigInteger.ZERO
   val One:  BigInteger = BigInteger.ONE
+
+  // Generates deterministic sequence of elements in Zp field (p = orderOfBasePoint), which depends on seed
+  case class DRNG (seed: Array[Byte], cs: Cryptosystem) {
+
+    private val drng = new HashSP800DRBG(new SHA256Digest(), 256, new SingleEntropySourceProvider(cs.hash256(seed)).get(256), null, null)
+    private val randBytes = new Array[Byte]((cs.orderOfBasePoint.bitLength.toFloat / 8).ceil.toInt)
+
+    def getRand: Randomness = {
+      drng.generate(randBytes, null, false)
+      new BigInteger(randBytes).mod(cs.orderOfBasePoint)
+    }
+  }
 
   case class HybridCiphertext(encryptedKey: Ciphertext, encryptedMessage: Array[Byte])
     extends BytesSerializable {
@@ -75,18 +89,41 @@ package object core {
     }
   }
 
-  case class HybridPlaintext(decryptedKey: Point, decryptedMessage: Array[Byte]) {
+  case class HybridPlaintext(decryptedKey: Point, decryptedMessage: Array[Byte])
+    extends BytesSerializable {
+
+    override type M = HybridPlaintext
+    override val serializer: Serializer[M] = HybridPlaintextSerializer
 
     def size: Int = bytes.length
+  }
 
-    def bytes: Array[Byte] = {
+  object HybridPlaintextSerializer extends Serializer[HybridPlaintext] {
 
-      val decryptedKeyBytes = decryptedKey.getEncoded(true)
+    override def toBytes(obj: HybridPlaintext): Array[Byte] =
+    {
+      val decryptedKeyBytes = obj.decryptedKey.getEncoded(true)
 
       Bytes.concat(
         Ints.toByteArray(decryptedKeyBytes.length),
         decryptedKeyBytes,
-        Ints.toByteArray(decryptedMessage.length),
+        Ints.toByteArray(obj.decryptedMessage.length),
+        obj.decryptedMessage
+      )
+    }
+
+    override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[HybridPlaintext] = Try {
+
+      val offset = IntAccumulator(0)
+
+      val decryptedKeyBytesLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
+      val decryptedKeyBytes = bytes.slice(offset.value, offset.plus(decryptedKeyBytesLen))
+
+      val decryptedMessageLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
+      val decryptedMessage = bytes.slice(offset.value, offset.plus(decryptedMessageLen))
+
+      HybridPlaintext(
+        cs.decodePoint(decryptedKeyBytes),
         decryptedMessage
       )
     }

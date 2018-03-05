@@ -16,7 +16,8 @@ object ElgamalDecrNIZK {
     privKey: PrivKey
   ): ElgamalDecrNIZKProof = {
 
-    val w = cs.getRand
+    val drng = DRNG(privKey.toByteArray ++ ciphertext._1.getEncoded(true) ++ ciphertext._2.getEncoded(true), cs)
+    val w = drng.getRand
     val A1 = cs.basePoint.multiply(w)
     val A2 = ciphertext._1.multiply(w)
     val D = ciphertext._1.multiply(privKey)

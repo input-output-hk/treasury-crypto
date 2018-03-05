@@ -18,17 +18,17 @@ class IdentifierTest extends FunSuite {
     }
   }
 
-  test("committee identifier") {
-    val cs = new Cryptosystem
-    val keys = for (i <- 0 until 10) yield cs.basePoint.multiply(cs.getRand)
-    val identifier = new CommitteeIdentifier(keys)
-
-    for (i <- 1 to 10) {
-      val pubkey = identifier.getPubKey(BigInteger.valueOf(i))
-      val id = identifier.getId(pubkey.get)
-      assert(BigInteger.valueOf(i).equals(id.get))
-    }
-  }
+//  test("committee identifier") {
+//    val cs = new Cryptosystem
+//    val keys = for (i <- 0 until 10) yield cs.basePoint.multiply(cs.getRand)
+//    val identifier = new CommitteeIdentifier(keys)
+//
+//    for (i <- 1 to 10) {
+//      val pubkey = identifier.getPubKey(BigInteger.valueOf(i))
+//      val id = identifier.getId(pubkey.get)
+//      assert(BigInteger.valueOf(i).equals(id.get))
+//    }
+//  }
 
   test("experts identifier performance") {
     val cs = new Cryptosystem

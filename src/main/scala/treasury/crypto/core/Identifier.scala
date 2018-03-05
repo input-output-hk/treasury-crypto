@@ -41,20 +41,7 @@ class ExpertIdentifier(pubKeys: Seq[PubKey]) extends Identifier[Int](pubKeys) {
   }
 }
 
-class CommitteeIdentifier(pubKeys: Seq[PubKey]) extends Identifier[BigInteger](pubKeys) {
-  private lazy val indexedKeys = sortedPubKeys.zipWithIndex
-  private lazy val idsMap = indexedKeys.map(t => t._1 -> BigInteger.valueOf(t._2 + 1)).toMap
-  private lazy val keysMap = indexedKeys.map(t => BigInteger.valueOf(t._2 + 1) -> t._1).toMap
-
-  override def getId(pubKey: PubKey): Option[BigInteger] = {
-    idsMap.get(pubKey)
-  }
-
-  override def getPubKey(id: BigInteger): Option[PubKey] = {
-    keysMap.get(id)
-  }
-}
-
+class CommitteeIdentifier(pubKeys: Seq[PubKey]) extends ExpertIdentifier(pubKeys) {}
 
 /**
   * SimpleIdentifier assigns ids to pub keys based on their index in the initial Seq

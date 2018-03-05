@@ -1,9 +1,7 @@
 package treasury.crypto
 
-import treasury.crypto.core.{Cryptosystem, SizeUtils, TimeUtils, VoteCases}
+import treasury.crypto.core.{Cryptosystem, SizeUtils, TimeUtils}
 import treasury.crypto.keygen._
-
-import scala.util.Random
 
 class DistrKeyGenPerformance {
 

@@ -4,6 +4,7 @@ import java.math.BigInteger
 
 import treasury.crypto.core._
 import treasury.crypto.keygen.datastructures.C1Share
+import treasury.crypto.keygen.datastructures.round4.OpenedShare
 import treasury.crypto.nizk.ElgamalDecrNIZK
 import treasury.crypto.voting.Tally
 import treasury.crypto.voting.ballots.{Ballot, ExpertBallot, VoterBallot}

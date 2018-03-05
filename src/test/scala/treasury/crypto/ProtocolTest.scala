@@ -56,7 +56,7 @@ class ProtocolTest extends FunSuite {
     val dgkRecoveredKeys = committeeMembersR2(0).dkgViolatorsIds.toSeq.zip(committeeMembersR2(0).dkgViolatorsSKs)
 
     // Verification of the elections results
-    val identicalResults = tallyResults.forall(elections.verify(_))
+    val identicalResults = tallyResults.forall(elections.verify)
 
     distributedDecryption && identicalResults
   }

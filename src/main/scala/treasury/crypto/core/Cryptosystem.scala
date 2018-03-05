@@ -6,6 +6,8 @@ import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
+import org.bouncycastle.crypto.digests.SHA256Digest
+import org.bouncycastle.crypto.prng.drbg.HashSP800DRBG
 import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3
 import org.bouncycastle.jce.ECNamedCurveTable
 import org.bouncycastle.jce.interfaces.{ECPrivateKey, ECPublicKey}
@@ -89,15 +91,17 @@ class Cryptosystem {
     cipher.doFinal(msg)
   }
 
-  def hybridEncrypt(pubKey: PubKey, msg: Array[Byte], symmetricKey: Option[Point] = None): HybridCiphertext = {
+  def hybridEncrypt(pubKey: PubKey, msg: Array[Byte], secretSeed: Array[Byte], symmetricKey: Option[Point] = None): HybridCiphertext = {
 
-    var randomPoint = symmetricKey.getOrElse(basePoint.multiply(getRand).normalize)
+    val drng = DRNG(pubKey.getEncoded(true) ++ msg ++ secretSeed, this)
+
+    val randomPoint = symmetricKey.getOrElse(basePoint.multiply(drng.getRand).normalize)
 
     val keyMaterial = hash256(randomPoint.getEncoded(true))
 
     val encryptedMessage = aesEncryptDecrypt(msg, keyMaterial, Cipher.ENCRYPT_MODE)
 
-    HybridCiphertext(encryptPoint(pubKey, getRand, randomPoint), encryptedMessage)
+    HybridCiphertext(encryptPoint(pubKey, drng.getRand, randomPoint), encryptedMessage)
   }
 
   def hybridDecrypt(privKey: PrivKey, ciphertext: HybridCiphertext): HybridPlaintext = {
