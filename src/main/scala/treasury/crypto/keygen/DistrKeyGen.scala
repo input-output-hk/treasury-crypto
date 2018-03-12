@@ -11,22 +11,19 @@ import treasury.crypto.keygen.datastructures.round4.{ComplaintR4, OpenedShare, R
 import treasury.crypto.keygen.datastructures.round5_1.R5_1Data
 import treasury.crypto.keygen.datastructures.round5_2.{R5_2Data, SecretKey}
 import treasury.crypto.nizk.ElgamalDecrNIZK
+import treasury.crypto.keygen.DistrKeyGen.checkOnCRS
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
 // Distributed Key Generation, based on Elliptic Curves
 //
-class DistrKeyGen(cs:                       Cryptosystem,
-                  h:                        Point,
-                  transportKeyPair:         KeyPair,     // key pair for shares encryption/decryption
-                  membersPubKeys:           Seq[PubKey], // public keys of all protocol members, including own public key from transportKeyPair
-                  memberIdentifier:         Identifier[Int])
+class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which should be used for protocol running
+                  h:                Point,            // CRS parameter
+                  transportKeyPair: KeyPair,          // key pair for shares encryption/decryption
+                  membersPubKeys:   Seq[PubKey],      // public keys of all protocol members, including own public key from transportKeyPair
+                  memberIdentifier: Identifier[Int])  // generator of members identifiers, based on the list of members public keys (membersPubKeys)
 {
-  case class CRS_commitment (issuerID: Integer, crs_commitment: Array[ECPoint])
-  case class Commitment     (issuerID: Integer, commitment: Array[ECPoint])
-  case class Share          (issuerID: Integer, share_a: OpenedShare, share_b: OpenedShare)
-
   private val CRS_commitments = new ArrayBuffer[CRS_commitment]() // CRS commitments of other participants
   private val commitments     = new ArrayBuffer[Commitment]()     // Commitments of other participants
   private val shares          = new ArrayBuffer[Share]()          // Shares of other participants
@@ -131,17 +128,6 @@ class DistrKeyGen(cs:                       Cryptosystem,
     }
   }
 
-  def checkOnCRS(share_a: OpenedShare, share_b: OpenedShare, E: Array[Array[Byte]]): Boolean = {
-    var E_sum: ECPoint = infinityPoint
-
-    for(i <- E.indices) {
-        E_sum = E_sum.add(cs.decodePoint(E(i)).multiply(BigInteger.valueOf(share_a.receiverID.toLong + 1).pow(i)))
-    }
-    val CRS_Shares = g.multiply(new BigInteger(share_a.S.decryptedMessage)).add(h.multiply(new BigInteger(share_b.S.decryptedMessage)))
-
-    CRS_Shares.equals(E_sum)
-  }
-
   /**
     * Executes the 2-nd round of the DKG protocol.
     *
@@ -181,7 +167,7 @@ class DistrKeyGen(cs:                       Cryptosystem,
           val openedShare_a = OpenedShare(secretShare_a.receiverID, cs.hybridDecrypt(ownPrivateKey, secretShare_a.S))
           val openedShare_b = OpenedShare(secretShare_b.receiverID, cs.hybridDecrypt(ownPrivateKey, secretShare_b.S))
 
-          if(checkOnCRS(openedShare_a, openedShare_b, r1Data(i).E)) {
+          if(checkOnCRS(cs, h, openedShare_a, openedShare_b, r1Data(i).E)) {
             shares += Share(r1Data(i).issuerID, openedShare_a, openedShare_b)
             CRS_commitments += CRS_commitment(r1Data(i).issuerID, r1Data(i).E.map(x => cs.decodePoint(x)))
           }
@@ -428,9 +414,10 @@ class DistrKeyGen(cs:                       Cryptosystem,
     * @return Some(R5_1Data) if success, None otherwise
     */
   def doRound5_1(r4DataIn: Seq[R4Data], prevR5_1Data: Option[R5_1Data] = None): Option[R5_1Data] = {
+
     def checkComplaint(complaint: ComplaintR4): Boolean = {
       val violatorsCRSCommitment = CRS_commitments.find(_.issuerID == complaint.violatorID).get
-      val CRS_Ok = checkOnCRS(complaint.share_a, complaint.share_b, violatorsCRSCommitment.crs_commitment.map(_.getEncoded(true)))
+      val CRS_Ok = checkOnCRS(cs, h, complaint.share_a, complaint.share_b, violatorsCRSCommitment.crs_commitment.map(_.getEncoded(true)))
 
       val violatorsCommitment = commitments.find(_.issuerID == complaint.violatorID).get
       val Commitment_Ok = checkCommitment(complaint.violatorID, violatorsCommitment.commitment.map(_.getEncoded(true)))
@@ -529,7 +516,6 @@ class DistrKeyGen(cs:                       Cryptosystem,
       case 5 =>
     }
 
-    case class ViolatorShare(violatorID: Integer, violatorShares: ArrayBuffer[OpenedShare])
     val violatorsShares = new ArrayBuffer[ViolatorShare]
 
     val r5_1Data = r5_1DataIn.filter(x => {
@@ -602,7 +588,7 @@ class DistrKeyGen(cs:                       Cryptosystem,
     * @param roundsData data of all protocol members for the all rounds, which has been already executed
     * @return Success(Some(SharedPublicKey)) if all 6 rounds has been executed successfully;
     *         Success(None) if not all 6 rounds has been executed, and execution should be continued after state restoring;
-    *         Failure(None) if an error during state restoring has occurred (mainly because of inconsistency of newly generated and previously obtained own round data).
+    *         Failure(e)    if an error during state restoring has occurred (mainly because of inconsistency of newly generated and previously obtained own round data).
     */
   def setState(secretKey: Array[Byte], roundsData: RoundsData): Try[Option[SharedPublicKey]] = Try {
 
@@ -653,5 +639,112 @@ class DistrKeyGen(cs:                       Cryptosystem,
       }
     }
     sharedPubKey
+  }
+}
+
+object DistrKeyGen {
+
+  private def checkOnCRS(cs: Cryptosystem, h: Point, share_a: OpenedShare, share_b: OpenedShare, E: Array[Array[Byte]]): Boolean = {
+    var E_sum: ECPoint = cs.infinityPoint
+
+    for(i <- E.indices) {
+      E_sum = E_sum.add(cs.decodePoint(E(i)).multiply(BigInteger.valueOf(share_a.receiverID.toLong + 1).pow(i)))
+    }
+    val CRS_Shares = cs.basePoint.multiply(new BigInteger(share_a.S.decryptedMessage)).add(h.multiply(new BigInteger(share_b.S.decryptedMessage)))
+
+    CRS_Shares.equals(E_sum)
+  }
+
+  /**
+    * Calculates a shared public key, using a data, generated during execution of the rounds 1 - 5.1 of the DKG protocol.
+    *
+    * @param cs cryptosystem, which should be used for a shared public key calculation
+    * @param membersPubKeys public keys of all members, who participated in DKG protocol
+    * @param memberIdentifier generator of members identifiers, based on the list of members public keys (membersPubKeys)
+    * @param roundsData data of all protocol members for the rounds 1 - 5.1
+    * @return Success(SharedPublicKey), where the SharedPublicKey is an encoded to a byte representation shared public key - in case of success;
+    *         Failure(e) - if an error during computations has occurred.
+    */
+  def getSharedPublicKey (cs:                       Cryptosystem,
+                          membersPubKeys:           Seq[PubKey],
+                          memberIdentifier:         Identifier[Int],
+                          roundsData:               RoundsData): Try[SharedPublicKey] = Try {
+
+    val allMembersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
+
+    val absenteesR1 = allMembersIDs.diff(roundsData.r1Data.map(_.issuerID))
+    val r2Data = roundsData.r2Data.filter(r2 => !absenteesR1.contains(r2.issuerID)) // cut off possible data from R1 absentees
+    val violatorsR1 =
+      r2Data.foldLeft(Set[Integer]()){
+        (acc, r2) => acc ++ r2.complaints.foldLeft(Set[Integer]()){
+            (acc, c) => acc + c.violatorID
+        }
+      }
+    val disqualifiedMembersOnR1 = absenteesR1 ++ violatorsR1
+
+    val r3Data = roundsData.r3Data.filter(r3 =>
+      !disqualifiedMembersOnR1.contains(r3.issuerID))
+    val absenteesR3 =
+      allMembersIDs.diff(disqualifiedMembersOnR1).diff(r3Data.map(_.issuerID))
+
+    val r4Data = roundsData.r4Data.filter(r4 =>
+      !disqualifiedMembersOnR1.contains(r4.issuerID) &&
+      !absenteesR3.contains(r4.issuerID)) // cut off possible data from R1 disqualified members and R3 absentees
+    val violatorsR3 =
+      r4Data.foldLeft(Set[Integer]()){
+        (acc, r4) => acc ++ r4.complaints.foldLeft(Set[Integer]()){
+          (acc, c) => acc + c.violatorID
+        }
+      }
+    val disqualifiedMembersOnR3 = absenteesR3 ++ violatorsR3
+
+    val validCommitments =
+      r3Data.filter(r3 => !disqualifiedMembersOnR3.contains(r3.issuerID)).
+        map(r3 => Commitment(r3.issuerID, r3.commitments.map(cs.decodePoint)))
+
+
+    val r5_1Data = roundsData.r5_1Data.filter(
+      r5 =>
+        !disqualifiedMembersOnR1.contains(r5.issuerID) &&
+        !disqualifiedMembersOnR3.contains(r5.issuerID)
+    )
+
+    val disqualifiedR3MembersShares = new ArrayBuffer[ViolatorShare]
+
+    // Retrieving shares of each disqualified at round 3 member
+    r5_1Data.foreach {
+      _.violatorsShares.foreach{
+        share =>
+          val (violatorID, violatorShare) = share
+
+          disqualifiedR3MembersShares.find(_.violatorID == violatorID) match {
+            case Some(vs) => vs.violatorShares += violatorShare
+            case _ => disqualifiedR3MembersShares += ViolatorShare(violatorID, new ArrayBuffer[OpenedShare] += violatorShare)
+          }
+       }
+    }
+
+    val t = (membersPubKeys.size.toFloat / 2).ceil.toInt
+
+    val violatorsSecretKeys = disqualifiedR3MembersShares.map(
+      share =>
+        SecretKey(share.violatorID, LagrangeInterpolation.restoreSecret(cs, share.violatorShares, t).toByteArray)
+    )
+
+    val violatorsPublicKeys = violatorsSecretKeys.map(
+      sk =>
+        cs.basePoint.multiply(new BigInteger(sk.secretKey))
+    )
+
+    val honestPublicKeysSum = validCommitments.foldLeft(cs.infinityPoint){
+      (acc, c) => acc.add(c.commitment.head)
+    }
+
+    val violatorsPublicKeysSum = violatorsPublicKeys.foldLeft(cs.infinityPoint){
+      (acc, pubKey) => acc.add(pubKey)
+    }
+
+    val sharedPublicKey = honestPublicKeysSum.add(violatorsPublicKeysSum)
+    sharedPublicKey.getEncoded(true)
   }
 }

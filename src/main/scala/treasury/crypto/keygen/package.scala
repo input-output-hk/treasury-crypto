@@ -2,14 +2,16 @@ package treasury.crypto
 
 import java.math.BigInteger
 
+import org.bouncycastle.math.ec.ECPoint
 import treasury.crypto.core._
 import treasury.crypto.keygen.datastructures.round1.R1Data
 import treasury.crypto.keygen.datastructures.round2.R2Data
 import treasury.crypto.keygen.datastructures.round3.R3Data
-import treasury.crypto.keygen.datastructures.round4.R4Data
+import treasury.crypto.keygen.datastructures.round4.{OpenedShare, R4Data}
 import treasury.crypto.keygen.datastructures.round5_1.R5_1Data
 import treasury.crypto.keygen.datastructures.round5_2.R5_2Data
 
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 package object keygen {
@@ -17,6 +19,12 @@ package object keygen {
   case class IntAccumulator(var value: Int = 0){
     def plus(i: Int): Int = {value += i; value}
   }
+
+  case class CRS_commitment (issuerID: Integer, crs_commitment: Array[ECPoint])
+  case class Commitment     (issuerID: Integer, commitment: Array[ECPoint])
+  case class Share          (issuerID: Integer, share_a: OpenedShare, share_b: OpenedShare)
+
+  case class ViolatorShare(violatorID: Integer, violatorShares: ArrayBuffer[OpenedShare])
 
   type SharedPublicKey = Array[Byte]
 

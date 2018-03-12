@@ -34,6 +34,8 @@ class DistrKeyGenTest  extends FunSuite {
       new CommitteeMember(cs, crs_h, keyPairs(i), committeeMembersPubKeys)
     }
 
+    val roundsData = RoundsData()
+
     val r1Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR1()
     }
@@ -53,9 +55,13 @@ class DistrKeyGenTest  extends FunSuite {
       }
     }
 
+    roundsData.r1Data = r1Data
+
     val r2Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR2(r1Data)
     }
+
+    roundsData.r2Data = r2Data
 
     val r3Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR3(r2Data)
@@ -76,13 +82,19 @@ class DistrKeyGenTest  extends FunSuite {
       }
     }
 
+    roundsData.r3Data = r3Data
+
     val r4Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR4(r3Data)
     }
 
+    roundsData.r4Data = r4Data
+
     val r5_1Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR5_1(r4Data)
     }
+
+    roundsData.r5_1Data = r5_1Data
 
     val r5_2Data = for (i <- committeeMembersPubKeys.indices) yield {
       (committeeMembers(i).ownId, committeeMembers(i).setKeyR5_2(r5_1Data))
@@ -119,6 +131,11 @@ class DistrKeyGenTest  extends FunSuite {
 
     // Verify, that shared public key is equal to the original public key
     assert(publicKeysSum.equals(sharedPublicKeys(0)))
+
+    val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
+
+    val sharedPubKey = cs.decodePoint(DistrKeyGen.getSharedPublicKey(cs, committeeMembersPubKeys, memberIdentifier, roundsData).get)
+    assert(publicKeysSum.equals(sharedPubKey))
   }
 
   //--------------------------------------------------------------------------------------------------------------
@@ -135,6 +152,8 @@ class DistrKeyGenTest  extends FunSuite {
       new CommitteeMember(cs, crs_h, keyPairs(i), committeeMembersPubKeys)
     }).toBuffer
 
+    val roundsData = RoundsData()
+
     val absenteesPublicKeys = ArrayBuffer[(Integer, org.bouncycastle.math.ec.ECPoint)]()
     val absenteeIndex = 0
 
@@ -144,12 +163,16 @@ class DistrKeyGenTest  extends FunSuite {
       committeeMembers(i).setKeyR1()
     }
 
+    roundsData.r1Data = r1Data
+
     absenteesPublicKeys += Tuple2(committeeMembers(absenteeIndex).ownId, cs.basePoint.multiply(committeeMembers(absenteeIndex).secretKey))
     committeeMembers.remove(absenteeIndex)
 
     val r2Data = for (i <- committeeMembers.indices) yield {
       committeeMembers(i).setKeyR2(r1Data)
     }
+
+    roundsData.r2Data = r2Data
 
     absenteesPublicKeys += Tuple2(committeeMembers(absenteeIndex).ownId, cs.basePoint.multiply(committeeMembers(absenteeIndex).secretKey))
     committeeMembers.remove(absenteeIndex)
@@ -164,9 +187,13 @@ class DistrKeyGenTest  extends FunSuite {
     // change commitment of the member with id = 0
     r3Data(0).commitments(0) = cs.infinityPoint.getEncoded(true)
 
+    roundsData.r3Data = r3Data
+
     val r4Data = for (i <- committeeMembers.indices) yield {
       committeeMembers(i).setKeyR4(r3Data)
     }
+
+    roundsData.r4Data = r4Data
 
     absenteesPublicKeys += Tuple2(committeeMembers(absenteeIndex).ownId, cs.basePoint.multiply(committeeMembers(absenteeIndex).secretKey))
     committeeMembers.remove(absenteeIndex)
@@ -174,6 +201,8 @@ class DistrKeyGenTest  extends FunSuite {
     val r5_1Data = for (i <- committeeMembers.indices) yield {
       committeeMembers(i).setKeyR5_1(r4Data)
     }
+
+    roundsData.r5_1Data = r5_1Data
 
     val r5_2Data = for (i <- committeeMembers.indices) yield {
       (committeeMembers(i).ownId, committeeMembers(i).setKeyR5_2(r5_1Data))
@@ -192,6 +221,11 @@ class DistrKeyGenTest  extends FunSuite {
 
     assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys(0))))
     assert(publicKeysSum.equals(sharedPublicKeys(0)))
+
+    val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
+
+    val sharedPubKey = cs.decodePoint(DistrKeyGen.getSharedPublicKey(cs, committeeMembersPubKeys, memberIdentifier, roundsData).get)
+    assert(publicKeysSum.equals(sharedPubKey))
   }
 
   //--------------------------------------------------------------------------------------------------------------
@@ -411,5 +445,10 @@ class DistrKeyGenTest  extends FunSuite {
     assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys(0))))
     assert(publicKeysSum.equals(sharedPublicKeys(0)))
     assert(publicKeysSum.equals(sharedPubKey))
+
+    val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
+
+    val sharedPubKeyIndependent = cs.decodePoint(DistrKeyGen.getSharedPublicKey(cs, committeeMembersPubKeys, memberIdentifier, roundsData).get)
+    assert(publicKeysSum.equals(sharedPubKeyIndependent))
   }
 }
