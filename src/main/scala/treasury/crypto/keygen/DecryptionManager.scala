@@ -52,7 +52,7 @@ class DecryptionManager(cs:               Cryptosystem,
   }
 
   /**
-    * Whapper over validateC1Share(issuerPubKey: PubKey, c1Share: C1Share, vectorForValidation: Seq[Ciphertext])
+    * Wrapper over validateC1Share(issuerPubKey: PubKey, c1Share: C1Share, vectorForValidation: Seq[Ciphertext])
     * Validates C1Share issued specifically for the first stage of the tally phase when committee members jointly
     * decrypts delegations part of the summed unit vector
     *

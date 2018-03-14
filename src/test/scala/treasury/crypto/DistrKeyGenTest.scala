@@ -451,4 +451,49 @@ class DistrKeyGenTest  extends FunSuite {
     val sharedPubKeyIndependent = cs.decodePoint(DistrKeyGen.getSharedPublicKey(cs, committeeMembersPubKeys, memberIdentifier, roundsData).get)
     assert(publicKeysSum.equals(sharedPubKeyIndependent))
   }
+
+  test("generateRecoveryKeyShare") {
+    val cs = new Cryptosystem
+    val crs_h = cs.basePoint.multiply(cs.getRand)
+
+    val keyPairs = for(id <- 1 to 2) yield cs.createKeyPair
+    val committeeMembersPubKeys = keyPairs.map(_._2)
+
+    val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
+      new CommitteeMember(cs, crs_h, keyPairs(i), committeeMembersPubKeys)
+    }
+
+    val r1Data = for (i <- committeeMembersPubKeys.indices) yield {
+      committeeMembers(i).setKeyR1()
+    }
+
+    val openedShare = DistrKeyGen.generateRecoveryKeyShare(cs, committeeMembers(0).memberIdentifier, keyPairs(0), keyPairs(1)._2, r1Data).get
+    val verified = DistrKeyGen.validateRecoveryKeyShare(cs, committeeMembers(0).memberIdentifier, keyPairs(0)._2, keyPairs(1)._2, r1Data, openedShare).isSuccess
+
+    assert(verified)
+  }
+
+//  test("recoverPrivateKeyByOpenedShares") {
+//    val cs = new Cryptosystem
+//    val crs_h = cs.basePoint.multiply(cs.getRand)
+//
+//    val keyPairs = for(id <- 1 to 3) yield cs.createKeyPair
+//    val committeeMembersPubKeys = keyPairs.map(_._2)
+//
+//    val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
+//      new CommitteeMember(cs, crs_h, keyPairs(i), committeeMembersPubKeys)
+//    }
+//
+//    val r1Data = for (i <- committeeMembersPubKeys.indices) yield {
+//      committeeMembers(i).setKeyR1()
+//    }
+//
+//    val identifier = committeeMembers(0).memberIdentifier
+//
+//    val openedShare1 = DistrKeyGen.generateRecoveryKeyShare(cs, identifier, keyPairs(0), keyPairs(2)._2, r1Data).get
+//    val openedShare2 = DistrKeyGen.generateRecoveryKeyShare(cs, identifier, keyPairs(1), keyPairs(2)._2, r1Data).get
+//
+//    val recoveredPrivKey = DistrKeyGen.recoverPrivateKeyByOpenedShares(cs, committeeMembers.size, Seq(openedShare1, openedShare2), Some(keyPairs(2)._2))
+//    assert(recoveredPrivKey.isSuccess)
+//  }
 }

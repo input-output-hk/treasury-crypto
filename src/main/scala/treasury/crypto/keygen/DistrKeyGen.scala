@@ -655,6 +655,105 @@ object DistrKeyGen {
     CRS_Shares.equals(E_sum)
   }
 
+
+  def getDisqualifiedOnR1CommitteeMembersIDs(cs: Cryptosystem,
+                                             membersPubKeys: Seq[PubKey],
+                                             memberIdentifier: Identifier[Int],
+                                             r1Data: Seq[R1Data],
+                                             r2Data: Seq[R2Data]): Seq[Int] = {
+    val allMembersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
+
+    val absenteesR1 = allMembersIDs.diff(r1Data.map(_.issuerID))
+    val r2DataFiltered = r2Data.filter(r2 => !absenteesR1.contains(r2.issuerID)) // cut off possible data from R1 absentees
+    val violatorsR1 =
+      r2DataFiltered.foldLeft(Set[Int]()){
+        (acc, r2) => acc ++ r2.complaints.foldLeft(Set[Int]()){
+          (acc, c) => acc + c.violatorID
+        }
+      }.toSeq
+    val disqualifiedMembersOnR1 = absenteesR1 ++ violatorsR1
+    disqualifiedMembersOnR1
+  }
+
+  def getDisqualifiedOnR3CommitteeMembersIDs(cs: Cryptosystem,
+                                             membersPubKeys: Seq[PubKey],
+                                             memberIdentifier: Identifier[Int],
+                                             disqualifiedMembersOnR1: Seq[Int],
+                                             r3Data: Seq[R3Data],
+                                             r4Data: Seq[R4Data]): Seq[Int] = {
+    val allMembersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
+
+    val r3DataFiltered = r3Data.filter(r3 =>
+      !disqualifiedMembersOnR1.contains(r3.issuerID))
+    val absenteesR3 =
+      allMembersIDs.diff(disqualifiedMembersOnR1).diff(r3DataFiltered.map(_.issuerID))
+
+    val r4DataFiltered = r4Data.filter(r4 =>
+      !disqualifiedMembersOnR1.contains(r4.issuerID) &&
+        !absenteesR3.contains(r4.issuerID)) // cut off possible data from R1 disqualified members and R3 absentees
+    val violatorsR3 =
+      r4DataFiltered.foldLeft(Set[Int]()){
+        (acc, r4) => acc ++ r4.complaints.foldLeft(Set[Int]()){
+          (acc, c) => acc + c.violatorID
+        }
+      }.toSeq
+    val disqualifiedMembersOnR3 = absenteesR3 ++ violatorsR3
+    disqualifiedMembersOnR3
+  }
+
+  def getAllDisqualifiedCommitteeMembersPubKeys(cs: Cryptosystem,
+                                                membersPubKeys: Seq[PubKey],
+                                                memberIdentifier: Identifier[Int],
+                                                r1Data: Seq[R1Data],
+                                                r2Data: Seq[R2Data],
+                                                r3Data: Seq[R3Data],
+                                                r4Data: Seq[R4Data]): Seq[PubKey] = {
+    val disqualifiedMembersOnR1 =
+      getDisqualifiedOnR1CommitteeMembersIDs(cs, membersPubKeys, memberIdentifier, r1Data, r2Data)
+
+    val disqualifiedMembersOnR3 =
+      getDisqualifiedOnR3CommitteeMembersIDs(cs, membersPubKeys, memberIdentifier, disqualifiedMembersOnR1, r3Data, r4Data)
+
+    (disqualifiedMembersOnR1 ++ disqualifiedMembersOnR3).map(memberIdentifier.getPubKey(_).get)
+  }
+
+  def recoverKeysOfDisqualifiedOnR3Members(cs: Cryptosystem,
+                                           numberOfMembers: Int,
+                                           r5_1Data: Seq[R5_1Data],
+                                           disqualifiedMembersOnR1: Seq[Int],
+                                           disqualifiedMembersOnR3: Seq[Int]): Seq[(PubKey, PrivKey)] = {
+
+    val r5_1DataFiltered = r5_1Data.filter(
+      r5 =>
+        !disqualifiedMembersOnR1.contains(r5.issuerID) &&
+          !disqualifiedMembersOnR3.contains(r5.issuerID)
+    )
+
+    val disqualifiedR3MembersShares = new ArrayBuffer[ViolatorShare]
+
+    // Retrieving shares of each disqualified at round 3 member
+    r5_1DataFiltered.foreach {
+      _.violatorsShares.foreach{
+        share =>
+          val (violatorID, violatorShare) = share
+
+          disqualifiedR3MembersShares.find(_.violatorID == violatorID) match {
+            case Some(vs) => vs.violatorShares += violatorShare
+            case _ => disqualifiedR3MembersShares += ViolatorShare(violatorID, new ArrayBuffer[OpenedShare] += violatorShare)
+          }
+      }
+    }
+
+    val t = (numberOfMembers.toFloat / 2).ceil.toInt
+
+    val violatorsSecretKeys = disqualifiedR3MembersShares.map(
+      share => LagrangeInterpolation.restoreSecret(cs, share.violatorShares, t)
+    )
+    val violatorsPublicKeys = violatorsSecretKeys.map(cs.basePoint.multiply(_))
+
+    violatorsPublicKeys zip violatorsSecretKeys
+  }
+
   /**
     * Calculates a shared public key, using a data, generated during execution of the rounds 1 - 5.1 of the DKG protocol.
     *
@@ -670,81 +769,100 @@ object DistrKeyGen {
                           memberIdentifier:         Identifier[Int],
                           roundsData:               RoundsData): Try[SharedPublicKey] = Try {
 
-    val allMembersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
+    val disqualifiedMembersOnR1 =
+      getDisqualifiedOnR1CommitteeMembersIDs(cs, membersPubKeys, memberIdentifier, roundsData.r1Data, roundsData.r2Data)
 
-    val absenteesR1 = allMembersIDs.diff(roundsData.r1Data.map(_.issuerID))
-    val r2Data = roundsData.r2Data.filter(r2 => !absenteesR1.contains(r2.issuerID)) // cut off possible data from R1 absentees
-    val violatorsR1 =
-      r2Data.foldLeft(Set[Integer]()){
-        (acc, r2) => acc ++ r2.complaints.foldLeft(Set[Integer]()){
-            (acc, c) => acc + c.violatorID
-        }
-      }
-    val disqualifiedMembersOnR1 = absenteesR1 ++ violatorsR1
+    val disqualifiedMembersOnR3 =
+      getDisqualifiedOnR3CommitteeMembersIDs(cs, membersPubKeys, memberIdentifier, disqualifiedMembersOnR1, roundsData.r3Data, roundsData.r4Data)
 
-    val r3Data = roundsData.r3Data.filter(r3 =>
-      !disqualifiedMembersOnR1.contains(r3.issuerID))
-    val absenteesR3 =
-      allMembersIDs.diff(disqualifiedMembersOnR1).diff(r3Data.map(_.issuerID))
+    val recoveredViolatorsKeys =
+      recoverKeysOfDisqualifiedOnR3Members(cs, membersPubKeys.size, roundsData.r5_1Data, disqualifiedMembersOnR1, disqualifiedMembersOnR3)
 
-    val r4Data = roundsData.r4Data.filter(r4 =>
-      !disqualifiedMembersOnR1.contains(r4.issuerID) &&
-      !absenteesR3.contains(r4.issuerID)) // cut off possible data from R1 disqualified members and R3 absentees
-    val violatorsR3 =
-      r4Data.foldLeft(Set[Integer]()){
-        (acc, r4) => acc ++ r4.complaints.foldLeft(Set[Integer]()){
-          (acc, c) => acc + c.violatorID
-        }
-      }
-    val disqualifiedMembersOnR3 = absenteesR3 ++ violatorsR3
-
+    val r3Data = roundsData.r3Data.filter(r3 => !disqualifiedMembersOnR1.contains(r3.issuerID))
     val validCommitments =
       r3Data.filter(r3 => !disqualifiedMembersOnR3.contains(r3.issuerID)).
         map(r3 => Commitment(r3.issuerID, r3.commitments.map(cs.decodePoint)))
-
-
-    val r5_1Data = roundsData.r5_1Data.filter(
-      r5 =>
-        !disqualifiedMembersOnR1.contains(r5.issuerID) &&
-        !disqualifiedMembersOnR3.contains(r5.issuerID)
-    )
-
-    val disqualifiedR3MembersShares = new ArrayBuffer[ViolatorShare]
-
-    // Retrieving shares of each disqualified at round 3 member
-    r5_1Data.foreach {
-      _.violatorsShares.foreach{
-        share =>
-          val (violatorID, violatorShare) = share
-
-          disqualifiedR3MembersShares.find(_.violatorID == violatorID) match {
-            case Some(vs) => vs.violatorShares += violatorShare
-            case _ => disqualifiedR3MembersShares += ViolatorShare(violatorID, new ArrayBuffer[OpenedShare] += violatorShare)
-          }
-       }
-    }
-
-    val t = (membersPubKeys.size.toFloat / 2).ceil.toInt
-
-    val violatorsSecretKeys = disqualifiedR3MembersShares.map(
-      share =>
-        SecretKey(share.violatorID, LagrangeInterpolation.restoreSecret(cs, share.violatorShares, t).toByteArray)
-    )
-
-    val violatorsPublicKeys = violatorsSecretKeys.map(
-      sk =>
-        cs.basePoint.multiply(new BigInteger(sk.secretKey))
-    )
 
     val honestPublicKeysSum = validCommitments.foldLeft(cs.infinityPoint){
       (acc, c) => acc.add(c.commitment.head)
     }
 
-    val violatorsPublicKeysSum = violatorsPublicKeys.foldLeft(cs.infinityPoint){
-      (acc, pubKey) => acc.add(pubKey)
+    val violatorsPublicKeysSum = recoveredViolatorsKeys.foldLeft(cs.infinityPoint){
+      (acc, keys) => acc.add(keys._1)
     }
 
     val sharedPublicKey = honestPublicKeysSum.add(violatorsPublicKeysSum)
     sharedPublicKey.getEncoded(true)
+  }
+
+  /**
+    * Generates a recovery share for the faulty committee member. Basically recovery share is a decrypted share that
+    * was previously (in Round 1) submitted by the faulty CM.
+    *
+    * @param cs
+    * @param memberIdentifier
+    * @param keys private and public key of a CM who generates recovery share
+    * @param violatorPubKey public key of a CM for whom the recovery share is generated
+    * @param r1Data submitted encrypted shares for all CMs
+    * @return OpenedShare
+    */
+  def generateRecoveryKeyShare(cs: Cryptosystem,
+                               memberIdentifier: Identifier[Int],
+                               keys: (PrivKey, PubKey),
+                               violatorPubKey: PubKey,
+                               r1Data: Seq[R1Data]): Try[OpenedShare] = Try {
+    val (myPrivKey, myPubKey) = keys
+    val myId = memberIdentifier.getId(myPubKey).get
+    val violatorId = memberIdentifier.getId(violatorPubKey).get
+
+    val shareForMeFromViolator = r1Data.find(_.issuerID == violatorId).get.S_a.find(_.receiverID == myId).get
+    OpenedShare(shareForMeFromViolator.receiverID, cs.hybridDecrypt(myPrivKey, shareForMeFromViolator.S))
+  }
+
+  /**
+    * Validates an OpenedShare submitted by a committee member
+    *
+    * @param cs
+    * @param memberIdentifier
+    * @param issuerPubKey public key of a CM who generates recovery share
+    * @param violatorPubKey public key of a CM for whom the recovery share is generated
+    * @param r1Data submitted encrypted shares for all CMs
+    * @param openedShare openedShare for verification
+    * @return Try(Success(Unit)) if succeeds
+    */
+  def validateRecoveryKeyShare(cs: Cryptosystem,
+                               memberIdentifier: Identifier[Int],
+                               issuerPubKey: PubKey,
+                               violatorPubKey: PubKey,
+                               r1Data: Seq[R1Data],
+                               openedShare: OpenedShare): Try[Unit] = Try {
+    val issuerId = memberIdentifier.getId(issuerPubKey).get
+    val violatorId = memberIdentifier.getId(violatorPubKey).get
+
+    val encryptedShare = cs.hybridEncrypt(issuerPubKey,                         // for this verification no matter what public key is used
+                                          openedShare.S.decryptedMessage,
+                                          Array.fill(32)(1.toByte),             // for this verification no matter what secret seed is used
+                                          Some(openedShare.S.decryptedKey))
+    val submittedShare = r1Data.find(_.issuerID == violatorId).get.S_a.find(_.receiverID == issuerId).get
+
+    require(encryptedShare.encryptedMessage.sameElements(submittedShare.S.encryptedMessage), "OpenedShare doesn't conform to the submitted share")
+  }
+
+  // TODO: this function doesn't work properly yet
+  def recoverPrivateKeyByOpenedShares(cs: Cryptosystem,
+                                      numberOfMembers: Int,
+                                      openedShares: Seq[OpenedShare],
+                                      pubKeyOfRecoveredPrivKey: Option[PubKey] = None): Try[PrivKey] = Try{
+    val recoveryThreshold = (numberOfMembers.toFloat / 2).ceil.toInt
+    require(openedShares.size >= recoveryThreshold, "Not enough opened shares to recover a key")
+
+    val recoveredPrivKey = LagrangeInterpolation.restoreSecret(cs, openedShares, recoveryThreshold)
+
+    if (pubKeyOfRecoveredPrivKey.isDefined) {
+      val recoveredPubKey = cs.basePoint.multiply(recoveredPrivKey)
+      require(recoveredPubKey == pubKeyOfRecoveredPrivKey, "Recovered key doesn't conform to the given pub key")
+    }
+
+    recoveredPrivKey
   }
 }
