@@ -158,10 +158,11 @@ class DecryptionManager(cs:               Cryptosystem,
     * to compute decrypted C1 for delegations
     *
     * @param privKeys list of private keys of the faulty CMs
-    * @param choicesSum previously computed sum of the ciphertexts that represent choices bits of the unit vector
+    * @param delegations previously computed delegations
     * @return a list of decrypted C1s for choices, for each private key
     */
-  def recoverChoicesC1(privKeys: Seq[PrivKey], choicesSum: Seq[Ciphertext]): Seq[Seq[Point]] = {
+  def recoverChoicesC1(privKeys: Seq[PrivKey], delegations: Seq[Element]): Seq[Seq[Point]] = {
+    val choicesSum = Tally.computeChoicesSum(cs, votersBallots, expertsBallots, delegations)
     decryptVector(privKeys, choicesSum.map(_._1))
   }
 
