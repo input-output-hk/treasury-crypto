@@ -473,27 +473,31 @@ class DistrKeyGenTest  extends FunSuite {
     assert(verified)
   }
 
-//  test("recoverPrivateKeyByOpenedShares") {
-//    val cs = new Cryptosystem
-//    val crs_h = cs.basePoint.multiply(cs.getRand)
-//
-//    val keyPairs = for(id <- 1 to 3) yield cs.createKeyPair
-//    val committeeMembersPubKeys = keyPairs.map(_._2)
-//
-//    val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-//      new CommitteeMember(cs, crs_h, keyPairs(i), committeeMembersPubKeys)
-//    }
-//
-//    val r1Data = for (i <- committeeMembersPubKeys.indices) yield {
-//      committeeMembers(i).setKeyR1()
-//    }
-//
-//    val identifier = committeeMembers(0).memberIdentifier
-//
-//    val openedShare1 = DistrKeyGen.generateRecoveryKeyShare(cs, identifier, keyPairs(0), keyPairs(2)._2, r1Data).get
-//    val openedShare2 = DistrKeyGen.generateRecoveryKeyShare(cs, identifier, keyPairs(1), keyPairs(2)._2, r1Data).get
-//
-//    val recoveredPrivKey = DistrKeyGen.recoverPrivateKeyByOpenedShares(cs, committeeMembers.size, Seq(openedShare1, openedShare2), Some(keyPairs(2)._2))
-//    assert(recoveredPrivKey.isSuccess)
-//  }
+  test("recoverPrivateKeyByOpenedShares") {
+    val cs = new Cryptosystem
+    val crs_h = cs.basePoint.multiply(cs.getRand)
+
+    val transportKeyPairs = for(id <- 1 to 3) yield cs.createKeyPair
+    val committeeMembersPubKeys = transportKeyPairs.map(_._2)
+
+    val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
+      new CommitteeMember(cs, crs_h, transportKeyPairs(i), committeeMembersPubKeys)
+    }
+
+    val r1Data = for (i <- committeeMembersPubKeys.indices) yield committeeMembers(i).setKeyR1()
+    val r2Data = for (i <- committeeMembersPubKeys.indices) yield committeeMembers(i).setKeyR2(r1Data)
+    val r3Data = for (i <- committeeMembersPubKeys.indices) yield committeeMembers(i).setKeyR3(r2Data)
+
+    val identifier = committeeMembers(0).memberIdentifier
+
+    val violatorTransportPubKey = transportKeyPairs(2)._2
+    val violatorId = identifier.getId(violatorTransportPubKey)
+    val violatorPubKey = cs.decodePoint(r3Data(2).commitments(0))
+
+    val openedShare1 = DistrKeyGen.generateRecoveryKeyShare(cs, identifier, transportKeyPairs(0), violatorTransportPubKey, r1Data).get
+    val openedShare2 = DistrKeyGen.generateRecoveryKeyShare(cs, identifier, transportKeyPairs(1), violatorTransportPubKey, r1Data).get
+
+    val recoveredPrivKey = DistrKeyGen.recoverPrivateKeyByOpenedShares(cs, committeeMembers.size, Seq(openedShare1, openedShare2), Some(violatorPubKey))
+    assert(recoveredPrivKey.isSuccess)
+  }
 }

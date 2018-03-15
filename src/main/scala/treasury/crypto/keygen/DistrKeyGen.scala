@@ -701,6 +701,18 @@ object DistrKeyGen {
     disqualifiedMembersOnR3
   }
 
+  /**
+    * Retrieve all committee members disqualified during the distributed key generation
+    *
+    * @param cs
+    * @param membersPubKeys pub keys of all registered committee members
+    * @param memberIdentifier
+    * @param r1Data
+    * @param r2Data
+    * @param r3Data
+    * @param r4Data
+    * @return pub keys of the disqualified CMs
+    */
   def getAllDisqualifiedCommitteeMembersPubKeys(cs: Cryptosystem,
                                                 membersPubKeys: Seq[PubKey],
                                                 memberIdentifier: Identifier[Int],
@@ -820,7 +832,9 @@ object DistrKeyGen {
   }
 
   /**
-    * Validates an OpenedShare submitted by a committee member
+    * Validates an OpenedShare submitted by a committee member. Basically OpenedShare is a decrypted share which was
+    * submitted on Round 1. So the verification process encrypts the provided OpenedShare and verifies that it is the
+    * same as was submitted at Round 1.
     *
     * @param cs
     * @param memberIdentifier
@@ -848,11 +862,23 @@ object DistrKeyGen {
     require(encryptedShare.encryptedMessage.sameElements(submittedShare.S.encryptedMessage), "OpenedShare doesn't conform to the submitted share")
   }
 
-  // TODO: this function doesn't work properly yet
+  /**
+    * Recovers committee member public key by openedShares from other CMs. Note that the recovered privKey (and corresponding pubKey)
+    * is not related to the proxy key that was registered by the committee member. Those proxy keys are used only to encrypt
+    * personal shares during the round 1. The public key for the distributed key generation is never registrated directly and is
+    * revealed only at Round 3 as first component of the commitment array A.
+    *
+    * @param cs
+    * @param numberOfMembers
+    * @param openedShares opened shares from other CMs. There should be shares from at least half of the CMs
+    * @param pubKeyOfRecoveredPrivKey is used only for additional verification. If provided the recovered priv/pub keys will
+    *                                 be verified by this key (pub keys should be the same)
+    * @return
+    */
   def recoverPrivateKeyByOpenedShares(cs: Cryptosystem,
                                       numberOfMembers: Int,
                                       openedShares: Seq[OpenedShare],
-                                      pubKeyOfRecoveredPrivKey: Option[PubKey] = None): Try[PrivKey] = Try{
+                                      pubKeyOfRecoveredPrivKey: Option[PubKey] = None): Try[PrivKey] = Try {
     val recoveryThreshold = (numberOfMembers.toFloat / 2).ceil.toInt
     require(openedShares.size >= recoveryThreshold, "Not enough opened shares to recover a key")
 
@@ -860,7 +886,7 @@ object DistrKeyGen {
 
     if (pubKeyOfRecoveredPrivKey.isDefined) {
       val recoveredPubKey = cs.basePoint.multiply(recoveredPrivKey)
-      require(recoveredPubKey == pubKeyOfRecoveredPrivKey, "Recovered key doesn't conform to the given pub key")
+      require(recoveredPubKey == pubKeyOfRecoveredPrivKey.get, "Recovered key doesn't conform to the given pub key")
     }
 
     recoveredPrivKey
