@@ -142,54 +142,27 @@ class DecryptionManager(cs:               Cryptosystem,
 
   /**
     * Recover decrypted C1 of the faulty committee members (who didn't submit C1Share by themselves).
-    * Provided with KeyShares from operating committee members we are able to reconstruct secret keys of the faulty members
-    * and then compute decrypted C1 for delegations
+    * Provided with private keys of the faulty CMs (jointly recovered by other CMs) we are able
+    * to compute decrypted C1 for delegations
     *
-    * @param skShares list of KeyShares, each of them is produced by a working committee member and represents his shares
-    *                 for all faulty members
-    * @return a list of decrypted C1s for delegations, for each reconstructed private key
+    * @param privKeys list of private keys of the faulty CMs
+    * @return a list of decrypted C1s for delegations, for each private key
     */
-  def recoverDelegationsC1(skShares: Seq[KeyShares]): Seq[Seq[Point]] = {
-    val decryptionViolatorsSKs = reconstructSecretKeys(skShares)
-    decryptVector(decryptionViolatorsSKs, delegationsSum.map(_._1))
+  def recoverDelegationsC1(privKeys: Seq[PrivKey]): Seq[Seq[Point]] = {
+    decryptVector(privKeys, delegationsSum.map(_._1))
   }
 
   /**
     * Recover decrypted C1 of the faulty committee members (who didn't submit C1Share by themselves).
-    * Provided with KeyShares from operating committee members we are able to reconstruct secret keys of the faulty members
-    * and then compute decrypted C1 for choices
+    * Provided with private keys of the faulty CMs (jointly recovered by other CMs) we are able
+    * to compute decrypted C1 for delegations
     *
-    * @param skShares list of KeyShares, each of them is produced by a working committee member and represents his shares
-    *                 for all faulty members
+    * @param privKeys list of private keys of the faulty CMs
     * @param choicesSum previously computed sum of the ciphertexts that represent choices bits of the unit vector
-    * @return a list of decrypted C1s for choices, for each reconstructed private key
+    * @return a list of decrypted C1s for choices, for each private key
     */
-  def recoverChoicesC1(skShares: Seq[KeyShares], choicesSum: Seq[Ciphertext]): Seq[Seq[Point]] = {
-    val decryptionViolatorsSKs = reconstructSecretKeys(skShares)
-    decryptVector(decryptionViolatorsSKs, choicesSum.map(_._1))
-  }
-
-  /**
-    * Since each private key of a committee member (CM) is distributed through the VSS scheme to the other CMs
-    * it is possible to reconstruct it in case of faulty behaviour.
-    * This function helps to reconstruct private keys of the faulty CMs by key shares submitted by other committe members.
-    *
-    * @param skShares An array of KeyShares submitted by different committee members. Each KeyShares structure contains
-    *                 shares of private keys for the all faulty committee members.
-    * @return An array of reconstructed private keys
-    *
-    * TODO: what if different CMs submit KeyShares with different set of shares? (I mean for different set of faulty CMs)
-    */
-  def reconstructSecretKeys(skShares: Seq[KeyShares]): Array[BigInteger] = {
-    val decryptionViolatorsShares = skShares.map(
-      member =>
-        member.keyShares.map(
-          share =>
-            (share.ownerID, OpenedShare(member.issuerID, HybridPlaintext(cs.infinityPoint, share.share.toByteArray)))
-        )
-    ).map(_.sortBy(_._1).map(_._2)).transpose
-
-    decryptionViolatorsShares.map(LagrangeInterpolation.restoreSecret(cs, _, recoveryThreshold)).toArray
+  def recoverChoicesC1(privKeys: Seq[PrivKey], choicesSum: Seq[Ciphertext]): Seq[Seq[Point]] = {
+    decryptVector(privKeys, choicesSum.map(_._1))
   }
 
   def computeDelegations(delegationsC1: Seq[Seq[Point]]): Seq[Element] = {
