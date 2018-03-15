@@ -710,21 +710,6 @@ object DistrKeyGen {
     g_sa.equals(A_sum)
   }
 
-  /**
-    * Calculates a shared public key, using a data, generated during execution of the rounds 1 - 5.1 of the DKG protocol.
-    *
-    * @param cs cryptosystem, which should be used for a shared public key calculation
-    * @param membersPubKeys public keys of all members, who participated in DKG protocol
-    * @param memberIdentifier generator of members identifiers, based on the list of members public keys (membersPubKeys)
-    * @param roundsData data of all protocol members for the rounds 1 - 5.1
-    * @return Success(SharedPublicKey), where the SharedPublicKey is an encoded to a byte representation shared public key - in case of success;
-    *         Failure(e) - if an error during computations has occurred.
-    */
-  def getSharedPublicKey (cs:                       Cryptosystem,
-                          membersPubKeys:           Seq[PubKey],
-                          memberIdentifier:         Identifier[Int],
-                          roundsData:               RoundsData): Try[SharedPublicKey] = Try {
-
   def getDisqualifiedOnR1CommitteeMembersIDs(cs: Cryptosystem,
                                              membersPubKeys: Seq[PubKey],
                                              memberIdentifier: Identifier[Int],
