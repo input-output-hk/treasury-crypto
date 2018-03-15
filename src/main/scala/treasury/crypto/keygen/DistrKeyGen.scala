@@ -11,7 +11,7 @@ import treasury.crypto.keygen.datastructures.round4.{ComplaintR4, OpenedShare, R
 import treasury.crypto.keygen.datastructures.round5_1.R5_1Data
 import treasury.crypto.keygen.datastructures.round5_2.{R5_2Data, SecretKey}
 import treasury.crypto.nizk.ElgamalDecrNIZK
-import treasury.crypto.keygen.DistrKeyGen.checkOnCRS
+import treasury.crypto.keygen.DistrKeyGen.{checkOnCRS, checkComplaintR2, checkCommitmentR3 }
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
@@ -272,7 +272,7 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
         val violatorID = complaint.violatorID
 
         if(violatorID != ownID &&
-           checkComplaint(complaint)) {
+           checkComplaintR2(cs, complaint)) {
 
           val violatorCRSCommitment = CRS_commitments.find(_.issuerID == violatorID)
           if(violatorCRSCommitment.isDefined)
@@ -361,16 +361,17 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
       val issuerCommitments = r3Data(i).commitments
 
       if(issuerID != ownID) {
-        if(checkCommitment(issuerID, issuerCommitments)) {
-          commitments += Commitment(issuerID, issuerCommitments.map(cs.decodePoint))
-        }
-        else {
-          val share = shares.find(_.issuerID == issuerID)
-          if(share.isDefined) { // if a member is disqualified, its shares are already deleted from the local state of the current member
+
+        val share = shares.find(_.issuerID == issuerID)
+        if(share.isDefined) {
+
+          if(checkCommitmentR3(cs, share.get, issuerCommitments)) {
+            commitments += Commitment(issuerID, issuerCommitments.map(cs.decodePoint))
+          } else {
             complaints += ComplaintR4(issuerID, share.get.share_a, share.get.share_b)
             violatorsIDs += issuerID
           }
-        }
+        } //if(!share.isDefined) is the case, when a member is disqualified, and his shares are already deleted from the local state of the current member
       }
     }
 
@@ -415,12 +416,12 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
     */
   def doRound5_1(r4DataIn: Seq[R4Data], prevR5_1Data: Option[R5_1Data] = None): Option[R5_1Data] = {
 
-    def checkComplaint(complaint: ComplaintR4): Boolean = {
+    def checkComplaint(violatorsCommitment: Commitment, complaint: ComplaintR4): Boolean = {
       val violatorsCRSCommitment = CRS_commitments.find(_.issuerID == complaint.violatorID).get
       val CRS_Ok = checkOnCRS(cs, h, complaint.share_a, complaint.share_b, violatorsCRSCommitment.crs_commitment.map(_.getEncoded(true)))
 
-      val violatorsCommitment = commitments.find(_.issuerID == complaint.violatorID).get
-      val Commitment_Ok = checkCommitment(complaint.violatorID, violatorsCommitment.commitment.map(_.getEncoded(true)))
+      val share = Share(complaint.violatorID, complaint.share_a, complaint.share_b)
+      val Commitment_Ok = checkCommitmentR3(cs, share, violatorsCommitment.commitment.map(_.getEncoded(true)))
 
       CRS_Ok && !Commitment_Ok
     }
@@ -448,7 +449,7 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
           val violatorCommitment = commitments.find(_.issuerID == violatorID)
 
           if(violatorCommitment.isDefined) {
-            if(checkComplaint(r4Data(i).complaints(j))) {
+            if(checkComplaint(violatorCommitment.get, r4Data(i).complaints(j))) {
               if(violatorShare.isDefined)
                 violatorsShares += Tuple2(violatorID, violatorShare.get.share_a)
 
@@ -644,7 +645,12 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
 
 object DistrKeyGen {
 
-  private def checkOnCRS(cs: Cryptosystem, h: Point, share_a: OpenedShare, share_b: OpenedShare, E: Array[Array[Byte]]): Boolean = {
+  private def checkOnCRS(cs: Cryptosystem,
+                         h: Point,
+                         share_a: OpenedShare,
+                         share_b: OpenedShare,
+                         E: Array[Array[Byte]]): Boolean = {
+
     var E_sum: ECPoint = cs.infinityPoint
 
     for(i <- E.indices) {
@@ -655,6 +661,69 @@ object DistrKeyGen {
     CRS_Shares.equals(E_sum)
   }
 
+  def checkComplaintR2(cs: Cryptosystem,
+                       complaint: ComplaintR2): Boolean = {
+
+    def checkProof(pubKey: PubKey, proof: ShareProof): Boolean = {
+      ElgamalDecrNIZK.verifyNIZK(
+        cs,
+        pubKey,
+        proof.encryptedShare.encryptedKey,
+        proof.decryptedShare.decryptedKey,
+        proof.NIZKProof)
+    }
+
+    def checkEncryption(proof: ShareProof): Boolean = {
+      val ciphertext = cs.hybridEncrypt(
+        cs.infinityPoint,                     // for this verification no matter what public key is used
+        proof.decryptedShare.decryptedMessage,
+        Array.fill(32)(1.toByte),             // for this verification no matter what secret seed is used
+        Some(proof.decryptedShare.decryptedKey))
+
+      ciphertext.encryptedMessage.sameElements(proof.encryptedShare.encryptedMessage)
+    }
+
+    val publicKey = complaint.issuerPublicKey
+    val proof_a = complaint.shareProof_a
+    val proof_b = complaint.shareProof_b
+
+    (checkProof(publicKey, proof_a) && checkEncryption(proof_a)) &&
+      (checkProof(publicKey, proof_b) && checkEncryption(proof_b))
+  }
+
+  def checkCommitmentR3(cs: Cryptosystem,
+                        share: Share,
+                        commitment: Array[Array[Byte]]): Boolean = {
+
+    val A = commitment.map(cs.decodePoint)
+    val X = BigInteger.valueOf(share.share_a.receiverID.toLong + 1)
+
+    var A_sum: ECPoint = cs.infinityPoint
+
+    for(i <- A.indices) {
+      A_sum = A_sum.add(A(i).multiply(X.pow(i)))
+    }
+
+    val share_a = new BigInteger(share.share_a.S.decryptedMessage)
+    val g_sa = cs.basePoint.multiply(share_a)
+
+    g_sa.equals(A_sum)
+  }
+
+  /**
+    * Calculates a shared public key, using a data, generated during execution of the rounds 1 - 5.1 of the DKG protocol.
+    *
+    * @param cs cryptosystem, which should be used for a shared public key calculation
+    * @param membersPubKeys public keys of all members, who participated in DKG protocol
+    * @param memberIdentifier generator of members identifiers, based on the list of members public keys (membersPubKeys)
+    * @param roundsData data of all protocol members for the rounds 1 - 5.1
+    * @return Success(SharedPublicKey), where the SharedPublicKey is an encoded to a byte representation shared public key - in case of success;
+    *         Failure(e) - if an error during computations has occurred.
+    */
+  def getSharedPublicKey (cs:                       Cryptosystem,
+                          membersPubKeys:           Seq[PubKey],
+                          memberIdentifier:         Identifier[Int],
+                          roundsData:               RoundsData): Try[SharedPublicKey] = Try {
 
   def getDisqualifiedOnR1CommitteeMembersIDs(cs: Cryptosystem,
                                              membersPubKeys: Seq[PubKey],
@@ -890,5 +959,131 @@ object DistrKeyGen {
     }
 
     recoveredPrivKey
+  }
+  def checkR1Data(r1Data:           R1Data,
+                  memberIdentifier: Identifier[Int],
+                  membersPubKeys:   Seq[PubKey]): Try[Unit] = Try {
+
+    val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
+    require(membersIDs.contains(r1Data.issuerID), "Illegal issuer's ID")
+
+    val membersNum = membersPubKeys.length
+    require(r1Data.E.length   <= membersNum, "Exceeding number of CRS commitments")
+    require(r1Data.S_a.length <= membersNum, "Exceeding number of S_a secret shares")
+    require(r1Data.S_b.length <= membersNum, "Exceeding number of S_b secret shares")
+
+    // CRS commitment validity can verify only a member of DKG protocol, as a private key for secret shares decryption is needed
+  }
+
+  def checkR2Data(r2Data:           R2Data,
+                  memberIdentifier: Identifier[Int],
+                  membersPubKeys:   Seq[PubKey],
+                  cs:               Cryptosystem): Try[Unit] = Try {
+
+    val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
+    require(membersIDs.contains(r2Data.issuerID), "Illegal issuer's ID")
+
+    val membersNum = membersPubKeys.length
+    require(r2Data.complaints.length <= membersNum, "Exceeding number of R2 complaints")
+
+    r2Data.complaints.foreach {
+      c =>
+        require(membersIDs.contains(c.violatorID), "Illegal violator's ID")
+        require(membersPubKeys.contains(c.issuerPublicKey), "Illegal issuer's public key")
+        require(checkComplaintR2(cs, c), "Illegal complaint R2")
+    }
+  }
+
+  def checkR3Data(r3Data:           R3Data,
+                  memberIdentifier: Identifier[Int],
+                  membersPubKeys:   Seq[PubKey]): Try[Unit] = Try {
+
+    val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
+    require(membersIDs.contains(r3Data.issuerID), "Illegal issuer's ID")
+
+    val membersNum = membersPubKeys.length
+    require(r3Data.commitments.length <= membersNum, "Exceeding number of commitments")
+
+    // Commitment validity can verify only a member of DKG protocol, as a set of decrypted on his private key shares is needed
+  }
+
+  def checkR4Data(r4Data:           R4Data,
+                  memberIdentifier: Identifier[Int],
+                  membersPubKeys:   Seq[PubKey],
+                  cs:               Cryptosystem,
+                  h:                Point,
+                  r1DataSeq:        Seq[R1Data],
+                  r3DataSeq:        Seq[R3Data]): Try[Unit] = Try {
+
+    val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
+    require(membersIDs.contains(r4Data.issuerID), "Illegal issuer's ID")
+
+    val membersNum = membersPubKeys.length
+    require(r4Data.complaints.length <= membersNum, "Exceeding number of R4 complaints")
+
+    def checkComplaintR4(complaint: ComplaintR4): Boolean = {
+
+      val r1DataOpt = r1DataSeq.find(_.issuerID == complaint.violatorID)
+      require(r1DataOpt.isDefined, s"R1 commitments are absent for ${complaint.violatorID}")
+
+      val r3DataOpt = r3DataSeq.find(_.issuerID == complaint.violatorID)
+      require(r3DataOpt.isDefined, s"R3 commitments are absent for ${complaint.violatorID}")
+
+      val CRS_Ok = checkOnCRS(cs, h, complaint.share_a, complaint.share_b, r1DataOpt.get.E)
+
+      val share = Share(r1DataOpt.get.issuerID, complaint.share_a, complaint.share_b)
+      val Commitment_Ok = checkCommitmentR3(cs, share, r3DataOpt.get.commitments)
+
+      CRS_Ok && !Commitment_Ok
+    }
+
+    r4Data.complaints.foreach {
+      c =>
+        require(membersIDs.contains(c.violatorID), "Illegal violator's ID")
+        require(c.share_a.receiverID == r4Data.issuerID, s"Share_a doesn't belong to the issuer ${r4Data.issuerID} (share_a receiver ID is ${c.share_a.receiverID})")
+        require(c.share_b.receiverID == r4Data.issuerID, s"Share_a doesn't belong to the issuer ${r4Data.issuerID} (share_b receiver ID is ${c.share_b.receiverID})")
+        require(checkComplaintR4(c), s"Illegal complaint on ${c.violatorID} from ${r4Data.issuerID}")
+    }
+  }
+
+  def checkR5Data(r5_1Data:         R5_1Data,
+                  memberIdentifier: Identifier[Int],
+                  membersPubKeys:   Seq[PubKey],
+                  cs:               Cryptosystem,
+                  r1DataSeq:        Seq[R1Data]): Try[Unit] = Try {
+
+    val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
+    require(membersIDs.contains(r5_1Data.issuerID), "Illegal issuer's ID")
+
+    val membersNum = membersPubKeys.length
+    require(r5_1Data.violatorsShares.length <= membersNum, "Exceeding number of R5_1 opened shares")
+
+    def checkOpenedShare(shareIssuerID: Integer, share: OpenedShare): Boolean = {
+
+      val r1DataOpt = r1DataSeq.find(_.issuerID == shareIssuerID)
+      require(r1DataOpt.isDefined, s"Missing secret shares of $shareIssuerID")
+
+      val secretShareOpt = r1DataOpt.get.S_a.find(_.receiverID == share.receiverID)
+      require(secretShareOpt.isDefined, s"Secret share for ${share.receiverID} is missing among secret shares of $shareIssuerID")
+
+      val shareCiphertext = cs.hybridEncrypt(
+        cs.infinityPoint,                     // for this verification no matter what public key is used
+        share.S.decryptedMessage,
+        Array.fill(32)(1.toByte),             // for this verification no matter what secret seed is used
+        Some(share.S.decryptedKey)
+      )
+
+      // Check if an encrypted opened share is the same as previously submitted secret share
+      secretShareOpt.get.S.encryptedMessage.sameElements(
+        shareCiphertext.encryptedMessage
+      )
+    }
+
+    r5_1Data.violatorsShares.foreach {
+      s =>
+        require(membersIDs.contains(s._1), "Illegal violator's ID")
+        require(s._2.receiverID == r5_1Data.issuerID, s"Share doesn't belong to the issuer ${r5_1Data.issuerID} (share receiver ID is ${s._2.receiverID})")
+        require(checkOpenedShare(s._1, s._2))
+    }
   }
 }

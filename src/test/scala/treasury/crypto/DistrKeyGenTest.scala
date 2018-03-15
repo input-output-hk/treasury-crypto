@@ -34,6 +34,7 @@ class DistrKeyGenTest  extends FunSuite {
       new CommitteeMember(cs, crs_h, keyPairs(i), committeeMembersPubKeys)
     }
 
+    val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
     val roundsData = RoundsData()
 
     val r1Data = for (i <- committeeMembersPubKeys.indices) yield {
@@ -55,10 +56,26 @@ class DistrKeyGenTest  extends FunSuite {
       }
     }
 
+    r1Data.foreach{
+      r1 =>
+        DistrKeyGen.checkR1Data(r1, memberIdentifier, committeeMembersPubKeys) match {
+          case Success(_) =>
+          case _ => println(s"Incorrect R1 data from member ${r1.issuerID}")
+        }
+    }
+
     roundsData.r1Data = r1Data
 
     val r2Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR2(r1Data)
+    }
+
+    r2Data.foreach{
+      r2 =>
+        DistrKeyGen.checkR2Data(r2, memberIdentifier, committeeMembersPubKeys, cs) match {
+          case Success(_) =>
+          case _ => println(s"Incorrect R2 data from member ${r2.issuerID}")
+        }
     }
 
     roundsData.r2Data = r2Data
@@ -82,16 +99,40 @@ class DistrKeyGenTest  extends FunSuite {
       }
     }
 
+    r3Data.foreach{
+      r3 =>
+        DistrKeyGen.checkR3Data(r3, memberIdentifier, committeeMembersPubKeys) match {
+          case Success(_) =>
+          case _ => println(s"Incorrect R3 data from member ${r3.issuerID}")
+        }
+    }
+
     roundsData.r3Data = r3Data
 
     val r4Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR4(r3Data)
     }
 
+    r4Data.foreach{
+      r4 =>
+        DistrKeyGen.checkR4Data(r4, memberIdentifier, committeeMembersPubKeys, cs, crs_h, r1Data, r3Data) match {
+          case Success(_) =>
+          case _ => println(s"Incorrect R4 data from member ${r4.issuerID}")
+        }
+    }
+
     roundsData.r4Data = r4Data
 
     val r5_1Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR5_1(r4Data)
+    }
+
+    r5_1Data.foreach{
+      r5 =>
+        DistrKeyGen.checkR5Data(r5, memberIdentifier, committeeMembersPubKeys, cs, r1Data) match {
+          case Success(_) =>
+          case _ => println(s"Incorrect R5_1 data from member ${r5.issuerID}")
+        }
     }
 
     roundsData.r5_1Data = r5_1Data
@@ -131,8 +172,6 @@ class DistrKeyGenTest  extends FunSuite {
 
     // Verify, that shared public key is equal to the original public key
     assert(publicKeysSum.equals(sharedPublicKeys(0)))
-
-    val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
 
     val sharedPubKey = cs.decodePoint(DistrKeyGen.getSharedPublicKey(cs, committeeMembersPubKeys, memberIdentifier, roundsData).get)
     assert(publicKeysSum.equals(sharedPubKey))
