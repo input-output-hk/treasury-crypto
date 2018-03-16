@@ -72,7 +72,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     r2Data.foreach{
       r2 =>
-        DistrKeyGen.checkR2Data(r2, memberIdentifier, committeeMembersPubKeys, cs) match {
+        DistrKeyGen.checkR2Data(r2, memberIdentifier, committeeMembersPubKeys, cs, crs_h, r1Data) match {
           case Success(_) =>
           case _ => println(s"Incorrect R2 data from member ${r2.issuerID}")
         }

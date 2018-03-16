@@ -8,13 +8,13 @@ import treasury.crypto.keygen.IntAccumulator
 import scala.util.Try
 
 case class SecretShare(receiverID: Integer, S: HybridCiphertext)
-    extends HasSize with BytesSerializable {
+  extends HasSize with BytesSerializable {
 
-    override type M = SecretShare
-    override val serializer: Serializer[M] = SecretShareSerializer
+  override type M = SecretShare
+  override val serializer: Serializer[M] = SecretShareSerializer
 
-    def size: Int = bytes.length
-  }
+  def size: Int = bytes.length
+}
 
 object SecretShareSerializer extends Serializer[SecretShare] {
 

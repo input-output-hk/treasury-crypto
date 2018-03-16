@@ -11,7 +11,7 @@ import treasury.crypto.keygen.datastructures.round4.{ComplaintR4, OpenedShare, R
 import treasury.crypto.keygen.datastructures.round5_1.R5_1Data
 import treasury.crypto.keygen.datastructures.round5_2.{R5_2Data, SecretKey}
 import treasury.crypto.nizk.ElgamalDecrNIZK
-import treasury.crypto.keygen.DistrKeyGen.{checkOnCRS, checkComplaintR2, checkCommitmentR3 }
+import treasury.crypto.keygen.DistrKeyGen.{checkCommitmentR3, checkComplaintR2, checkOnCRS}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
@@ -27,6 +27,7 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
   private val CRS_commitments = new ArrayBuffer[CRS_commitment]() // CRS commitments of other participants
   private val commitments     = new ArrayBuffer[Commitment]()     // Commitments of other participants
   private val shares          = new ArrayBuffer[Share]()          // Shares of other participants
+  private val secretShares    = new ArrayBuffer[ShareEncrypted]()
   private val violatorsIDs    = new ArrayBuffer[Integer]()        // ID's of members-violators (absent on the 1-st round, and those, who supplied incorrect commitments on rounds 1 and 3)
   private val absenteesIDs    = new ArrayBuffer[Integer]()        // ID's of members who were absent on round 3, so their secrets should be reconstructed
 
@@ -168,6 +169,7 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
           val openedShare_b = OpenedShare(secretShare_b.receiverID, cs.hybridDecrypt(ownPrivateKey, secretShare_b.S))
 
           if(checkOnCRS(cs, h, openedShare_a, openedShare_b, r1Data(i).E)) {
+            secretShares += ShareEncrypted(r1Data(i).issuerID, secretShare_a, secretShare_b)
             shares += Share(r1Data(i).issuerID, openedShare_a, openedShare_b)
             CRS_commitments += CRS_commitment(r1Data(i).issuerID, r1Data(i).E.map(x => cs.decodePoint(x)))
           }
@@ -271,12 +273,22 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
         val complaint = r2Data(i).complaints(j)
         val violatorID = complaint.violatorID
 
-        if(violatorID != ownID &&
-           checkComplaintR2(cs, complaint)) {
+        val violatorsCRSCommitment = CRS_commitments.find(_.issuerID == violatorID)
+        val violatorsSecretShare = secretShares.find(_.issuerID == violatorID)
 
-          val violatorCRSCommitment = CRS_commitments.find(_.issuerID == violatorID)
-          if(violatorCRSCommitment.isDefined)
-            CRS_commitments -= violatorCRSCommitment.get
+        if(violatorID != ownID &&
+           violatorsCRSCommitment.isDefined &&
+           violatorsSecretShare.isDefined &&
+           checkComplaintR2(
+             complaint,
+             violatorsSecretShare.get,
+             memberIdentifier,
+             cs,
+             h,
+             violatorsCRSCommitment.get.crs_commitment.map(_.getEncoded(true)))) {
+
+          CRS_commitments -= violatorsCRSCommitment.get
+          secretShares -= violatorsSecretShare.get
 
           val violatorShare = shares.find(_.issuerID == violatorID)
           if(violatorShare.isDefined)
@@ -661,8 +673,12 @@ object DistrKeyGen {
     CRS_Shares.equals(E_sum)
   }
 
-  def checkComplaintR2(cs: Cryptosystem,
-                       complaint: ComplaintR2): Boolean = {
+  def checkComplaintR2(complaint:         ComplaintR2,
+                       secretShare:       ShareEncrypted,
+                       memberIdentifier:  Identifier[Int],
+                       cs:                Cryptosystem,
+                       h:                 Point,
+                       E:                 Array[Array[Byte]]): Boolean = {
 
     def checkProof(pubKey: PubKey, proof: ShareProof): Boolean = {
       ElgamalDecrNIZK.verifyNIZK(
@@ -680,7 +696,27 @@ object DistrKeyGen {
         Array.fill(32)(1.toByte),             // for this verification no matter what secret seed is used
         Some(proof.decryptedShare.decryptedKey))
 
-      ciphertext.encryptedMessage.sameElements(proof.encryptedShare.encryptedMessage)
+      val shareDecryptedCorrectly = ciphertext.encryptedMessage.sameElements(proof.encryptedShare.encryptedMessage)
+
+      val receiverID = memberIdentifier.getId(complaint.issuerPublicKey)
+
+      val complaintIsCorrect = {
+        if (receiverID.isDefined){
+
+          val share_a = OpenedShare(receiverID.get, complaint.shareProof_a.decryptedShare)
+          val share_b = OpenedShare(receiverID.get, complaint.shareProof_b.decryptedShare)
+
+          // Check, that decrypted shares corresponds to the previously submitted secret shares
+          // Check, that shares doesn't correspond to the submitted CRS commitments
+          sharesAreEqual(share_a, secretShare.share_a, cs) &&
+          sharesAreEqual(share_b, secretShare.share_b, cs) &&
+          !checkOnCRS(cs, h, share_a, share_b, E)
+
+        } else {
+          false
+        }
+      }
+      shareDecryptedCorrectly && complaintIsCorrect
     }
 
     val publicKey = complaint.issuerPublicKey
@@ -708,6 +744,23 @@ object DistrKeyGen {
     val g_sa = cs.basePoint.multiply(share_a)
 
     g_sa.equals(A_sum)
+  }
+
+  def sharesAreEqual(openedShare: OpenedShare,
+                     secretShare: SecretShare,
+                     cs:          Cryptosystem): Boolean = {
+
+    val shareCiphertext = cs.hybridEncrypt(
+      cs.infinityPoint,                     // for this verification no matter what public key is used
+      openedShare.S.decryptedMessage,
+      Array.fill(32)(1.toByte),             // for this verification no matter what secret seed is used
+      Some(openedShare.S.decryptedKey)
+    )
+
+    // Check if an encrypted opened share is the same as secret share
+    secretShare.S.encryptedMessage.sameElements(
+      shareCiphertext.encryptedMessage
+    )
   }
 
   def getDisqualifiedOnR1CommitteeMembersIDs(cs: Cryptosystem,
@@ -906,14 +959,9 @@ object DistrKeyGen {
                                openedShare: OpenedShare): Try[Unit] = Try {
     val issuerId = memberIdentifier.getId(issuerPubKey).get
     val violatorId = memberIdentifier.getId(violatorPubKey).get
-
-    val encryptedShare = cs.hybridEncrypt(issuerPubKey,                         // for this verification no matter what public key is used
-                                          openedShare.S.decryptedMessage,
-                                          Array.fill(32)(1.toByte),             // for this verification no matter what secret seed is used
-                                          Some(openedShare.S.decryptedKey))
     val submittedShare = r1Data.find(_.issuerID == violatorId).get.S_a.find(_.receiverID == issuerId).get
 
-    require(encryptedShare.encryptedMessage.sameElements(submittedShare.S.encryptedMessage), "OpenedShare doesn't conform to the submitted share")
+    require(sharesAreEqual(openedShare, submittedShare, cs), "OpenedShare doesn't conform to the submitted share")
   }
 
   /**
@@ -945,6 +993,7 @@ object DistrKeyGen {
 
     recoveredPrivKey
   }
+
   def checkR1Data(r1Data:           R1Data,
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey]): Try[Unit] = Try {
@@ -953,9 +1002,14 @@ object DistrKeyGen {
     require(membersIDs.contains(r1Data.issuerID), "Illegal issuer's ID")
 
     val membersNum = membersPubKeys.length
-    require(r1Data.E.length   <= membersNum, "Exceeding number of CRS commitments")
-    require(r1Data.S_a.length <= membersNum, "Exceeding number of S_a secret shares")
-    require(r1Data.S_b.length <= membersNum, "Exceeding number of S_b secret shares")
+    val t = (membersNum.toFloat / 2).ceil.toInt
+
+    require(r1Data.E.length   == t, "Incorrect number of CRS commitments")
+    require(r1Data.S_a.length == membersNum - 1, "Incorrect number of S_a secret shares")
+    require(r1Data.S_b.length == membersNum - 1, "Incorrect number of S_b secret shares")
+
+    require(r1Data.S_a.map(_.receiverID).distinct.length == r1Data.S_a.map(_.receiverID).length, "Duplicates of S_a secret shares receivers are present")
+    require(r1Data.S_b.map(_.receiverID).distinct.length == r1Data.S_b.map(_.receiverID).length, "Duplicates of S_b secret shares receivers are present")
 
     // CRS commitment validity can verify only a member of DKG protocol, as a private key for secret shares decryption is needed
   }
@@ -963,7 +1017,9 @@ object DistrKeyGen {
   def checkR2Data(r2Data:           R2Data,
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey],
-                  cs:               Cryptosystem): Try[Unit] = Try {
+                  cs:               Cryptosystem,
+                  h:                Point,
+                  r1DataSeq:        Seq[R1Data]): Try[Unit] = Try {
 
     val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
     require(membersIDs.contains(r2Data.issuerID), "Illegal issuer's ID")
@@ -971,11 +1027,29 @@ object DistrKeyGen {
     val membersNum = membersPubKeys.length
     require(r2Data.complaints.length <= membersNum, "Exceeding number of R2 complaints")
 
+    require(r2Data.complaints.map(_.violatorID).distinct.length == r2Data.complaints.map(_.violatorID).length, "Duplicates of R2 complaints are present")
+
+    def checkComplaint(complaint: ComplaintR2): Boolean = {
+
+      val r1DataOpt = r1DataSeq.find(_.issuerID == complaint.violatorID)
+      require(r1DataOpt.isDefined, s"Missing R1 data of ${complaint.violatorID}")
+
+      val secretShare_a = r1DataOpt.get.S_a.find(_.receiverID == r2Data.issuerID)
+      val secretShare_b = r1DataOpt.get.S_b.find(_.receiverID == r2Data.issuerID)
+
+      require(secretShare_a.isDefined, s"Missing secret share from ${complaint.violatorID} for ${r2Data.issuerID}")
+      require(secretShare_b.isDefined, s"Missing secret share from ${complaint.violatorID} for ${r2Data.issuerID}")
+
+      val secretShare = ShareEncrypted(complaint.violatorID, secretShare_a.get, secretShare_b.get)
+
+      checkComplaintR2(complaint, secretShare, memberIdentifier, cs, h, r1DataOpt.get.E)
+    }
+
     r2Data.complaints.foreach {
       c =>
         require(membersIDs.contains(c.violatorID), "Illegal violator's ID")
         require(membersPubKeys.contains(c.issuerPublicKey), "Illegal issuer's public key")
-        require(checkComplaintR2(cs, c), "Illegal complaint R2")
+        require(checkComplaint(c), "Illegal complaint R2")
     }
   }
 
@@ -987,7 +1061,9 @@ object DistrKeyGen {
     require(membersIDs.contains(r3Data.issuerID), "Illegal issuer's ID")
 
     val membersNum = membersPubKeys.length
-    require(r3Data.commitments.length <= membersNum, "Exceeding number of commitments")
+    val t = (membersNum.toFloat / 2).ceil.toInt
+
+    require(r3Data.commitments.length == t, "Incorrect number of commitments")
 
     // Commitment validity can verify only a member of DKG protocol, as a set of decrypted on his private key shares is needed
   }
@@ -1022,6 +1098,8 @@ object DistrKeyGen {
       CRS_Ok && !Commitment_Ok
     }
 
+    require(r4Data.complaints.map(_.violatorID).distinct.length == r4Data.complaints.map(_.violatorID).length, "Duplicates of R4 complaints are present")
+
     r4Data.complaints.foreach {
       c =>
         require(membersIDs.contains(c.violatorID), "Illegal violator's ID")
@@ -1051,18 +1129,11 @@ object DistrKeyGen {
       val secretShareOpt = r1DataOpt.get.S_a.find(_.receiverID == share.receiverID)
       require(secretShareOpt.isDefined, s"Secret share for ${share.receiverID} is missing among secret shares of $shareIssuerID")
 
-      val shareCiphertext = cs.hybridEncrypt(
-        cs.infinityPoint,                     // for this verification no matter what public key is used
-        share.S.decryptedMessage,
-        Array.fill(32)(1.toByte),             // for this verification no matter what secret seed is used
-        Some(share.S.decryptedKey)
-      )
-
       // Check if an encrypted opened share is the same as previously submitted secret share
-      secretShareOpt.get.S.encryptedMessage.sameElements(
-        shareCiphertext.encryptedMessage
-      )
+      sharesAreEqual(share, secretShareOpt.get, cs)
     }
+
+    require(r5_1Data.violatorsShares.map(_._1).distinct.length == r5_1Data.violatorsShares.map(_._1).length, "Duplicates of violators shares are present")
 
     r5_1Data.violatorsShares.foreach {
       s =>
