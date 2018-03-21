@@ -20,7 +20,8 @@ import scala.util.Try
 class CommitteeMember(val cs: Cryptosystem,
                       val h: Point,
                       val transportKeyPair: KeyPair,
-                      val committeeMembersPubKeys: Seq[PubKey]) {
+                      val committeeMembersPubKeys: Seq[PubKey],
+                      roundsData: RoundsData = RoundsData()) {
 
 //  // SimpleIdentifier is useful for debugging purposes, but in real it's better to not rely on an order stability of the externally provided public keys
 //  val memberIdentifier = SimpleIdentifier(committeeMembersPubKeys)
@@ -28,24 +29,20 @@ class CommitteeMember(val cs: Cryptosystem,
   // Here public keys are forcibly sorted, thus their indices, which plays the role of member ID, will be always the same for the same set of public keys
   val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
 
-  // DistrKeyGen depends on common system parameters, committee member's keypair and set of committee members. It encapsulates the shared key generation logic.
-  private val dkg = new DistrKeyGen(cs, h, transportKeyPair, committeeMembersPubKeys, memberIdentifier)
-
   val secretKey = transportKeyPair._1
   val publicKey = transportKeyPair._2
-  val ownId: Integer = dkg.ownID
 
+  // DistrKeyGen depends on common system parameters, committee member's keypair and set of committee members. It encapsulates the shared key generation logic.
+  private val dkg = new DistrKeyGen(cs, h, transportKeyPair, secretKey, committeeMembersPubKeys, memberIdentifier, roundsData)
+
+  val ownId: Integer = dkg.ownID
   var dkgViolatorsSKs: Array[BigInteger] = Array[BigInteger]()
   var dkgViolatorsIds: Set[Integer] = Set()
   var decryptionViolatorsIds: Set[Int] = Set()
   var delegations: Option[Seq[Element]] = None
 
-  def setState(roundsData: RoundsData): Try[Option[SharedPublicKey]] = {
-    dkg.setState(secretKey.toByteArray, roundsData)
-  }
-
   def setKeyR1(): R1Data = {
-    dkg.doRound1(secretKey.toByteArray) match {
+    dkg.doRound1() match {
       case Some(data) => data
       case None =>
         println("doRound1 returned None")

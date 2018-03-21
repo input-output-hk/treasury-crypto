@@ -7,7 +7,7 @@ import treasury.crypto.keygen.datastructures.round1.R1Data
 import treasury.crypto.keygen.datastructures.round3.R3Data
 
 import scala.collection.mutable.ArrayBuffer
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 class DistrKeyGenTest  extends FunSuite {
 
@@ -282,8 +282,7 @@ class DistrKeyGenTest  extends FunSuite {
     }).toBuffer
 
     def reCreateMember(memberIndex: Int, roundsData: RoundsData){
-      committeeMembers(memberIndex) = new CommitteeMember(cs, crs_h, keyPairs(memberIndex), committeeMembersPubKeys)
-      committeeMembers(memberIndex).setState(roundsData)
+      committeeMembers(memberIndex) = new CommitteeMember(cs, crs_h, keyPairs(memberIndex), committeeMembersPubKeys, roundsData)
     }
     val roundsData = RoundsData()
 
@@ -338,17 +337,22 @@ class DistrKeyGenTest  extends FunSuite {
 
     //--------------------------------------------------------------------------------
     val memberIndex = 1
-    val dkg = new DistrKeyGen(cs, crs_h, keyPairs(memberIndex), committeeMembersPubKeys, new CommitteeIdentifier(committeeMembersPubKeys))
 
-    //    roundsData.r1Data.head.E(0) = Array.fill(1)(0.toByte)
+//    roundsData.r1Data.head.E(0) = Array.fill(1)(0.toByte)
 
-    val sharedPubKey = dkg.setState(committeeMembers(memberIndex).secretKey.toByteArray, roundsData) match {
-      case Success(sharedPubKeyOpt) =>
-        sharedPubKeyOpt match {
-          case Some(key) => cs.decodePoint(key).normalize()
-          case None => cs.infinityPoint
-        }
-      case Failure(e) => println("EXCEPTION: " + e.getMessage)
+    val sharedPubKey = {
+      Try {
+        new DistrKeyGen(cs, crs_h, keyPairs(memberIndex), committeeMembers(memberIndex).secretKey, committeeMembersPubKeys, new CommitteeIdentifier(committeeMembersPubKeys), roundsData)
+      } match {
+        case Success(dkg) =>
+          dkg.roundsDataCache.r5_2Data.headOption match {
+            case Some(data) => cs.decodePoint(data.sharedPublicKey).normalize()
+            case None => cs.infinityPoint
+          }
+        case Failure(e) =>
+          println("EXCEPTION: " + e.getMessage)
+          cs.infinityPoint
+      }
     }
     //--------------------------------------------------------------------------------
     val sharedPublicKeys = r5_2Data.map(_._2.sharedPublicKey).map(x => cs.decodePoint(x).normalize())
@@ -379,8 +383,7 @@ class DistrKeyGenTest  extends FunSuite {
     }).toBuffer
 
     def reCreateMember(memberIndex: Int, roundsData: RoundsData) {
-      committeeMembers(memberIndex) = new CommitteeMember(cs, crs_h, keyPairs(memberIndex), committeeMembersPubKeys)
-      committeeMembers(memberIndex).setState(roundsData)
+      committeeMembers(memberIndex) = new CommitteeMember(cs, crs_h, keyPairs(memberIndex), committeeMembersPubKeys, roundsData)
     }
 
     def removeMemberFromEnd(absenteesPublicKeysAccumulator: ArrayBuffer[(Integer, org.bouncycastle.math.ec.ECPoint)]) {
@@ -458,17 +461,22 @@ class DistrKeyGenTest  extends FunSuite {
     //--------------------------------------------------------------------------------
 
     val memberIndex = 6
-    val dkg = new DistrKeyGen(cs, crs_h, keyPairs(memberIndex), committeeMembersPubKeys, new CommitteeIdentifier(committeeMembersPubKeys))
 
 //    roundsData.r1Data.head.E(0) = Array.fill(1)(0.toByte)
 
-    val sharedPubKey = dkg.setState(committeeMembers(memberIndex).secretKey.toByteArray, roundsData) match {
-      case Success(sharedPubKeyOpt) =>
-        sharedPubKeyOpt match {
-          case Some(key) => cs.decodePoint(key).normalize()
-          case None => cs.infinityPoint
+    val sharedPubKey = {
+      Try {
+        new DistrKeyGen(cs, crs_h, keyPairs(memberIndex), committeeMembers(memberIndex).secretKey, committeeMembersPubKeys, new CommitteeIdentifier(committeeMembersPubKeys), roundsData)
+      } match {
+        case Success(dkg) =>
+          dkg.roundsDataCache.r5_2Data.headOption match {
+            case Some(data) => cs.decodePoint(data.sharedPublicKey).normalize()
+            case None => cs.infinityPoint
+          }
+        case Failure(e) =>
+          println("EXCEPTION: " + e.getMessage)
+          cs.infinityPoint
       }
-      case Failure(e) => println("EXCEPTION: " + e.getMessage)
     }
     //--------------------------------------------------------------------------------
     val sharedPublicKeys = r5_2Data.map(_._2.sharedPublicKey).map(x => cs.decodePoint(x).normalize())
