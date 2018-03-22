@@ -3,6 +3,7 @@ package treasury.crypto.keygen
 import java.math.BigInteger
 
 import treasury.crypto.core._
+import treasury.crypto.decryption.DecryptionManager
 import treasury.crypto.keygen.datastructures.C1Share
 import treasury.crypto.keygen.datastructures.round1.{R1Data, SecretShare}
 import treasury.crypto.keygen.datastructures.round2.{ComplaintR2, R2Data}

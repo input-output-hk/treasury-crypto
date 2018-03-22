@@ -3,7 +3,7 @@ package treasury.crypto.common
 import java.math.BigInteger
 
 import treasury.crypto.core._
-import treasury.crypto.keygen.DecryptionManager
+import treasury.crypto.decryption.DecryptionManager
 import treasury.crypto.keygen.datastructures.C1Share
 import treasury.crypto.nizk.ElgamalDecrNIZK
 import treasury.crypto.voting.Tally.decryptVectorOnC1
