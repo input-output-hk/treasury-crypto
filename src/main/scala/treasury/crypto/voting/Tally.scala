@@ -64,7 +64,12 @@ object Tally {
       }
     )
 
-    expertsChoicesSum.zip(regularChoicesSum).map(x => cs.add(x._1, x._2))
+    if (expertsChoicesSum.nonEmpty && regularChoicesSum.nonEmpty)
+      expertsChoicesSum.zip(regularChoicesSum).map(x => cs.add(x._1, x._2))
+    else if (expertsChoicesSum.nonEmpty)
+      expertsChoicesSum
+    else
+      regularChoicesSum
   }
 
   /**
