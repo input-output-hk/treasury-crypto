@@ -21,8 +21,11 @@ import scala.util.Try
 class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which should be used for protocol running
                   h:                Point,            // CRS parameter
                   transportKeyPair: KeyPair,          // key pair for shares encryption/decryption
+                  secretKey:        PrivKey,          // secret key (own private key), which will be used for generation of the shared public key
                   membersPubKeys:   Seq[PubKey],      // public keys of all protocol members, including own public key from transportKeyPair
-                  memberIdentifier: Identifier[Int])  // generator of members identifiers, based on the list of members public keys (membersPubKeys)
+                  memberIdentifier: Identifier[Int],  // generator of members identifiers, based on the list of members public keys (membersPubKeys)
+                  roundsData:       RoundsData        // data of all protocol members for all rounds, which has been already executed
+                 )
 {
   private val CRS_commitments = new ArrayBuffer[CRS_commitment]() // CRS commitments of other participants
   private val commitments     = new ArrayBuffer[Commitment]()     // Commitments of other participants
@@ -47,6 +50,7 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
   private var roundsPassed: Int = 0
   def getRoundsPassed: Int = roundsPassed
 
+  if (initialize(roundsData).isFailure) throw new Exception("Wasn't initialized!")
 
   def getShare(id: Integer): Option[BigInteger] = {
 
@@ -70,11 +74,10 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
     * If this method is called more than once during the same protocol execution, the cached R1Data from the firstest method execution will be returned.
     * If this method is called out of the supposed by the protocol order, then None will be returned.
     *
-    * @param secretKey secret key (own private key), which will be used for generation of the shared public key
     * @param prevR1Data optional, R1data from previous execution of this round (should be passed during internal state restoring)
     * @return Some(R1Data) if success, None otherwise
     */
-  def doRound1(secretKey: Array[Byte], prevR1Data: Option[R1Data] = None): Option[R1Data] = {
+  def doRound1(prevR1Data: Option[R1Data] = None): Option[R1Data] = {
 
     roundsPassed match {
       case 1 => return roundsDataCache.r1Data.headOption // Round is already executed, return the cashed round output
@@ -82,8 +85,8 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
       case 0 =>
     }
 
-    val poly_a = new Polynomial(cs, new BigInteger(secretKey), t)
-    val poly_b = new Polynomial(cs, new BigInteger(secretKey), t)
+    val poly_a = new Polynomial(cs, secretKey, t)
+    val poly_b = new Polynomial(cs, secretKey, t)
 
     for(i <- A.indices)
       A(i) = g.multiply(poly_a(i)).normalize()
@@ -595,17 +598,13 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
     * Availability of an own data in a certain round means, that round has been already locally executed, thus the local DKG state should be accordingly modified.
     *
     * NOTE (for usage in the DLT systems):
-    * When collecting roundsData, in the incomplete round the own data should be searched in mempool as well as in history.
+    * When collecting roundsData, in the incomplete round the own data should be searched in a mempool as well as in a history.
     *
-    * @param secretKey secret key (own private key), which will be used for generation of the shared public key
-    * @param roundsData data of all protocol members for the all rounds, which has been already executed
-    * @return Success(Some(SharedPublicKey)) if all 6 rounds has been executed successfully;
-    *         Success(None) if not all 6 rounds has been executed, and execution should be continued after state restoring;
+    * @param roundsData data of all protocol members for all rounds, which has been already executed
+    * @return Success(Unit) if current state has been restored successfully;
     *         Failure(e)    if an error during state restoring has occurred (mainly because of inconsistency of newly generated and previously obtained own round data).
     */
-  def setState(secretKey: Array[Byte], roundsData: RoundsData): Try[Option[SharedPublicKey]] = Try {
-
-    var sharedPubKey: Option[SharedPublicKey] = None
+  def initialize(roundsData: RoundsData): Try[Unit] = Try {
 
     val ownRound1Data = roundsData.r1Data.find(_.issuerID == ownID)
     val ownRound2Data = roundsData.r2Data.find(_.issuerID == ownID)
@@ -616,7 +615,7 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
 
     if (ownRound1Data.isDefined)
     {
-      val r1Data = doRound1(secretKey, ownRound1Data)
+      val r1Data = doRound1(ownRound1Data)
       require(r1Data.isDefined, "r1Data != ownRound1Data")
 
       if (ownRound2Data.isDefined && roundsData.r1Data.nonEmpty)
@@ -643,15 +642,12 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
               {
                 val r5_2Data = doRound5_2(roundsData.r5_1Data, ownRound5_2Data)
                 require(r5_2Data.isDefined, "r5_2Data != ownRound5_2Data")
-
-                sharedPubKey = Some(r5_2Data.get.sharedPublicKey)
               }
             }
           }
         }
       }
     }
-    sharedPubKey
   }
 }
 
