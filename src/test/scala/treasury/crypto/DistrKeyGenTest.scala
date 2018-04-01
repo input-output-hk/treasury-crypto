@@ -101,7 +101,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     r3Data.foreach{
       r3 =>
-        DistrKeyGen.checkR3Data(r3, memberIdentifier, committeeMembersPubKeys) match {
+        DistrKeyGen.checkR3Data(r3, memberIdentifier, committeeMembersPubKeys, cs, r1Data, r2Data) match {
           case Success(_) =>
           case _ => println(s"Incorrect R3 data from member ${r3.issuerID}")
         }
@@ -115,7 +115,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     r4Data.foreach{
       r4 =>
-        DistrKeyGen.checkR4Data(r4, memberIdentifier, committeeMembersPubKeys, cs, crs_h, r1Data, r3Data) match {
+        DistrKeyGen.checkR4Data(r4, memberIdentifier, committeeMembersPubKeys, cs, crs_h, r1Data, r2Data, r3Data) match {
           case Success(_) =>
           case _ => println(s"Incorrect R4 data from member ${r4.issuerID}")
         }
@@ -129,7 +129,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     r5_1Data.foreach{
       r5 =>
-        DistrKeyGen.checkR5Data(r5, memberIdentifier, committeeMembersPubKeys, cs, r1Data) match {
+        DistrKeyGen.checkR5Data(r5, memberIdentifier, committeeMembersPubKeys, cs, r1Data, r2Data, r3Data, r4Data) match {
           case Success(_) =>
           case _ => println(s"Incorrect R5_1 data from member ${r5.issuerID}")
         }

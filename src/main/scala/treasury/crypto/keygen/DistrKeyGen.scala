@@ -29,8 +29,8 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
 {
   private val CRS_commitments = new ArrayBuffer[CRS_commitment]() // CRS commitments of other participants
   private val commitments     = new ArrayBuffer[Commitment]()     // Commitments of other participants
-  private val shares          = new ArrayBuffer[Share]()          // Shares of other participants
-  private val secretShares    = new ArrayBuffer[ShareEncrypted]()
+  private val shares          = new ArrayBuffer[Share]()          // Shares(decrypted) of other participants
+  private val secretShares    = new ArrayBuffer[ShareEncrypted]() // Secret(encrypted) shares of other participants
   private val violatorsIDs    = new ArrayBuffer[Integer]()        // ID's of members-violators (absent on the 1-st round, and those, who supplied incorrect commitments on rounds 1 and 3)
   private val absenteesIDs    = new ArrayBuffer[Integer]()        // ID's of members who were absent on round 3, so their secrets should be reconstructed
 
@@ -669,7 +669,7 @@ object DistrKeyGen {
     CRS_Shares.equals(E_sum)
   }
 
-  def checkComplaintR2(complaint:         ComplaintR2,
+  private def checkComplaintR2(complaint:         ComplaintR2,
                        secretShare:       ShareEncrypted,
                        memberIdentifier:  Identifier[Int],
                        cs:                Cryptosystem,
@@ -723,7 +723,7 @@ object DistrKeyGen {
       (checkProof(publicKey, proof_b) && checkEncryption(proof_b))
   }
 
-  def checkCommitmentR3(cs: Cryptosystem,
+  private def checkCommitmentR3(cs: Cryptosystem,
                         share: Share,
                         commitment: Array[Array[Byte]]): Boolean = {
 
@@ -742,6 +742,15 @@ object DistrKeyGen {
     g_sa.equals(A_sum)
   }
 
+  /**
+    * Verifies, if a decrypted share corresponds to a specififc encrypted share.
+    * Verification consists in an encryption of the decrypted share (using its opened symmetric key) and checking the obtained ciphertext for equality with the encrypted share.
+    *
+    * @param openedShare decypted share;
+    * @param secretShare encrypted share;
+    * @param cs cryptosystem, used for the protocol running;
+    * @return true, if shares are equal.
+    */
   def sharesAreEqual(openedShare: OpenedShare,
                      secretShare: SecretShare,
                      cs:          Cryptosystem): Boolean = {
@@ -759,11 +768,21 @@ object DistrKeyGen {
     )
   }
 
+  /**
+    * Retrieves the IDs of disqualified after round 1 members of the DKG protocol.
+    *
+    * @param cs cryptosystem, which should be used for the protocol running;
+    * @param membersPubKeys public keys of all registered protocol members;
+    * @param memberIdentifier generator of protocol members IDs, based on a full set of protocol members public keys;
+    * @param r1Data a sequence of posted during the 1-st round R1Data packets of all protocol members;
+    * @param r2Data a sequence of posted during the 2-nd round R2Data packets of all protocol members;
+    * @return a sequence of IDs of disqualified after round 1 protocol members.
+    */
   def getDisqualifiedOnR1CommitteeMembersIDs(cs: Cryptosystem,
                                              membersPubKeys: Seq[PubKey],
                                              memberIdentifier: Identifier[Int],
                                              r1Data: Seq[R1Data],
-                                             r2Data: Seq[R2Data]): Seq[Int] = {
+                                             r2Data: Seq[R2Data] = Seq()): Seq[Int] = {
     val allMembersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
 
     val absenteesR1 = allMembersIDs.diff(r1Data.map(_.issuerID))
@@ -778,12 +797,23 @@ object DistrKeyGen {
     disqualifiedMembersOnR1
   }
 
+  /**
+    * Retrieves the IDs of disqualified after round 3 members of the DKG protocol.
+    *
+    * @param cs cryptosystem, which should be used for the protocol running;
+    * @param membersPubKeys public keys of all registered protocol members;
+    * @param memberIdentifier generator of protocol members IDs, based on a full set of protocol members public keys;
+    * @param disqualifiedMembersOnR1 a sequence of IDs of disqualified after round 1 protocol members;
+    * @param r3Data a sequence of posted during the 3-rd round R3Data packets of all protocol members;
+    * @param r4Data a sequence of posted during the 4-th round R4Data packets of all protocol members;
+    * @return a sequence of IDs of disqualified after round 3 protocol members.
+    */
   def getDisqualifiedOnR3CommitteeMembersIDs(cs: Cryptosystem,
                                              membersPubKeys: Seq[PubKey],
                                              memberIdentifier: Identifier[Int],
                                              disqualifiedMembersOnR1: Seq[Int],
                                              r3Data: Seq[R3Data],
-                                             r4Data: Seq[R4Data]): Seq[Int] = {
+                                             r4Data: Seq[R4Data] = Seq()): Seq[Int] = {
     val allMembersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
 
     val r3DataFiltered = r3Data.filter(r3 =>
@@ -807,13 +837,13 @@ object DistrKeyGen {
   /**
     * Retrieve all committee members disqualified during the distributed key generation
     *
-    * @param cs
+    * @param cs cryptosystem, which should be used for the protocol running;
     * @param membersPubKeys pub keys of all registered committee members
-    * @param memberIdentifier
-    * @param r1Data
-    * @param r2Data
-    * @param r3Data
-    * @param r4Data
+    * @param memberIdentifier generator of protocol members IDs, based on a full set of protocol members public keys;
+    * @param r1Data a sequence of posted during the 1-st round R1Data packets of all protocol members;
+    * @param r2Data a sequence of posted during the 2-nd round R2Data packets of all protocol members;
+    * @param r3Data a sequence of posted during the 3-rd round R3Data packets of all protocol members;
+    * @param r4Data a sequence of posted during the 4-th round R4Data packets of all protocol members;
     * @return pub keys of the disqualified CMs
     */
   def getAllDisqualifiedCommitteeMembersPubKeys(cs: Cryptosystem,
@@ -914,8 +944,8 @@ object DistrKeyGen {
     * Generates a recovery share for the faulty committee member. Basically recovery share is a decrypted share that
     * was previously (in Round 1) submitted by the faulty CM.
     *
-    * @param cs
-    * @param memberIdentifier
+    * @param cs cryptosystem, which should be used for the protocol running;
+    * @param memberIdentifier generator of protocol members IDs, based on a full set of protocol members public keys;
     * @param keys private and public key of a CM who generates recovery share
     * @param violatorPubKey public key of a CM for whom the recovery share is generated
     * @param r1Data submitted encrypted shares for all CMs
@@ -939,8 +969,8 @@ object DistrKeyGen {
     * submitted on Round 1. So the verification process encrypts the provided OpenedShare and verifies that it is the
     * same as was submitted at Round 1.
     *
-    * @param cs
-    * @param memberIdentifier
+    * @param cs cryptosystem, which should be used for the protocol running;
+    * @param memberIdentifier generator of protocol members IDs, based on a full set of protocol members public keys;
     * @param issuerPubKey public key of a CM who generates recovery share
     * @param violatorPubKey public key of a CM for whom the recovery share is generated
     * @param r1Data submitted encrypted shares for all CMs
@@ -966,8 +996,8 @@ object DistrKeyGen {
     * personal shares during the round 1. The public key for the distributed key generation is never registrated directly and is
     * revealed only at Round 3 as first component of the commitment array A.
     *
-    * @param cs
-    * @param numberOfMembers
+    * @param cs cryptosystem, which should be used for the protocol running;
+    * @param numberOfMembers number of the all registered protocol members;
     * @param openedShares opened shares from other CMs. There should be shares from at least half of the CMs
     * @param pubKeyOfRecoveredPrivKey is used only for additional verification. If provided the recovered priv/pub keys will
     *                                 be verified by this key (pub keys should be the same)
@@ -990,6 +1020,16 @@ object DistrKeyGen {
     recoveredPrivKey
   }
 
+  /**
+    * Verifies for validity the 1-st round's data, submitted by a certain member of the DKG protocol.
+    * Verification can be performed externally, without being a member of the protocol.
+    *
+    * @param r1Data round 1 data, submitted by a certain protocol member;
+    * @param memberIdentifier generator of protocol members IDs, based on a full set of protocol members public keys;
+    * @param membersPubKeys public keys of the all members of the protocol;
+    * @return Success(Unit) if submitted r1Data is valid;
+    *         Failure(e)    otherwise.
+    */
   def checkR1Data(r1Data:           R1Data,
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey]): Try[Unit] = Try {
@@ -1010,6 +1050,19 @@ object DistrKeyGen {
     // CRS commitment validity can verify only a member of DKG protocol, as a private key for secret shares decryption is needed
   }
 
+  /**
+    * Verifies for validity the 2-nd round's data, submitted by a certain member of the DKG protocol.
+    * Verification can be performed externally, without being a member of the protocol.
+    *
+    * @param r2Data round 2 data, submitted by a certain protocol member;
+    * @param memberIdentifier generator of protocol members IDs, based on a full set of protocol members public keys;
+    * @param membersPubKeys public keys of the all members of the protocol;
+    * @param cs cryptosystem, which should be used for the protocol running;
+    * @param h CRS parameter;
+    * @param r1DataSeq a sequence of posted during the 1-st round R1Data packets of all protocol members;
+    * @return Success(Unit) if submitted r2Data is valid;
+    *         Failure(e)    otherwise.
+    */
   def checkR2Data(r2Data:           R2Data,
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey],
@@ -1020,10 +1073,14 @@ object DistrKeyGen {
     val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
     require(membersIDs.contains(r2Data.issuerID), "Illegal issuer's ID")
 
+    val disqualifiedMembersIds = getDisqualifiedOnR1CommitteeMembersIDs(cs, membersPubKeys, memberIdentifier, r1DataSeq) // here CM can be verified only for absence on R1 (R2 is running, full set of R2 complaints isn't posted yet)
+    require(!disqualifiedMembersIds.contains(r2Data.issuerID), "Issuer has been disqualified on R1")
+
     val membersNum = membersPubKeys.length
     require(r2Data.complaints.length <= membersNum, "Exceeding number of R2 complaints")
 
-    require(r2Data.complaints.map(_.violatorID).distinct.length == r2Data.complaints.map(_.violatorID).length, "Duplicates of R2 complaints are present")
+    val complaintsIDs = r2Data.complaints.map(_.violatorID)
+    require(complaintsIDs.distinct.length == complaintsIDs.length, "Duplicates of R2 complaints are present")
 
     def checkComplaint(complaint: ComplaintR2): Boolean = {
 
@@ -1049,12 +1106,31 @@ object DistrKeyGen {
     }
   }
 
+  /**
+    * Verifies for validity the 3-rd round's data, submitted by a certain member of the DKG protocol.
+    * Verification can be performed externally, without being a member of the protocol.
+    *
+    * @param r3Data round 3 data, submitted by a certain protocol member;
+    * @param memberIdentifier generator of protocol members IDs, based on a full set of protocol members public keys;
+    * @param membersPubKeys public keys of the all members of the protocol;
+    * @param cs cryptosystem, which should be used for the protocol running;
+    * @param r1DataSeq a sequence of posted during the 1-st round R1Data packets of all protocol members;
+    * @param r2DataSeq a sequence of posted during the 2-nd round R2Data packets of all protocol members;
+    * @return Success(Unit) if submitted r3Data is valid;
+    *         Failure(e)    otherwise.
+    */
   def checkR3Data(r3Data:           R3Data,
                   memberIdentifier: Identifier[Int],
-                  membersPubKeys:   Seq[PubKey]): Try[Unit] = Try {
+                  membersPubKeys:   Seq[PubKey],
+                  cs:               Cryptosystem,
+                  r1DataSeq:        Seq[R1Data],
+                  r2DataSeq:        Seq[R2Data]): Try[Unit] = Try {
 
     val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
     require(membersIDs.contains(r3Data.issuerID), "Illegal issuer's ID")
+
+    val disqualifiedMembersIds = getDisqualifiedOnR1CommitteeMembersIDs(cs, membersPubKeys, memberIdentifier, r1DataSeq, r2DataSeq)
+    require(!disqualifiedMembersIds.contains(r3Data.issuerID), "Issuer has been disqualified on R1")
 
     val membersNum = membersPubKeys.length
     val t = (membersNum.toFloat / 2).ceil.toInt
@@ -1064,16 +1140,38 @@ object DistrKeyGen {
     // Commitment validity can verify only a member of DKG protocol, as a set of decrypted on his private key shares is needed
   }
 
+  /**
+    * Verifies for validity the 4-th round's data, submitted by a certain member of the DKG protocol.
+    * Verification can be performed externally, without being a member of the protocol.
+    *
+    * @param r4Data round 4 data, submitted by a certain protocol member;
+    * @param memberIdentifier generator of protocol members IDs, based on a full set of protocol members public keys;
+    * @param membersPubKeys public keys of the all members of the protocol;
+    * @param cs cryptosystem, which should be used for the protocol running;
+    * @param h CRS parameter;
+    * @param r1DataSeq a sequence of posted during the 1-st round R1Data packets of all protocol members;
+    * @param r2DataSeq a sequence of posted during the 2-nd round R2Data packets of all protocol members;
+    * @param r3DataSeq a sequence of posted during the 3-rd round R3Data packets of all protocol members;
+    * @return Success(Unit) if submitted r4Data is valid;
+    *         Failure(e)    otherwise.
+    */
   def checkR4Data(r4Data:           R4Data,
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey],
                   cs:               Cryptosystem,
                   h:                Point,
                   r1DataSeq:        Seq[R1Data],
+                  r2DataSeq:        Seq[R2Data],
                   r3DataSeq:        Seq[R3Data]): Try[Unit] = Try {
 
     val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
     require(membersIDs.contains(r4Data.issuerID), "Illegal issuer's ID")
+
+    val disqualifiedMembersIdsOnR1 = getDisqualifiedOnR1CommitteeMembersIDs(cs, membersPubKeys, memberIdentifier, r1DataSeq, r2DataSeq) // here CM can be verified only for absence on R3 (R4 is running, full set of R4 complaints isn't posted yet)
+    require(!disqualifiedMembersIdsOnR1.contains(r4Data.issuerID), "Issuer has been disqualified on R1")
+
+    val disqualifiedMembersIdsOnR3 = getDisqualifiedOnR3CommitteeMembersIDs(cs, membersPubKeys, memberIdentifier, disqualifiedMembersIdsOnR1, r3DataSeq)
+    require(!disqualifiedMembersIdsOnR3.contains(r4Data.issuerID), "Issuer has been disqualified on R3")
 
     val membersNum = membersPubKeys.length
     require(r4Data.complaints.length <= membersNum, "Exceeding number of R4 complaints")
@@ -1094,7 +1192,8 @@ object DistrKeyGen {
       CRS_Ok && !Commitment_Ok
     }
 
-    require(r4Data.complaints.map(_.violatorID).distinct.length == r4Data.complaints.map(_.violatorID).length, "Duplicates of R4 complaints are present")
+    val complaintsIDs = r4Data.complaints.map(_.violatorID)
+    require(complaintsIDs.distinct.length == complaintsIDs.length, "Duplicates of R4 complaints are present")
 
     r4Data.complaints.foreach {
       c =>
@@ -1105,14 +1204,38 @@ object DistrKeyGen {
     }
   }
 
+  /**
+    * Verifies for validity the 5-th round's data, submitted by a certain member of the DKG protocol.
+    * Verification can be performed externally, without being a member of the protocol.
+    *
+    * @param r5_1Data round 5 data, submitted by a certain protocol member;
+    * @param memberIdentifier generator of protocol members IDs, based on a full set of protocol members public keys;
+    * @param membersPubKeys public keys of the all members of the protocol;
+    * @param cs cryptosystem, which should be used for the protocol running;
+    * @param r1DataSeq a sequence of posted during the 1-st round R1Data packets of all protocol members;
+    * @param r2DataSeq a sequence of posted during the 2-nd round R2Data packets of all protocol members;
+    * @param r3DataSeq a sequence of posted during the 3-rd round R3Data packets of all protocol members;
+    * @param r4DataSeq a sequence of posted during the 4-th round R4Data packets of all protocol members;
+    * @return Success(Unit) if submitted r5_1Data is valid;
+    *         Failure(e)    otherwise.
+    */
   def checkR5Data(r5_1Data:         R5_1Data,
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey],
                   cs:               Cryptosystem,
-                  r1DataSeq:        Seq[R1Data]): Try[Unit] = Try {
+                  r1DataSeq:        Seq[R1Data],
+                  r2DataSeq:        Seq[R2Data],
+                  r3DataSeq:        Seq[R3Data],
+                  r4DataSeq:        Seq[R4Data]): Try[Unit] = Try {
 
     val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
     require(membersIDs.contains(r5_1Data.issuerID), "Illegal issuer's ID")
+
+    val disqualifiedMembersIdsOnR1 = getDisqualifiedOnR1CommitteeMembersIDs(cs, membersPubKeys, memberIdentifier, r1DataSeq, r2DataSeq)
+    require(!disqualifiedMembersIdsOnR1.contains(r5_1Data.issuerID), "Issuer has been disqualified on R1")
+
+    val disqualifiedMembersIdsOnR3 = getDisqualifiedOnR3CommitteeMembersIDs(cs, membersPubKeys, memberIdentifier, disqualifiedMembersIdsOnR1, r3DataSeq, r4DataSeq)
+    require(!disqualifiedMembersIdsOnR3.contains(r5_1Data.issuerID), "Issuer has been disqualified on R3")
 
     val membersNum = membersPubKeys.length
     require(r5_1Data.violatorsShares.length <= membersNum, "Exceeding number of R5_1 opened shares")
@@ -1129,7 +1252,8 @@ object DistrKeyGen {
       sharesAreEqual(share, secretShareOpt.get, cs)
     }
 
-    require(r5_1Data.violatorsShares.map(_._1).distinct.length == r5_1Data.violatorsShares.map(_._1).length, "Duplicates of violators shares are present")
+    val violatorsSharesIDs = r5_1Data.violatorsShares.map(_._1)
+    require(violatorsSharesIDs.distinct.length == violatorsSharesIDs.length, "Duplicates of violators shares are present")
 
     r5_1Data.violatorsShares.foreach {
       s =>
