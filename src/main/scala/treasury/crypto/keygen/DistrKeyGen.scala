@@ -554,27 +554,43 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
       }
     }
 
-    val violatorsSecretKeys = for(i <- violatorsShares.indices) yield {
-      SecretKey(violatorsShares(i).violatorID, LagrangeInterpolation.restoreSecret(cs, violatorsShares(i).violatorShares, t).toByteArray)
+    // All keys should be recovered
+    val sufficientNumOfShares =
+      violatorsShares.forall{
+        vs =>
+          vs.violatorShares.length >= t
+      }
+
+    val r5_2Data = {
+
+      if(sufficientNumOfShares){
+
+        val violatorsSecretKeys = for(i <- violatorsShares.indices) yield {
+          SecretKey(violatorsShares(i).violatorID, LagrangeInterpolation.restoreSecret(cs, violatorsShares(i).violatorShares, t).toByteArray)
+        }
+
+        val violatorsPublicKeys = for(i <- violatorsSecretKeys.indices) yield {
+          g.multiply(new BigInteger(violatorsSecretKeys(i).secretKey))
+        }
+
+        var honestPublicKeysSum = A(0) // own public key
+        for(i <- commitments.indices) {
+          honestPublicKeysSum = honestPublicKeysSum.add(commitments(i).commitment(0))
+        }
+
+        var violatorsPublicKeysSum: ECPoint = cs.infinityPoint
+        for(i <- violatorsPublicKeys.indices) {
+          violatorsPublicKeysSum = violatorsPublicKeysSum.add(violatorsPublicKeys(i))
+        }
+
+        val sharedPublicKey = honestPublicKeysSum.add(violatorsPublicKeysSum)
+
+        R5_2Data(ownID, sharedPublicKey.getEncoded(true), violatorsSecretKeys.sortBy(_.ownerID).toArray)
+
+      } else {
+        R5_2Data(ownID, cs.infinityPoint.getEncoded(true), Array[SecretKey]())
+      }
     }
-
-    val violatorsPublicKeys = for(i <- violatorsSecretKeys.indices) yield {
-      g.multiply(new BigInteger(violatorsSecretKeys(i).secretKey))
-    }
-
-    var honestPublicKeysSum = A(0) // own public key
-    for(i <- commitments.indices) {
-      honestPublicKeysSum = honestPublicKeysSum.add(commitments(i).commitment(0))
-    }
-
-    var violatorsPublicKeysSum: ECPoint = cs.infinityPoint
-    for(i <- violatorsPublicKeys.indices) {
-      violatorsPublicKeysSum = violatorsPublicKeysSum.add(violatorsPublicKeys(i))
-    }
-
-    val sharedPublicKey = honestPublicKeysSum.add(violatorsPublicKeysSum)
-
-    val r5_2Data = R5_2Data(ownID, sharedPublicKey.getEncoded(true), violatorsSecretKeys.sortBy(_.ownerID).toArray)
 
     roundsPassed += 1
     roundsDataCache.r5_2Data = Seq(r5_2Data) // round output is always cached
@@ -891,12 +907,23 @@ object DistrKeyGen {
 
     val t = (numberOfMembers.toFloat / 2).ceil.toInt
 
-    val violatorsSecretKeys = disqualifiedR3MembersShares.map(
-      share => LagrangeInterpolation.restoreSecret(cs, share.violatorShares, t)
-    )
-    val violatorsPublicKeys = violatorsSecretKeys.map(cs.basePoint.multiply(_))
+    // All keys should be recovered
+    val sufficientNumOfShares =
+      disqualifiedR3MembersShares.forall{
+      vs =>
+        vs.violatorShares.length >= t
+    }
 
-    violatorsPublicKeys zip violatorsSecretKeys
+    if (sufficientNumOfShares){
+      val violatorsSecretKeys = disqualifiedR3MembersShares.map(
+        share => LagrangeInterpolation.restoreSecret(cs, share.violatorShares, t)
+      )
+      val violatorsPublicKeys = violatorsSecretKeys.map(cs.basePoint.multiply(_))
+
+      violatorsPublicKeys zip violatorsSecretKeys
+    } else {
+      Seq[(PubKey, PrivKey)]()
+    }
   }
 
   /**
@@ -919,6 +946,14 @@ object DistrKeyGen {
 
     val disqualifiedMembersOnR3 =
       getDisqualifiedOnR3CommitteeMembersIDs(cs, membersPubKeys, memberIdentifier, disqualifiedMembersOnR1, roundsData.r3Data, roundsData.r4Data)
+
+    val n = membersPubKeys.length // total number of members
+    val t = (n.toFloat / 2).ceil.toInt // threshold (minimal) number of members
+
+    val totalNumberOfDisqualifiedMembers = disqualifiedMembersOnR1.length + disqualifiedMembersOnR3.length
+    require(
+      totalNumberOfDisqualifiedMembers <= (n - t),
+      s"Number of disqualified members () exceeds the reconstruction threshold ($t)")
 
     val recoveredViolatorsKeys =
       recoverKeysOfDisqualifiedOnR3Members(cs, membersPubKeys.size, roundsData.r5_1Data, disqualifiedMembersOnR1, disqualifiedMembersOnR3)
