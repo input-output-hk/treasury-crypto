@@ -89,8 +89,10 @@ object Tally {
                  delegations: Seq[Element]): Try[Result] = Try {
 
     val votersBallots = ballots.collect { case b: VoterBallot => b }
-    require(votersBallots.forall(_.uvDelegations.length == votersBallots.head.uvDelegations.length))
-    require(votersBallots.head.uvDelegations.length == delegations.length)
+    if (votersBallots.size > 0) {
+      require(votersBallots.forall(_.uvDelegations.length == votersBallots.head.uvDelegations.length))
+      require(votersBallots.head.uvDelegations.length == delegations.length)
+    }
 
     val expertsBallots = ballots.collect { case b: ExpertBallot => b }
     require(votersBallots.forall(_.uvChoice.length == votersBallots.head.uvChoice.length))
