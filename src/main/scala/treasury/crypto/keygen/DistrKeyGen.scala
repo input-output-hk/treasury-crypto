@@ -953,10 +953,13 @@ object DistrKeyGen {
     val totalNumberOfDisqualifiedMembers = disqualifiedMembersOnR1.length + disqualifiedMembersOnR3.length
     require(
       totalNumberOfDisqualifiedMembers <= (n - t),
-      s"Number of disqualified members () exceeds the reconstruction threshold ($t)")
+      s"Number of disqualified members ($totalNumberOfDisqualifiedMembers) exceeds the reconstruction threshold ($t)")
 
     val recoveredViolatorsKeys =
       recoverKeysOfDisqualifiedOnR3Members(cs, membersPubKeys.size, roundsData.r5_1Data, disqualifiedMembersOnR1, disqualifiedMembersOnR3)
+    require(
+      recoveredViolatorsKeys.map(keyPair => memberIdentifier.getId(keyPair._1).get).sorted.equals(disqualifiedMembersOnR3.sorted), // the identifiers of members, which keys are restored, are the same as identifiers of disqualified on R3 members
+      "Not all keys have been reconstructed")
 
     val r3Data = roundsData.r3Data.filter(r3 => !disqualifiedMembersOnR1.contains(r3.issuerID))
     val validCommitments =
@@ -972,6 +975,10 @@ object DistrKeyGen {
     }
 
     val sharedPublicKey = honestPublicKeysSum.add(violatorsPublicKeysSum)
+    require(
+      !sharedPublicKey.equals(cs.infinityPoint),
+      "Shared public key is undefined")
+
     sharedPublicKey.getEncoded(true)
   }
 
