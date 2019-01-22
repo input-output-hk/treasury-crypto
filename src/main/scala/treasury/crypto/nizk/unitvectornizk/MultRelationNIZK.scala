@@ -2,8 +2,13 @@ package treasury.crypto.nizk.unitvectornizk
 
 import java.math.BigInteger
 
+import com.google.common.primitives.Bytes
 import treasury.crypto.core
 import treasury.crypto.core._
+import treasury.crypto.core.serialization.Serializer
+import treasury.crypto.nizk.unitvectornizk.MultRelationNIZK.MultRelationNIZKProof
+
+import scala.util.Try
 
 /* MultRelationNIZK implements non-interactive zero knowledge protocol to prove a multiplicative relation between
  * two encrypted vectors.
@@ -33,8 +38,8 @@ object MultRelationNIZK {
                  ): MultRelationNIZKProof = {
     require(unitVector.size == unitVectorRandomness.size)
     require(unitVector.size == zeroVectorRandomness.size)
-    require(unitVector.filter(_.equals(core.One)).size == 1)
-    require(unitVector.filter(_.equals(core.Zero)).size == (unitVector.size - 1))
+    require(unitVector.count(_.equals(core.One)) == 1)
+    require(unitVector.count(_.equals(core.Zero)) == (unitVector.size - 1))
 
     val x = cs.getRand
     val y = cs.getRand
@@ -125,8 +130,8 @@ object MultRelationNIZK {
                                           unitVector: Seq[BigInteger]
                                          ): Seq[(Ciphertext, Randomness)] = {
 
-    require(unitVector.filter(_.equals(core.One)).size == 1)
-    require(unitVector.filter(_.equals(core.Zero)).size == (unitVector.size - 1))
+    require(unitVector.count(_.equals(core.One)) == 1)
+    require(unitVector.count(_.equals(core.Zero)) == (unitVector.size - 1))
 
     unitVector.map { u =>
       val Cu = cs.multiply(encryptedValue, u)
@@ -134,5 +139,57 @@ object MultRelationNIZK {
       val Enc = cs.encrypt(pubKey, t, core.Zero)
       cs.add(Cu, Enc) -> t
     }
+  }
+}
+
+object MultRelationNIZKProofSerializer extends Serializer[MultRelationNIZKProof] {
+
+  override def toBytes(p: MultRelationNIZKProof): Array[Byte] = {
+    val X1bytes = p.X._1.getEncoded(true)
+    val X2bytes = p.X._2.getEncoded(true)
+    val Z1bytes = p.Z._1.getEncoded(true)
+    val Z2bytes = p.Z._2.getEncoded(true)
+    val XZbytes = Bytes.concat (
+      Array(X1bytes.length.toByte), X1bytes,
+      Array(X2bytes.length.toByte), X2bytes,
+      Array(Z1bytes.length.toByte), Z1bytes,
+      Array(Z2bytes.length.toByte), Z2bytes)
+
+    val xbytes = p.x.toByteArray
+    val ybytes = p.y.toByteArray
+    val zbytes = p.z.toByteArray
+    val xyzbytes = Bytes.concat(
+      Array(xbytes.length.toByte), xbytes,
+      Array(ybytes.length.toByte), ybytes,
+      Array(zbytes.length.toByte), zbytes)
+
+    Bytes.concat(XZbytes, xyzbytes)
+  }
+
+  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[MultRelationNIZKProof] = Try {
+    var position = 0
+    def nextPosition= position + 1 + bytes(position)
+
+    val X1 = cs.decodePoint(bytes.slice(position+1, nextPosition))
+
+    position = nextPosition
+    val X2 = cs.decodePoint(bytes.slice(position+1, nextPosition))
+
+    position = nextPosition
+    val Z1 = cs.decodePoint(bytes.slice(position+1, nextPosition))
+
+    position = nextPosition
+    val Z2 = cs.decodePoint(bytes.slice(position+1, nextPosition))
+
+    position = nextPosition
+    val x = new BigInteger(bytes.slice(position+1, nextPosition))
+
+    position = nextPosition
+    val y = new BigInteger(bytes.slice(position+1, nextPosition))
+
+    position = nextPosition
+    val z = new BigInteger(bytes.slice(position+1, nextPosition))
+
+    MultRelationNIZKProof((X1,X2), (Z1,Z2), x, y, z)
   }
 }

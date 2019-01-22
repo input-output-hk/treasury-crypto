@@ -5,7 +5,7 @@ import java.math.BigInteger
 import org.scalatest.FunSuite
 import treasury.crypto.core
 import treasury.crypto.core._
-import treasury.crypto.nizk.unitvectornizk.{MultRelationNIZK}
+import treasury.crypto.nizk.unitvectornizk.{MultRelationNIZK, MultRelationNIZKProofSerializer}
 
 class MultRelationNIZKTest extends FunSuite {
   private val cs = new Cryptosystem
@@ -112,5 +112,26 @@ class MultRelationNIZKTest extends FunSuite {
         encryptedUnitVectorWithValue.map(_._1),
         proof.copy(z = core.One))
     }
+  }
+
+  test("serialization") {
+    val unitVector = Array[BigInteger](Zero, Zero, One)
+
+    val encryptedUnitVector = encryptUnitVector(unitVector)
+    val encryptedUnitVectorWithValue = MultRelationNIZK.produceEncryptedUnitVectorWithValue(cs, pubKey, encryptedValue, unitVector)
+
+    val proof = MultRelationNIZK.produceNIZK(cs, pubKey, encryptedValue,
+      unitVector,
+      encryptedUnitVector.map(_._2),
+      encryptedUnitVectorWithValue.map(_._2))
+
+    val bytes = MultRelationNIZKProofSerializer.toBytes(proof)
+    val proofFromBytes = MultRelationNIZKProofSerializer.parseBytes(bytes, cs).get
+
+    val res = MultRelationNIZK.verifyNIZK(cs, pubKey, encryptedValue,
+      encryptedUnitVector.map(_._1),
+      encryptedUnitVectorWithValue.map(_._1),
+      proofFromBytes)
+    assert(res)
   }
 }
