@@ -5,7 +5,7 @@ import java.math.BigInteger
 import com.google.common.primitives.Bytes
 import treasury.crypto.core
 import treasury.crypto.core._
-import treasury.crypto.core.serialization.Serializer
+import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
 import treasury.crypto.nizk.unitvectornizk.MultRelationNIZK.MultRelationNIZKProof
 
 import scala.util.Try
@@ -18,7 +18,13 @@ import scala.util.Try
 
 object MultRelationNIZK {
 
-  case class MultRelationNIZKProof(X: Ciphertext, Z: Ciphertext, x: Element, y: Element, z: Element)
+  case class MultRelationNIZKProof(X: Ciphertext, Z: Ciphertext, x: Element, y: Element, z: Element) extends BytesSerializable {
+
+    override type M = MultRelationNIZKProof
+    override val serializer = MultRelationNIZKProofSerializer
+
+    lazy val size: Int = bytes.length
+  }
 
   /**
     * @param encryptedValue An encrypted value
