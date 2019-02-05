@@ -18,7 +18,7 @@ trait DiscreteLogGroup {
     * The generator g of the group is an element that can be used to produce all other elements of the group by
     * exponentiating g sequentially.
     */
-  val groupGenerator: GroupElement
+  def groupGenerator: GroupElement
 
   /**
     * @return the order of this Dlog group

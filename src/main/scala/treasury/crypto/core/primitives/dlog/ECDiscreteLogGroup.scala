@@ -6,7 +6,7 @@ import scala.util.Try
 
 trait ECDiscreteLogGroup extends DiscreteLogGroup {
 
-  val curveName: String
+  def curveName: String
 
   /*
    * Constructs a ECGroupElement with the provided x and y. Returns Failure in case (x,y) doesn't represent valid point
