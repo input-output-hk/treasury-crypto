@@ -5,8 +5,6 @@ package treasury.crypto.core.primitives.dlog
  */
 trait ECGroupElement extends GroupElement {
 
-  override type M = ECGroupElement
-
   /**
     * Returns the x coordinate of the point on the given elliptic curve.
     * @return -1 in case of a point at infinity
@@ -24,4 +22,6 @@ trait ECGroupElement extends GroupElement {
     * This function returns true if this point is a point at infinity.
     */
   def isInfinity: Boolean
+
+  override def isIdentity: Boolean = isInfinity
 }

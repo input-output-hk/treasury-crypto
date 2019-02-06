@@ -7,8 +7,6 @@ import treasury.crypto.core.serialization.BytesSerializable
  */
 trait GroupElement extends BytesSerializable {
 
-  override type M = GroupElement
-
   /**
     * checks if this element is the identity of the group
     */

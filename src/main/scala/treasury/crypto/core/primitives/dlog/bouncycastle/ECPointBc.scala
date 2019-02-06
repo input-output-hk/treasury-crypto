@@ -15,8 +15,6 @@ case class ECPointBc(point: ECPoint) extends ECGroupElement {
 
   override def getY: BigInt = if (isInfinity) -1 else point.normalize.getYCoord.toBigInteger
 
-  override def isIdentity: Boolean = isInfinity
-
   override def isInfinity: Boolean = point.isInfinity
 
   override val serializer = ECPointBcSerializer
