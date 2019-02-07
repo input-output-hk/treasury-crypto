@@ -1,5 +1,7 @@
 package treasury.crypto.core.primitives.dlog.bouncycastle
 
+import java.math.BigInteger
+
 import org.bouncycastle.jce.ECNamedCurveTable
 import org.bouncycastle.jce.spec.ECParameterSpec
 import treasury.crypto.core.primitives.dlog.{ECDiscreteLogGroup, ECGroupElement, GroupElement}
@@ -23,14 +25,27 @@ class ECDiscreteLogGroupBc private (curveNameIn: String, ecSpecIn: ECParameterSp
 
   override def exponentiate(base: GroupElement, exponent: BigInt): Try[GroupElement] = Try {
     val point = base.asInstanceOf[ECPointBc].point
-    val result = point.multiply(exponent.bigInteger)
+    val result = point.multiply(exponent.bigInteger).normalize
     ECPointBc(result)
   }
 
   override def multiply(groupElement1: GroupElement, groupElement2: GroupElement): Try[GroupElement] = Try {
     val point1 = groupElement1.asInstanceOf[ECPointBc].point
     val point2 = groupElement2.asInstanceOf[ECPointBc].point
-    val result = point1.add(point2)
+    val result = point1.add(point2).normalize
+    ECPointBc(result)
+  }
+
+  override def divide(groupElement1: GroupElement, groupElement2: GroupElement): Try[GroupElement] = Try {
+    val point1 = groupElement1.asInstanceOf[ECPointBc].point
+    val point2 = groupElement2.asInstanceOf[ECPointBc].point
+    val result = point1.subtract(point2).normalize
+    ECPointBc(result)
+  }
+
+  override def inverse(groupElement: GroupElement): Try[GroupElement] = Try {
+    val point = groupElement.asInstanceOf[ECPointBc].point
+    val result = point.multiply(BigInt(-1).bigInteger).normalize
     ECPointBc(result)
   }
 

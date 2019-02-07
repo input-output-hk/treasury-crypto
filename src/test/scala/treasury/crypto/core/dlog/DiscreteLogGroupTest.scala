@@ -1,4 +1,4 @@
-package treasury.crypto.primitives.dlog
+package treasury.crypto.core.dlog
 
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -31,6 +31,14 @@ class DiscreteLogGroupTest extends PropSpec with TableDrivenPropertyChecks with 
   property("any group should have identity element") {
     forAll(dlogGroups) { group =>
       group.groupIdentity.isIdentity should be (true)
+    }
+  }
+
+  property("any group should be able to create valid random number") {
+    forAll(dlogGroups) { group =>
+      val rand = group.createRandomNumber
+      rand should be > BigInt(0)
+      rand should be < group.groupOrder
     }
   }
 
@@ -90,6 +98,38 @@ class DiscreteLogGroupTest extends PropSpec with TableDrivenPropertyChecks with 
 
       require(res.isSuccess)
       res.get should be (group.groupIdentity)
+    }
+  }
+
+  property("any group should support division of the group elements") {
+    forAll(dlogGroups) { group =>
+      val e1 = group.createRandomGroupElement.get
+      val e2 = group.createRandomGroupElement.get
+      val res = group.divide(e1, e2)
+
+      res.isSuccess should be (true)
+      res.get should not equals e1
+      res.get should not equals e2
+      res.get.isIdentity should be (false)
+
+      val e1_1 = group.multiply(e2, res.get).get
+      e1_1 should be (e1)
+
+      val e2_1 = group.divide(e1, res.get).get
+      e2_1 should be (e2)
+    }
+  }
+
+  property("any group should support inverse of the group element") {
+    forAll(dlogGroups) { group =>
+      val e = group.createRandomGroupElement.get
+      val inverse = group.inverse(e)
+
+      inverse.isSuccess should be (true)
+      inverse.get should not equals e
+
+      val identity = group.multiply(e, inverse.get).get
+      identity should be (group.groupIdentity)
     }
   }
 

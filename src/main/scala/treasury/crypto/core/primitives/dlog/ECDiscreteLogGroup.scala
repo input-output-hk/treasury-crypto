@@ -1,7 +1,5 @@
 package treasury.crypto.core.primitives.dlog
 
-import java.security.SecureRandom
-
 import scala.util.Try
 
 trait ECDiscreteLogGroup extends DiscreteLogGroup {

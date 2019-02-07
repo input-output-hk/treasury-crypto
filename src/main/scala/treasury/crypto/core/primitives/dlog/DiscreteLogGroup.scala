@@ -41,14 +41,31 @@ trait DiscreteLogGroup {
   def multiply(groupElement1: GroupElement, groupElement2: GroupElement): Try[GroupElement]
 
   /**
+    * Divides two GroupElements
+    */
+  def divide(groupElement1: GroupElement, groupElement2: GroupElement): Try[GroupElement]
+
+  /**
+    * Inverts GroupElement
+    */
+  def inverse(groupElement: GroupElement): Try[GroupElement]
+
+  /**
     * Creates a random element of this Dlog group
     */
   def createRandomGroupElement: Try[GroupElement] = {
-    val qMinusOne = groupOrder - 1
-    val rand = BigIntegers.createRandomInRange(BigInteger.ONE, qMinusOne.bigInteger, random)
+    val rand = createRandomNumber
 
     // compute g^x to get a new element
     exponentiate(groupGenerator, rand)
+  }
+
+  /*
+  * Creates a positive random number in range [1,..,groupOrder -1]
+  */
+  def createRandomNumber: BigInt = {
+    val qMinusOne = groupOrder - 1
+    BigIntegers.createRandomInRange(BigInteger.ONE, qMinusOne.bigInteger, random)
   }
 
   /**
