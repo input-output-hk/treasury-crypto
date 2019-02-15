@@ -19,8 +19,13 @@ object LiftedElGamalEnc {
   /* Lifted ElGamal is based on classical ElGamal where point for dectyption is derived by epnonentiating group generator to msg */
   def encrypt(pubKey: PubKey, rand: Randomness, msg: BigInt)(implicit dlogGroup: DiscreteLogGroup): Try[DlogCiphertext] =  {
     dlogGroup.exponentiate(dlogGroup.groupGenerator, msg).flatMap { p =>
-      ElGamalEnc.encrypt(dlogGroup, pubKey, rand, p)
+      ElGamalEnc.encrypt(pubKey, rand, p)
     }
+  }
+
+  def encrypt(pubKey: PubKey, msg: BigInt)(implicit dlogGroup: DiscreteLogGroup): Try[(DlogCiphertext, Randomness)] = {
+    val rand = dlogGroup.createRandomNumber
+    LiftedElGamalEnc.encrypt(pubKey, rand, msg).map((_, rand))
   }
 
   /*
@@ -28,7 +33,7 @@ object LiftedElGamalEnc {
   * bigger than MAX_INTEGER, otherwise an exception will be thrown.
   */
   def decrypt(privKey: PrivKey, ciphertext: DlogCiphertext)(implicit dlogGroup: DiscreteLogGroup): Try[BigInt] = {
-    ElGamalEnc.decrypt(dlogGroup, privKey, ciphertext).flatMap { point =>
+    ElGamalEnc.decrypt(privKey, ciphertext).flatMap { point =>
       discreteLog(point)
     }
   }

@@ -17,10 +17,9 @@ class ElGamalEncTest extends FunSuite with TableDrivenPropertyChecks with Matche
     forAll(dlogGroups) { implicit group =>
       val (privKey, pubKey) = createKeyPair.get
       val message = group.createRandomGroupElement.get
-      val rand = group.createRandomNumber
 
-      val ciphertext = ElGamalEnc.encrypt(group, pubKey, rand, message).get
-      val decryptedMsg = ElGamalEnc.decrypt(group, privKey, ciphertext).get
+      val (ciphertext, randomness) = ElGamalEnc.encrypt(pubKey, message).get
+      val decryptedMsg = ElGamalEnc.decrypt(privKey, ciphertext).get
 
       decryptedMsg should be (message)
     }
@@ -35,10 +34,9 @@ class ElGamalEncTest extends FunSuite with TableDrivenPropertyChecks with Matche
   test("LiftedElGamalEnc should correctly encrypt and decrypt messages") {
     forAll(dlogGroups) { implicit group =>
       val (privKey, pubKey) = createKeyPair.get
-      val rand = group.createRandomNumber
 
       forAll(messages) { msg =>
-        val ciphertext = LiftedElGamalEnc.encrypt(pubKey, rand, msg).get
+        val ciphertext = LiftedElGamalEnc.encrypt(pubKey, msg).get._1
         val decryptedMsg = LiftedElGamalEnc.decrypt(privKey, ciphertext).get
 
         decryptedMsg should be (msg)
