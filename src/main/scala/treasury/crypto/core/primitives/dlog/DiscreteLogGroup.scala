@@ -55,8 +55,6 @@ trait DiscreteLogGroup {
     */
   def createRandomGroupElement: Try[GroupElement] = {
     val rand = createRandomNumber
-
-    // compute g^x to get a new element
     exponentiate(groupGenerator, rand)
   }
 
