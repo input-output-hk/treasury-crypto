@@ -3,7 +3,13 @@ package treasury.crypto.core.primitives.dlog
 import java.math.BigInteger
 import java.security.SecureRandom
 
+import org.bouncycastle.crypto.digests.{SHA256Digest, SHA3Digest}
+import org.bouncycastle.crypto.prng.drbg.HashSP800DRBG
 import org.bouncycastle.util.BigIntegers
+import treasury.crypto.core.SingleEntropySourceProvider
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory.AvailableHashes
+import treasury.crypto.core.primitives.hash.bouncycastle.SHA3_256_HashBc
 
 import scala.util.Try
 
@@ -56,6 +62,17 @@ trait DiscreteLogGroup {
   def createRandomGroupElement: Try[GroupElement] = {
     val rand = createRandomNumber
     exponentiate(groupGenerator, rand)
+  }
+
+  /**
+    * Deterministically creates an element of this Dlog group from the given seed. The same seed produces the same
+    * group element. Different seeds produce different group element with overwhelming probability.
+    */
+  //noinspection ScalaStyle
+  def createGroupElementFromSeed(seed: Array[Byte]): Try[GroupElement] = Try {
+    val hashedSeed = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get.hash(seed)
+    val exponent = BigInt(hashedSeed).mod(groupOrder)
+    exponentiate(groupGenerator, exponent).get
   }
 
   /*

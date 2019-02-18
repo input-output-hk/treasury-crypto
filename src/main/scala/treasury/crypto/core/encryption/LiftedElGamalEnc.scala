@@ -17,13 +17,13 @@ object LiftedElGamalEnc {
   val MSG_RANGE = scala.math.pow(2, 16).toInt
 
   /* Lifted ElGamal is based on classical ElGamal where point for dectyption is derived by epnonentiating group generator to msg */
-  def encrypt(pubKey: PubKey, rand: Randomness, msg: BigInt)(implicit dlogGroup: DiscreteLogGroup): Try[DlogCiphertext] =  {
+  def encrypt(pubKey: PubKey, rand: Randomness, msg: BigInt)(implicit dlogGroup: DiscreteLogGroup): Try[ElGamalCiphertext] =  {
     dlogGroup.exponentiate(dlogGroup.groupGenerator, msg).flatMap { p =>
       ElGamalEnc.encrypt(pubKey, rand, p)
     }
   }
 
-  def encrypt(pubKey: PubKey, msg: BigInt)(implicit dlogGroup: DiscreteLogGroup): Try[(DlogCiphertext, Randomness)] = {
+  def encrypt(pubKey: PubKey, msg: BigInt)(implicit dlogGroup: DiscreteLogGroup): Try[(ElGamalCiphertext, Randomness)] = {
     val rand = dlogGroup.createRandomNumber
     LiftedElGamalEnc.encrypt(pubKey, rand, msg).map((_, rand))
   }
@@ -32,7 +32,7 @@ object LiftedElGamalEnc {
   * Decryption envolves solving discrete log for the decrypted point. It is assumed that the used exponent is not
   * bigger than MAX_INTEGER, otherwise an exception will be thrown.
   */
-  def decrypt(privKey: PrivKey, ciphertext: DlogCiphertext)(implicit dlogGroup: DiscreteLogGroup): Try[BigInt] = {
+  def decrypt(privKey: PrivKey, ciphertext: ElGamalCiphertext)(implicit dlogGroup: DiscreteLogGroup): Try[BigInt] = {
     ElGamalEnc.decrypt(privKey, ciphertext).flatMap { point =>
       discreteLog(point)
     }

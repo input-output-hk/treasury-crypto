@@ -133,6 +133,20 @@ class DiscreteLogGroupTest extends PropSpec with TableDrivenPropertyChecks with 
     }
   }
 
+  property("any group should create the same group element from the same seed") {
+    forAll(dlogGroups) { group =>
+      val seed = "seed".getBytes
+      val e1 = group.createGroupElementFromSeed(seed).get
+      val e2 = group.createGroupElementFromSeed("seed".getBytes).get
+
+      e1.equals(e2) should be (true)
+
+      val e3 = group.createGroupElementFromSeed("seed!".getBytes).get
+
+      e3.equals(e2) should be (false)
+    }
+  }
+
   property("any group should be able to reconstruct an element from bytes") {
     forAll(dlogGroups) { group =>
       // TODO

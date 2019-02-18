@@ -9,19 +9,19 @@ import scala.util.Try
 */
 object ElGamalEnc {
 
-  def encrypt(pubKey: PubKey, msg: GroupElement)(implicit dlogGroup: DiscreteLogGroup): Try[(DlogCiphertext, Randomness)] = {
+  def encrypt(pubKey: PubKey, msg: GroupElement)(implicit dlogGroup: DiscreteLogGroup): Try[(ElGamalCiphertext, Randomness)] = {
     val rand = dlogGroup.createRandomNumber
     ElGamalEnc.encrypt(pubKey, rand, msg).map((_, rand))
   }
 
-  def encrypt(pubKey: PubKey, rand: Randomness, msg: GroupElement)(implicit dlogGroup: DiscreteLogGroup): Try[DlogCiphertext] = Try {
+  def encrypt(pubKey: PubKey, rand: Randomness, msg: GroupElement)(implicit dlogGroup: DiscreteLogGroup): Try[ElGamalCiphertext] = Try {
     val rG = dlogGroup.exponentiate(dlogGroup.groupGenerator, rand).get
     val rPk = dlogGroup.exponentiate(pubKey, rand).get
     val MrPk = dlogGroup.multiply(rPk, msg).get
-    DlogCiphertext(rG, MrPk)
+    ElGamalCiphertext(rG, MrPk)
   }
 
-  def decrypt(privKey: PrivKey, ciphertext: DlogCiphertext)(implicit dlogGroup: DiscreteLogGroup): Try[GroupElement] = Try {
+  def decrypt(privKey: PrivKey, ciphertext: ElGamalCiphertext)(implicit dlogGroup: DiscreteLogGroup): Try[GroupElement] = Try {
     val rPk = dlogGroup.exponentiate(ciphertext.c1, privKey).get
     dlogGroup.divide(ciphertext.c2, rPk).get
   }
