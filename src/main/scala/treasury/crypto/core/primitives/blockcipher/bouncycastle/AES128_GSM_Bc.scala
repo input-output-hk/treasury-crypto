@@ -7,6 +7,10 @@ import javax.crypto.spec.{IvParameterSpec, SecretKeySpec}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import treasury.crypto.core.primitives.blockcipher.BlockCipher.SecretKey
 import treasury.crypto.core.primitives.blockcipher._
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory.AvailableHashes
+import treasury.crypto.core.primitives.hash.bouncycastle.SHA3_256_HashBc
+import treasury.crypto.core.primitives.numbergenerator.SP800DRNG
 
 import scala.util.Try
 
@@ -19,6 +23,11 @@ object AES128_GSM_Bc extends AES128_GSM {
   override def generateKey: BlockCipher.SecretKey = {
     val keyMaterial = new Array[Byte](keySize)
     secureRandom.nextBytes(keyMaterial)
+    AESSecretKey(keyMaterial)
+  }
+
+  override def generateKey(seed: Array[Byte]): BlockCipher.SecretKey = {
+    val keyMaterial = new SP800DRNG(seed).nextBytes(keySize)
     AESSecretKey(keyMaterial)
   }
 

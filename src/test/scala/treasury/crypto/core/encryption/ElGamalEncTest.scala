@@ -2,6 +2,8 @@ package treasury.crypto.core.encryption
 
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FunSuite, Matchers}
+import treasury.crypto.core.encryption.encryption.createKeyPair
+import treasury.crypto.core.encryption.elgamal.{ElGamalEnc, LiftedElGamalEnc}
 import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory
 import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
 

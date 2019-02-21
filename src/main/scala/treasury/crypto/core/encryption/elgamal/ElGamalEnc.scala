@@ -1,5 +1,6 @@
-package treasury.crypto.core.encryption
+package treasury.crypto.core.encryption.elgamal
 
+import treasury.crypto.core.encryption.encryption.{PrivKey, PubKey, Randomness}
 import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, GroupElement}
 
 import scala.util.Try

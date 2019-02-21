@@ -23,6 +23,20 @@ class BlockCipherTest extends PropSpec with TableDrivenPropertyChecks with Match
     }
   }
 
+  property("any cipher should deterministically generate keys from seed") {
+    forAll(ciphers) { cipher =>
+      val key1 = cipher.generateKey("seedA".getBytes).asInstanceOf[AESSecretKey]
+      val key2 = cipher.generateKey("seedA".getBytes).asInstanceOf[AESSecretKey]
+
+      key1.key.sameElements(key2.key) should be (true)
+
+      val key3 = cipher.generateKey("seedB".getBytes).asInstanceOf[AESSecretKey]
+      val key4 = cipher.generateKey("seedC".getBytes).asInstanceOf[AESSecretKey]
+
+      key3.key.sameElements(key4.key) should be (false)
+    }
+  }
+
   property("any cipher should encrypt and decrypt data") {
     forAll(ciphers) { cipher =>
       val key = cipher.generateKey

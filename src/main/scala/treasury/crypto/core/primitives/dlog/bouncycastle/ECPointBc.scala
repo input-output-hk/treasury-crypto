@@ -1,5 +1,6 @@
 package treasury.crypto.core.primitives.dlog.bouncycastle
 
+import com.google.common.primitives.Bytes
 import org.bouncycastle.math.ec.ECPoint
 import treasury.crypto.core.Cryptosystem
 import treasury.crypto.core.primitives.dlog.ECGroupElement
@@ -22,7 +23,12 @@ case class ECPointBc(point: ECPoint) extends ECGroupElement {
 
 object ECPointBcSerializer extends Serializer[ECPointBc] {
 
-  override def toBytes(obj: ECPointBc): Array[Byte] = ???
+  override def toBytes(obj: ECPointBc): Array[Byte] = {
+    val bytes = obj.point.getEncoded(true)
+    Bytes.concat(Array(bytes.length.toByte), bytes)
+  }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[ECPointBc] = ???
+  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[ECPointBc] = Try {
+    ???
+  }
 }

@@ -1,9 +1,6 @@
-package treasury.crypto.core.encryption
+package treasury.crypto.core.encryption.elgamal
 
-import java.math.BigInteger
-
-import org.bouncycastle.math.ec.ECPoint
-import treasury.crypto.core.{One, Zero}
+import treasury.crypto.core.encryption.encryption.{PrivKey, PubKey, Randomness}
 import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, GroupElement}
 
 import scala.util.Try

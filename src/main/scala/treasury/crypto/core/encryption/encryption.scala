@@ -1,4 +1,4 @@
-package treasury.crypto.core
+package treasury.crypto.core.encryption
 
 import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, GroupElement}
 

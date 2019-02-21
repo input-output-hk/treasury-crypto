@@ -1,4 +1,4 @@
-package treasury.crypto.core.encryption
+package treasury.crypto.core.encryption.elgamal
 
 import treasury.crypto.core.primitives.dlog.GroupElement
 

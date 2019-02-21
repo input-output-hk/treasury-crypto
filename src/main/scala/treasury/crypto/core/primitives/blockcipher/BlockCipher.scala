@@ -11,7 +11,15 @@ trait BlockCipher {
 
   def decrypt(key: SecretKey, ciphertext: Ciphertext): Try[Array[Byte]]
 
+  /*
+  * Generates random AES key
+  */
   def generateKey: SecretKey
+
+  /*
+  * Generates AES key from seed. The same seed generates the same key.
+  */
+  def generateKey(seed: Array[Byte]): SecretKey
 
   def keySize: Int
 }
