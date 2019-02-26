@@ -58,10 +58,10 @@ object HybridEncryption {
              (implicit dlogGroup: DiscreteLogGroup, blockCipher: BlockCipher): Try[HybridCiphertext] = Try {
 
     val symmetricKey = blockCipher.generateKey(secretSeedAsGroupElement.bytes)
-    val ciphertext = blockCipher.encrypt(symmetricKey, msg).get
+    val encryptedMessage = blockCipher.encrypt(symmetricKey, msg).get
     val encryptedGroupElement = ElGamalEnc.encrypt(pubKey, secretSeedAsGroupElement).get._1
 
-    HybridCiphertext(encryptedGroupElement, ciphertext)
+    HybridCiphertext(encryptedGroupElement, encryptedMessage)
   }
 
   /*

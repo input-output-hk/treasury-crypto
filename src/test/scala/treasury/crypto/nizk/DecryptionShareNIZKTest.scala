@@ -4,6 +4,7 @@ import org.scalatest.FunSuite
 import treasury.crypto.core.Cryptosystem
 
 class DecryptionShareNIZKTest extends FunSuite {
+
   test("valid nizk") {
     val cs = new Cryptosystem
     val (privKey, pubKey) = cs.createKeyPair
