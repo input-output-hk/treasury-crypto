@@ -13,7 +13,8 @@ libraryDependencies ++= Seq(
   "org.json" % "json" % "20170516",
   "com.storm-enroute" %% "scalameter" % "0.8.2" % "bench",
   "com.storm-enroute" %% "scalameter-core" % "0.8.2",
-  "com.google.guava" % "guava" % "20.0"
+  "com.google.guava" % "guava" % "20.0",
+  "com.github.jnr" % "jnr-ffi" % "2.0.9"
 )
 
 ////////////////////////////////////////////
