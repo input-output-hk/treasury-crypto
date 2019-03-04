@@ -2,29 +2,77 @@ package treasury.crypto.core.primitives.dlog.openssl
 
 import java.security.InvalidAlgorithmParameterException
 
-import jnr.ffi.Pointer
 import org.bouncycastle.jce.ECNamedCurveTable
 import org.bouncycastle.jce.spec.ECParameterSpec
-import treasury.crypto.core.primitives.dlog.bouncycastle.ECDiscreteLogGroupBc
+import treasury.crypto.core.primitives.dlog.openssl.ECDiscreteLogGroupOpenSSL.AvailableCurves.AvailableCurves
 import treasury.crypto.core.primitives.dlog.{ECDiscreteLogGroup, ECGroupElement, GroupElement}
 import treasury.crypto.native.OpenSslAPI.{BN_CTX_PTR, EC_GROUP_PTR}
 import treasury.crypto.native.{NativeLibraryLoader, OpenSslAPI}
 
 import scala.util.Try
 
-class ECDiscreteLogGroupOpenSSL private(curveNameIn: String, ecSpecIn: ECParameterSpec, openSslApiIn: OpenSslAPI)
-  extends ECDiscreteLogGroup {
+class ECDiscreteLogGroupOpenSSL private (override val curveName: String,
+                                         openSslApi: OpenSslAPI,
+                                         bnCtx: BN_CTX_PTR,
+                                         ecGroup: EC_GROUP_PTR) extends ECDiscreteLogGroup {
 
-  private val curveSpec = ecSpecIn
-  private val openSslApi = openSslApiIn
+  override def generateElement(x: BigInt, y: BigInt): Try[ECGroupElement] = ???
 
-  private val bnCtx: Pointer = openSslApi.BN_CTX_new
-  private val curve: Pointer = createCurve(ecSpecIn, bnCtx).get
-  private val curve2: Pointer = createCurve2("P-256", bnCtx).get
+  override def infinityPoint: ECGroupElement = ???
 
-  override val curveName: String = curveNameIn
+  override def groupGenerator: GroupElement = ???
 
-  private def createCurve(ecSpec: ECParameterSpec, bnCtxIn: BN_CTX_PTR): Try[EC_GROUP_PTR] = Try {
+  override def groupOrder: BigInt = ???
+
+  override def groupIdentity: GroupElement = ???
+
+  override def exponentiate(base: GroupElement, exponent: BigInt): Try[GroupElement] = ???
+
+  override def multiply(groupElement1: GroupElement, groupElement2: GroupElement): Try[GroupElement] = ???
+
+  override def divide(groupElement1: GroupElement, groupElement2: GroupElement): Try[GroupElement] = ???
+
+  override def inverse(groupElement: GroupElement): Try[GroupElement] = ???
+
+  override def reconstructGroupElement(bytes: Array[Byte]): Try[GroupElement] = ???
+
+  override def finalize(): Unit = {
+    openSslApi.BN_free(bnCtx)
+    openSslApi.BN_free(ecGroup)
+
+    super.finalize()
+  }
+}
+
+object ECDiscreteLogGroupOpenSSL {
+
+  object AvailableCurves extends Enumeration {
+    type AvailableCurves = String
+    val secp256k1 = "secp256k1"
+    val secp256r1 = "secp256r1"
+  }
+
+  def apply(curve: AvailableCurves): Try[ECDiscreteLogGroupOpenSSL] = Try {
+    val openSslApi = NativeLibraryLoader.openSslAPI.get
+    curve match {
+      case AvailableCurves.secp256k1 => { // this one is not defined in the OpenSSL so use the spec from BouncyCastle
+        val bnCtx = openSslApi.BN_CTX_new
+        val ecGroup = createECGroupFromSpec(ECNamedCurveTable.getParameterSpec(AvailableCurves.secp256k1), openSslApi, bnCtx).get
+        new ECDiscreteLogGroupOpenSSL(AvailableCurves.secp256k1, openSslApi, bnCtx, ecGroup)
+      }
+      case AvailableCurves.secp256r1 => { // it is defined in the OpenSSL by name "P-256"
+        val bnCtx = openSslApi.BN_CTX_new
+        val ecGroup = createECGroup("P-256", openSslApi, bnCtx).get
+        new ECDiscreteLogGroupOpenSSL(AvailableCurves.secp256r1, openSslApi, bnCtx, ecGroup)
+      }
+      case _ => throw new IllegalArgumentException(s"Curve $curve is not supported")
+    }
+  }
+
+  /* Creates an elliptic curve group based on the provided ECParameterSpec. In may be useful if needed to use a curve
+  *  that is not defined in the OpenSSL library.
+  */
+  private def createECGroupFromSpec(ecSpec: ECParameterSpec, openSslApi: OpenSslAPI, bnCtxIn: BN_CTX_PTR): Try[EC_GROUP_PTR] = Try {
     val a = ecSpec.getCurve.getA.toBigInteger.toByteArray
     val b = ecSpec.getCurve.getB.toBigInteger.toByteArray
     val p = ecSpec.getCurve.getField.getCharacteristic.toByteArray
@@ -72,52 +120,17 @@ class ECDiscreteLogGroupOpenSSL private(curveNameIn: String, ecSpecIn: ECParamet
     ec_group
   }
 
-  private def createCurve2(openSSLcurveName: String, bnCtxIn: BN_CTX_PTR): Try[EC_GROUP_PTR] = Try {
+  /* Creates an elliptic curve group by using one of the predefined OpenSSL curves.
+  */
+  private def createECGroup(openSSLcurveName: String, openSslApi: OpenSslAPI, bnCtx: BN_CTX_PTR): Try[EC_GROUP_PTR] = Try {
     val nid = openSslApi.EC_curve_nist2nid(openSSLcurveName)
     val ec_group = openSslApi.EC_GROUP_new_by_curve_name(nid)
 
-    if (!openSslApi.EC_GROUP_check(ec_group, bnCtxIn)) {
+    if (!openSslApi.EC_GROUP_check(ec_group, bnCtx)) {
       openSslApi.BN_free(ec_group)
       throw new IllegalArgumentException(s"Can not create curve: $openSSLcurveName")
     }
 
     ec_group
-  }
-
-  override def generateElement(x: BigInt, y: BigInt): Try[ECGroupElement] = ???
-
-  override def infinityPoint: ECGroupElement = ???
-
-  override def groupGenerator: GroupElement = ???
-
-  override def groupOrder: BigInt = ???
-
-  override def groupIdentity: GroupElement = ???
-
-  override def exponentiate(base: GroupElement, exponent: BigInt): Try[GroupElement] = ???
-
-  override def multiply(groupElement1: GroupElement, groupElement2: GroupElement): Try[GroupElement] = ???
-
-  override def divide(groupElement1: GroupElement, groupElement2: GroupElement): Try[GroupElement] = ???
-
-  override def inverse(groupElement: GroupElement): Try[GroupElement] = ???
-
-  override def reconstructGroupElement(bytes: Array[Byte]): Try[GroupElement] = ???
-
-  override def finalize(): Unit = {
-    openSslApi.BN_free(bnCtx)
-    openSslApi.BN_free(curve)
-
-    super.finalize()
-  }
-}
-
-object ECDiscreteLogGroupOpenSSL {
-
-  def apply(curveName: String): Try[ECDiscreteLogGroupOpenSSL] = Try {
-    curveName match {
-      case "secp256k1" => new ECDiscreteLogGroupOpenSSL(curveName, ECNamedCurveTable.getParameterSpec(curveName), NativeLibraryLoader.openSslAPI.get)
-      case _ => throw new IllegalArgumentException(s"Curve $curveName is not supported")
-    }
   }
 }
