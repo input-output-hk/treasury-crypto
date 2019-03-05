@@ -7,26 +7,35 @@ import treasury.crypto.native.OpenSslAPI.PointConversionForm.PointConversionForm
 trait OpenSslAPI {
 
   // bn.h
-  def BN_CTX_new: Pointer
-  def BN_bin2bn(s: Array[Byte], len: Int, out: Pointer): Pointer
-  def BN_bn2bin(p: Pointer, out: Array[Byte]): Int
-  def BN_free(p: Pointer)
+  def BN_CTX_new: BN_CTX_PTR
+  def BN_bin2bn(s: Array[Byte], len: Int, out: BIGNUM_PTR): BIGNUM_PTR
+  def BN_bn2bin(p: BIGNUM_PTR, out: Array[Byte]): Int
+  def BN_free(p: BIGNUM_PTR)
 
   // ec.h
-  def EC_GROUP_new_curve_GFp(p: BIGNUM_PTR, a: BIGNUM_PTR, b: BIGNUM_PTR, bnCtx: BN_CTX_PTR): EC_GROUP_PTR
-  def EC_GROUP_set_generator(group: EC_GROUP_PTR, generator: EC_POINT_PTR, order: BIGNUM_PTR, cofactor: BIGNUM_PTR): Boolean
-  def EC_GROUP_check(group: EC_GROUP_PTR, bnCtx: BN_CTX_PTR): Boolean
+  def EC_get_builtin_curves(curve: EC_BUILTIN_CURVE_PTR, nitems: Int): Int
   def EC_curve_nid2nist(nid: Int): String
   def EC_curve_nist2nid(name: String): Int
-  def EC_get_builtin_curves(curve: EC_BUILTIN_CURVE_PTR, nitems: Int): Int
+
+  def EC_GROUP_new_curve_GFp(p: BIGNUM_PTR, a: BIGNUM_PTR, b: BIGNUM_PTR, bnCtx: BN_CTX_PTR): EC_GROUP_PTR
   def EC_GROUP_new_by_curve_name(nid: Int): EC_GROUP_PTR
-
+  def EC_GROUP_set_generator(group: EC_GROUP_PTR, generator: EC_POINT_PTR, order: BIGNUM_PTR, cofactor: BIGNUM_PTR): Boolean
   def EC_GROUP_get0_generator(group: EC_GROUP_PTR): EC_POINT_PTR
+  def EC_GROUP_check(group: EC_GROUP_PTR, bnCtx: BN_CTX_PTR): Boolean
+  def EC_GROUP_free(group: EC_GROUP_PTR)
 
+  def EC_POINT_new(group: EC_GROUP_PTR): EC_POINT_PTR
+  def EC_POINT_free(point: EC_POINT_PTR)
+  def EC_POINT_clear_free(point: EC_POINT_PTR)
   def EC_POINT_point2hex(group: EC_GROUP_PTR, point: EC_POINT_PTR, form: PointConversionForm, bnCtx: BN_CTX_PTR): String
   def EC_POINT_hex2point(group: EC_GROUP_PTR, point: String, outPoint: EC_POINT_PTR, bnCtx: BN_CTX_PTR): EC_POINT_PTR
   def EC_POINT_bn2point(group: EC_GROUP_PTR, bigNum: BIGNUM_PTR, outPoint: EC_POINT_PTR, bnCtx: BN_CTX_PTR): EC_POINT_PTR
+  def EC_POINT_point2bn(group: EC_GROUP_PTR, point: EC_POINT_PTR, form: PointConversionForm, bigNum: BIGNUM_PTR, bnCtx: BN_CTX_PTR): BIGNUM_PTR
   def EC_POINT_is_on_curve(group: EC_GROUP_PTR, point: EC_POINT_PTR, bnCtx: BN_CTX_PTR): Boolean
+  def EC_POINT_set_to_infinity(group: EC_GROUP_PTR, point: EC_POINT_PTR): Boolean
+  def EC_POINT_is_at_infinity(group: EC_GROUP_PTR, point: EC_POINT_PTR): Boolean
+  def EC_POINT_point2oct(group: EC_GROUP_PTR, point: EC_POINT_PTR, pointConversionForm: PointConversionForm, buf: Array[Byte], len: Int, bnCtx: BN_CTX_PTR): Int
+  def EC_POINT_oct2point(group: EC_GROUP_PTR, point: EC_POINT_PTR, buf: Array[Byte], len: Int, bnCtx: BN_CTX_PTR): Boolean
 }
 
 object OpenSslAPI {
