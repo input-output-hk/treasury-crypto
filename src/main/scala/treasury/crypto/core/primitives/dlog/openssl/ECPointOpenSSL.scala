@@ -1,8 +1,12 @@
 package treasury.crypto.core.primitives.dlog.openssl
 
+import java.util
+
 import treasury.crypto.core.primitives.dlog.ECGroupElement
 import treasury.crypto.core.serialization.Serializer
 import treasury.crypto.native.OpenSslAPI
+import treasury.crypto.native.OpenSslAPI.PointConversionForm
+import treasury.crypto.native.OpenSslAPI.PointConversionForm.PointConversionForm
 import treasury.crypto.native.OpenSslAPI.{BN_CTX_PTR, EC_GROUP_PTR, EC_POINT_PTR, PointConversionForm}
 
 import scala.util.Try
@@ -22,10 +26,10 @@ import scala.util.Try
   * @param bnCtx
   * @param openSslApi
   */
-case class ECPointOpenSSL(override val bytes: Array[Byte],
-                          private val ecGroup: EC_GROUP_PTR,
-                          private val bnCtx: BN_CTX_PTR,
-                          private val openSslApi: OpenSslAPI) extends ECGroupElement {
+class ECPointOpenSSL(override val bytes: Array[Byte],
+                     private val ecGroup: EC_GROUP_PTR,
+                     private val bnCtx: BN_CTX_PTR,
+                     private val openSslApi: OpenSslAPI) extends ECGroupElement {
 
   override lazy val isInfinity: Boolean = bytes.isEmpty
 
@@ -35,6 +39,15 @@ case class ECPointOpenSSL(override val bytes: Array[Byte],
 
   override type M = this.type
   override def serializer: Serializer[ECPointOpenSSL.this.type] = ???
+
+  override def equals(o: Any): Boolean = {
+    o match {
+      case that: ECPointOpenSSL => o.isInstanceOf[ECPointOpenSSL] && (this.hashCode == that.hashCode)
+      case _ => false
+    }
+  }
+
+  override def hashCode(): Int = util.Arrays.hashCode(bytes)
 
   /**
     * This method is mostly for testing purposes
@@ -46,11 +59,18 @@ case class ECPointOpenSSL(override val bytes: Array[Byte],
       res
     }.getOrElse(false)
 
+  def getHexString(form: PointConversionForm = PointConversionForm.POINT_CONVERSION_COMPRESSED): String = Try {
+    val nativePoint = generateNativePoint.get
+    val string = openSslApi.EC_POINT_point2hex(ecGroup, nativePoint, form, bnCtx)
+    openSslApi.EC_POINT_free(nativePoint)
+    string
+  }.getOrElse("N/A")
+
   /**
     * Creates a native openssl object EC_POINT.
     * IMPORTANT: it is responsibility of the caller to free EC_POINT object with EC_POINT_free
     */
-  protected def generateNativePoint: Try[EC_POINT_PTR] = {
+  def generateNativePoint: Try[EC_POINT_PTR] = {
     if (bytes.length == 0) // point at infinity
       ECPointOpenSSL.generateNativeInfinityPoint(ecGroup, bnCtx, openSslApi)
     else
@@ -60,8 +80,16 @@ case class ECPointOpenSSL(override val bytes: Array[Byte],
 
 object ECPointOpenSSL {
 
+  def apply(point: EC_POINT_PTR, ecGroup: EC_GROUP_PTR, bnCtx: BN_CTX_PTR, openSslApi: OpenSslAPI): Try[ECPointOpenSSL] = Try {
+    OpenSslAPI.checkPointerWithException(point, "Can not create ECPointOpenSSL object because of the bad pointer")
+    require(openSslApi.EC_POINT_is_on_curve(ecGroup, point, bnCtx), "Can not create ECPointOpenSSL object from the EC_POINT that is not on the curve")
+
+    val bytes = nativePointToBytes(point, ecGroup, bnCtx, openSslApi).get
+    new ECPointOpenSSL(bytes, ecGroup, bnCtx, openSslApi)
+  }
+
   def getInfinityPoint(ecGroup: EC_GROUP_PTR, bnCtx: BN_CTX_PTR, openSslApi: OpenSslAPI): ECPointOpenSSL = {
-    ECPointOpenSSL(Array(), ecGroup, bnCtx, openSslApi)
+    new ECPointOpenSSL(Array(), ecGroup, bnCtx, openSslApi)
   }
 
   /**

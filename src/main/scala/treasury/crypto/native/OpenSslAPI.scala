@@ -10,6 +10,11 @@ trait OpenSslAPI {
   def BN_CTX_new: BN_CTX_PTR
   def BN_bin2bn(s: Array[Byte], len: Int, out: BIGNUM_PTR): BIGNUM_PTR
   def BN_bn2bin(p: BIGNUM_PTR, out: Array[Byte]): Int
+  def BN_div(div: BIGNUM_PTR, remainder: BIGNUM_PTR, num: BIGNUM_PTR, mod: BIGNUM_PTR, bnCtx: BN_CTX_PTR): Boolean
+  def BN_nnmod(res: BIGNUM_PTR, a: BIGNUM_PTR, mod: BIGNUM_PTR, bnCtx: BN_CTX_PTR): Boolean
+  def BN_sub(res: BIGNUM_PTR, a: BIGNUM_PTR, b: BIGNUM_PTR): Boolean
+  def BN_set_negative(b: BIGNUM_PTR, n: Int): Unit
+  def BN_is_negative(b: BIGNUM_PTR): Boolean
   def BN_free(p: BIGNUM_PTR)
 
   // ec.h
@@ -20,7 +25,10 @@ trait OpenSslAPI {
   def EC_GROUP_new_curve_GFp(p: BIGNUM_PTR, a: BIGNUM_PTR, b: BIGNUM_PTR, bnCtx: BN_CTX_PTR): EC_GROUP_PTR
   def EC_GROUP_new_by_curve_name(nid: Int): EC_GROUP_PTR
   def EC_GROUP_set_generator(group: EC_GROUP_PTR, generator: EC_POINT_PTR, order: BIGNUM_PTR, cofactor: BIGNUM_PTR): Boolean
+  // IMPORTANT: "get0" suffix means that function returns an internal pointer! IT MUST NOT BE FREED BY THE CALLER!
   def EC_GROUP_get0_generator(group: EC_GROUP_PTR): EC_POINT_PTR
+  // IMPORTANT: "get0" suffix means that function returns an internal pointer! IT MUST NOT BE FREED BY THE CALLER!
+  def EC_GROUP_get0_order(group: EC_GROUP_PTR): BIGNUM_PTR
   def EC_GROUP_check(group: EC_GROUP_PTR, bnCtx: BN_CTX_PTR): Boolean
   def EC_GROUP_free(group: EC_GROUP_PTR)
 
@@ -36,6 +44,9 @@ trait OpenSslAPI {
   def EC_POINT_is_at_infinity(group: EC_GROUP_PTR, point: EC_POINT_PTR): Boolean
   def EC_POINT_point2oct(group: EC_GROUP_PTR, point: EC_POINT_PTR, pointConversionForm: PointConversionForm, buf: Array[Byte], len: Int, bnCtx: BN_CTX_PTR): Int
   def EC_POINT_oct2point(group: EC_GROUP_PTR, point: EC_POINT_PTR, buf: Array[Byte], len: Int, bnCtx: BN_CTX_PTR): Boolean
+  def EC_POINT_mul(group: EC_GROUP_PTR, out: EC_POINT_PTR, multiplier: BIGNUM_PTR, base: EC_POINT_PTR, exponent: BIGNUM_PTR, bnCtx: BN_CTX_PTR): Boolean
+  def EC_POINT_add(group: EC_GROUP_PTR, out: EC_POINT_PTR, point1: EC_POINT_PTR, point2: EC_POINT_PTR, bnCtx: BN_CTX_PTR): Boolean
+  def EC_POINT_invert(group: EC_GROUP_PTR, point: EC_POINT_PTR, bnCtx: BN_CTX_PTR): Boolean
 }
 
 object OpenSslAPI {
@@ -57,4 +68,12 @@ object OpenSslAPI {
     /** the point is encoded as z||x||y, where the octet z specifies which solution of the quadratic equation y is  */
     val POINT_CONVERSION_HYBRID = 6
   }
+
+  @throws[BadPointerException]
+  def checkPointerWithException(p: Pointer, errorMsg: String): Unit = {
+    if (p == null || p.address() == 0)
+      throw new BadPointerException(errorMsg)
+  }
+
+  class BadPointerException(errorMsg: String) extends Exception(errorMsg)
 }

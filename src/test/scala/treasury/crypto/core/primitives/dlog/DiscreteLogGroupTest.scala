@@ -1,6 +1,6 @@
 package treasury.crypto.core.dlog
 
-import org.scalatest.{Matchers, PropSpec}
+import org.scalatest.{FunSuite, Matchers, PropSpec}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory
 import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
@@ -8,146 +8,141 @@ import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGro
 /*
  * Performs generic tests for DiscreteLogGroup inteface for all available implementations of the dlog group
  */
-class DiscreteLogGroupTest extends PropSpec with TableDrivenPropertyChecks with Matchers {
+class DiscreteLogGroupTest extends FunSuite with TableDrivenPropertyChecks {
 
   val dlogGroups =
     Table(
       "group",
-      DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256k1).get
+      DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256k1).get,
+      DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.OpenSSL_secp256k1).get,
+      DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.OpenSSL_secp256r1).get
     )
 
-  property("any group should return a non-zero group order") {
+  test("any group should return a non-zero group order") {
     forAll(dlogGroups) { group =>
-      group.groupOrder should be > BigInt(0)
+      require(group.groupOrder > 0)
     }
   }
 
-  property("any group should have generator different from identity of the group") {
+  test("any group should have generator different from identity of the group") {
     forAll(dlogGroups) { group =>
-      group.groupGenerator.isIdentity should be (false)
+      require(group.groupGenerator.isIdentity == false)
     }
   }
 
-  property("any group should have identity element") {
+  test("any group should have identity element") {
     forAll(dlogGroups) { group =>
-      group.groupIdentity.isIdentity should be (true)
+      require(group.groupIdentity.isIdentity)
     }
   }
 
-  property("any group should be able to create valid random number") {
+  test("any group should be able to create valid random number") {
     forAll(dlogGroups) { group =>
       val rand = group.createRandomNumber
-      rand should be > BigInt(0)
-      rand should be < group.groupOrder
+      require(rand > 0)
+      require(rand < group.groupOrder)
     }
   }
 
-  property("any group should implement multiplication of the group elements") {
+  test("any group should implement multiplication of the group elements") {
     forAll(dlogGroups) { group =>
       val e1 = group.createRandomGroupElement.get
       val e2 = group.createRandomGroupElement.get
-      val res = group.multiply(e1, e2)
+      val res = group.multiply(e1, e2).get
 
-      res.isSuccess should be (true)
-      res.get should not equals e1
-      res.get should not equals e2
-      res.get.isIdentity should be (false)
+      require(res != e1)
+      require(res != e2)
+      require(!res.isIdentity)
     }
   }
 
-  property("multiplication of any element with the identity element should yeild the same element") {
+  test("multiplication of any element with the identity element should yeild the same element") {
     forAll(dlogGroups) { group =>
       val e = group.createRandomGroupElement.get
-      val res = group.multiply(e, group.groupIdentity)
+      val res = group.multiply(e, group.groupIdentity).get
 
-      res.isSuccess should be (true)
-      res.get should be (e)
+      require(res == e)
     }
   }
 
-  property("any group should implement exponentiation of the group element") {
+  test("any group should implement exponentiation of the group element") {
     forAll(dlogGroups) { group =>
-      val res = group.exponentiate(group.groupGenerator, 5)
+      val res = group.exponentiate(group.groupGenerator, 5).get
 
-      res.isSuccess should be (true)
-      res.get should not equals group.groupGenerator
-      res.get.isIdentity should be (false)
+      require(res != group.groupGenerator)
+      require(res.isIdentity == false)
 
       val e = group.createRandomGroupElement.get
-      val res1 = group.exponentiate(e, -5)
-      val res1_2 = group.exponentiate(e, BigInt(-5).mod(group.groupOrder))
+      val res1 = group.exponentiate(e, -5).get
+      val res1_2 = group.exponentiate(e, BigInt(-5).mod(group.groupOrder)).get
 
-      require(res1.isSuccess && res1_2.isSuccess)
-      res1.get should not equals (e)
-      res1.get should be (res1_2.get)
+      require(res1 != e)
+      require(res1 == res1_2)
+
+      val res2 = group.exponentiate(e, 2).get
+      val res2_2 = group.exponentiate(e, 2 + group.groupOrder).get
+
+      require(res2 != e)
+      require(res2== res2_2)
     }
   }
 
-  property("exponentiation to the neutral exponent should yield the same element") {
+  test("exponentiation to the neutral exponent should yield the same element") {
     forAll(dlogGroups) { group =>
-      val res = group.exponentiate(group.groupGenerator, 1)
-
-      require(res.isSuccess)
-      res.get should be (group.groupGenerator)
+      val res = group.exponentiate(group.groupGenerator, 1).get
+      require(res == group.groupGenerator)
     }
   }
 
-  property("exponentiation to the zero exponent should yield the identity element") {
+  test("exponentiation to the zero exponent should yield the identity element") {
     forAll(dlogGroups) { group =>
-      val res = group.exponentiate(group.groupGenerator, 0)
-
-      require(res.isSuccess)
-      res.get should be (group.groupIdentity)
+      val res = group.exponentiate(group.groupGenerator, 0).get
+      require(res == group.groupIdentity)
     }
   }
 
-  property("any group should support division of the group elements") {
+  test("any group should support division of the group elements") {
     forAll(dlogGroups) { group =>
       val e1 = group.createRandomGroupElement.get
       val e2 = group.createRandomGroupElement.get
-      val res = group.divide(e1, e2)
+      val res = group.divide(e1, e2).get
 
-      res.isSuccess should be (true)
-      res.get should not equals e1
-      res.get should not equals e2
-      res.get.isIdentity should be (false)
+      require(res != e1)
+      require(res != e2)
+      require(!res.isIdentity)
 
-      val e1_1 = group.multiply(e2, res.get).get
-      e1_1 should be (e1)
+      val e1_1 = group.multiply(e2, res).get
+      require(e1_1 == e1)
 
-      val e2_1 = group.divide(e1, res.get).get
-      e2_1 should be (e2)
+      val e2_1 = group.divide(e1, res).get
+      require(e2_1 == e2)
     }
   }
 
-  property("any group should support inverse of the group element") {
+  test("any group should support inverse of the group element") {
     forAll(dlogGroups) { group =>
       val e = group.createRandomGroupElement.get
-      val inverse = group.inverse(e)
+      val inverse = group.inverse(e).get
+      require(inverse != e)
 
-      inverse.isSuccess should be (true)
-      inverse.get should not equals e
-
-      val identity = group.multiply(e, inverse.get).get
-      identity should be (group.groupIdentity)
+      val identity = group.multiply(e, inverse).get
+      require(identity == group.groupIdentity)
     }
   }
 
-  property("any group should create the same group element from the same seed") {
+  test("any group should create the same group element from the same seed") {
     forAll(dlogGroups) { group =>
       val seed = "seed".getBytes
       val e1 = group.createGroupElementFromSeed(seed).get
       val e2 = group.createGroupElementFromSeed("seed".getBytes).get
-
-      e1.equals(e2) should be (true)
+      require(e1 == e2)
 
       val e3 = group.createGroupElementFromSeed("seed!".getBytes).get
-
-      e3.equals(e2) should be (false)
+      require(e3 != e2)
     }
   }
 
-  property("any group should be able to reconstruct an element from bytes") {
+  test("any group should be able to reconstruct an element from bytes") {
     forAll(dlogGroups) { group =>
       // TODO
     }

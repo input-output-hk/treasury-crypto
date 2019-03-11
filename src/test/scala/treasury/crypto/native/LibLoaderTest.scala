@@ -10,19 +10,21 @@ class LibLoaderTest extends FunSuite {
 
   test("Load OpenSSL library") {
     val openSSl = NativeLibraryLoader.openSslAPI.get
+    val bnCtx = openSSl.BN_CTX_new
 
-    val array = BigInt(234234).toByteArray
-    val outArr = new Array[Byte](3)
-    //val buffer = ByteBuffer.allocate(64)
-    //val pointer: Pointer = Pointer.wrap(Runtime.getRuntime(openSSl), buffer)
+    val three = BigInt(3).toByteArray
+    val two = BigInt(2).toByteArray
 
-    val p = openSSl.BN_bin2bn(array, array.length, null)
+    val outArrMinOne = new Array[Byte](3)
 
+    val three_ptr = openSSl.BN_bin2bn(three, three.length, null)
+    val two_ptr = openSSl.BN_bin2bn(two, two.length, null)
+    openSSl.BN_set_negative(two_ptr, 1)
 
-    val len = openSSl.BN_bn2bin(p, outArr)
-    val outInt = BigInt(outArr)
+    val rr = openSSl.BN_nnmod(two_ptr, two_ptr, three_ptr, bnCtx)
 
-    openSSl.BN_free(p)
+    val len = openSSl.BN_bn2bin(two_ptr, outArrMinOne)
+    val outInt = BigInt(outArrMinOne)
 
 
     require(true)
