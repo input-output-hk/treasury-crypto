@@ -2,7 +2,7 @@ package treasury.crypto.core.primitives.dlog.openssl
 
 import java.util
 
-import treasury.crypto.core.primitives.dlog.ECGroupElement
+import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, ECGroupElement, GroupElement}
 import treasury.crypto.core.serialization.Serializer
 import treasury.crypto.native.OpenSslAPI
 import treasury.crypto.native.OpenSslAPI.PointConversionForm
@@ -32,6 +32,26 @@ class ECPointOpenSSL(override val bytes: Array[Byte],
                      private val openSslApi: OpenSslAPI) extends ECGroupElement {
 
   override lazy val isInfinity: Boolean = bytes.isEmpty
+
+  override def multiply(that: GroupElement)(implicit dlog: DiscreteLogGroup): Try[GroupElement] = {
+    require(dlog.isInstanceOf[ECDiscreteLogGroupOpenSSL])
+    dlog.multiply(this, that)
+  }
+
+  override def pow(exp: BigInt)(implicit dlog: DiscreteLogGroup): Try[GroupElement] = {
+    require(dlog.isInstanceOf[ECDiscreteLogGroupOpenSSL])
+    dlog.exponentiate(this, exp)
+  }
+
+  override def divide(that: GroupElement)(implicit dlog: DiscreteLogGroup): Try[GroupElement] = {
+    require(dlog.isInstanceOf[ECDiscreteLogGroupOpenSSL])
+    dlog.divide(this, that)
+  }
+
+  override def inverse()(implicit dlog: DiscreteLogGroup): Try[GroupElement] = {
+    require(dlog.isInstanceOf[ECDiscreteLogGroupOpenSSL])
+    dlog.inverse(this)
+  }
 
   override def getX: BigInt = ???
 

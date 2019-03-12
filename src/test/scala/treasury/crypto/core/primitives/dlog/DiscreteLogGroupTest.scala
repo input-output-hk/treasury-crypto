@@ -5,18 +5,12 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory
 import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
 
-/*
- * Performs generic tests for DiscreteLogGroup inteface for all available implementations of the dlog group
- */
+/**
+  * Performs generic tests for DiscreteLogGroup interface for all available implementations of the dlog group
+  */
 class DiscreteLogGroupTest extends FunSuite with TableDrivenPropertyChecks {
 
-  val dlogGroups =
-    Table(
-      "group",
-      DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256k1).get,
-      DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.OpenSSL_secp256k1).get,
-      DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.OpenSSL_secp256r1).get
-    )
+  import DiscreteLogGroupTest.dlogGroups
 
   test("any group should return a non-zero group order") {
     forAll(dlogGroups) { group =>
@@ -147,4 +141,15 @@ class DiscreteLogGroupTest extends FunSuite with TableDrivenPropertyChecks {
       // TODO
     }
   }
+}
+
+object DiscreteLogGroupTest extends TableDrivenPropertyChecks {
+
+  val dlogGroups =
+    Table(
+      "group",
+      DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256k1).get,
+      DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.OpenSSL_secp256k1).get,
+      DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.OpenSSL_secp256r1).get
+    )
 }
