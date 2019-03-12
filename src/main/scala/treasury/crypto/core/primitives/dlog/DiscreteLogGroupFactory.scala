@@ -9,15 +9,17 @@ import scala.util.Try
 object DiscreteLogGroupFactory {
 
     object AvailableGroups extends Enumeration {
-      type AvailableGroups = String
-      val BC_secp256k1 = "BC_secp256k1"
-      val OpenSSL_secp256k1 = "OpenSSL_secp256k1"
-      val OpenSSL_secp256r1 = "OpenSSL_secp256r1"
+      type AvailableGroups = Value
+      val BC_secp256k1 = Value("BC_secp256k1")
+      val BC_secp256r1 = Value("BC_secp256r1")
+      val OpenSSL_secp256k1 = Value("OpenSSL_secp256k1")
+      val OpenSSL_secp256r1 = Value("OpenSSL_secp256r1")
     }
 
     def constructDlogGroup(group: AvailableGroups): Try[DiscreteLogGroup] = {
       group match {
         case AvailableGroups.BC_secp256k1 => ECDiscreteLogGroupBc.apply("secp256k1")
+        case AvailableGroups.BC_secp256r1 => ECDiscreteLogGroupBc.apply("secp256r1")
         case AvailableGroups.OpenSSL_secp256k1 => ECDiscreteLogGroupOpenSSL.apply(ECDiscreteLogGroupOpenSSL.AvailableCurves.secp256k1)
         case AvailableGroups.OpenSSL_secp256r1 => ECDiscreteLogGroupOpenSSL.apply(ECDiscreteLogGroupOpenSSL.AvailableCurves.secp256r1)
         case _ => Try(throw new IllegalArgumentException(s"Group $group is not supported"))

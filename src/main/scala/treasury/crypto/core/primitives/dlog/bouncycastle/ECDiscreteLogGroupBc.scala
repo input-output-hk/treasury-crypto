@@ -59,6 +59,7 @@ object ECDiscreteLogGroupBc {
   def apply(curveName: String): Try[ECDiscreteLogGroupBc] = Try {
     curveName match {
       case "secp256k1" => new ECDiscreteLogGroupBc(curveName, ECNamedCurveTable.getParameterSpec(curveName))
+      case "secp256r1" => new ECDiscreteLogGroupBc(curveName, ECNamedCurveTable.getParameterSpec(curveName))
       case _ => throw new IllegalArgumentException(s"Curve $curveName is not supported")
     }
   }

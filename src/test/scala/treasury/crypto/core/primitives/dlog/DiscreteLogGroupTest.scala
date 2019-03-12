@@ -148,8 +148,6 @@ object DiscreteLogGroupTest extends TableDrivenPropertyChecks {
   val dlogGroups =
     Table(
       "group",
-      DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256k1).get,
-      DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.OpenSSL_secp256k1).get,
-      DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.OpenSSL_secp256r1).get
+      AvailableGroups.values.toSeq.map(g => DiscreteLogGroupFactory.constructDlogGroup(g).get):_*
     )
 }
