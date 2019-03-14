@@ -14,6 +14,8 @@ object DiscreteLogGroupFactory {
       val BC_secp256r1 = Value("BC_secp256r1")
       val OpenSSL_secp256k1 = Value("OpenSSL_secp256k1")
       val OpenSSL_secp256r1 = Value("OpenSSL_secp256r1")
+
+      def getEllipticCurveGroups: Seq[Value] = this.values.toSeq // currently all supported groups are EC groups
     }
 
     def constructDlogGroup(group: AvailableGroups): Try[DiscreteLogGroup] = {

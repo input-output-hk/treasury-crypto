@@ -69,6 +69,8 @@ class ECPointOpenSSL(override val bytes: Array[Byte],
 
   override def hashCode(): Int = util.Arrays.hashCode(bytes)
 
+  override def toString: String = getHexString()
+
   /**
     * This method is mostly for testing purposes
     */

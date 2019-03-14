@@ -2,6 +2,7 @@ package treasury.crypto.core.primitives.dlog.bouncycastle
 
 import com.google.common.primitives.Bytes
 import org.bouncycastle.math.ec.ECPoint
+import org.bouncycastle.util.encoders.Hex
 import treasury.crypto.core.Cryptosystem
 import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, ECGroupElement, GroupElement}
 import treasury.crypto.core.serialization.Serializer
@@ -39,6 +40,8 @@ case class ECPointBc(point: ECPoint) extends ECGroupElement {
   }
 
   override val serializer = ECPointBcSerializer
+
+  override def toString: String = Hex.toHexString(point.getEncoded(true))
 }
 
 object ECPointBcSerializer extends Serializer[ECPointBc] {

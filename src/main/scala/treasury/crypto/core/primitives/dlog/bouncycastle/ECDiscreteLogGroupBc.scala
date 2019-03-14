@@ -4,6 +4,7 @@ import java.math.BigInteger
 
 import org.bouncycastle.jce.ECNamedCurveTable
 import org.bouncycastle.jce.spec.ECParameterSpec
+import org.bouncycastle.util.encoders.Hex
 import treasury.crypto.core.primitives.dlog.{ECDiscreteLogGroup, ECGroupElement, GroupElement}
 
 import scala.util.Try
@@ -49,9 +50,19 @@ class ECDiscreteLogGroupBc private (curveNameIn: String, ecSpecIn: ECParameterSp
     ECPointBc(result)
   }
 
+  override def isValidGroupElement(groupElement: GroupElement): Boolean = Try {
+    groupElement.asInstanceOf[ECPointBc].point.isValid
+  }.getOrElse(false)
+
   override def reconstructGroupElement(bytes: Array[Byte]): Try[GroupElement] = ???
 
   override def generateElement(x: BigInt, y: BigInt): Try[ECGroupElement] = ???
+
+  override def getA: BigInt = curve.getA.toBigInteger
+
+  override def getB: BigInt = curve.getB.toBigInteger
+
+  override def getFieldCharacteristic: BigInt = curve.getField.getCharacteristic
 }
 
 object ECDiscreteLogGroupBc {

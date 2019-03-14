@@ -112,6 +112,41 @@ class ECDiscreteLogGroupOpenSSL private (override val curveName: String,
     groupElem
   }
 
+  override def isValidGroupElement(groupElement: GroupElement): Boolean = Try {
+    groupElement.asInstanceOf[ECPointOpenSSL].isOnCurve
+  }.getOrElse(false)
+
+  /**
+    * extracts curve parameters, where
+    * P - prime number (GFp) or the polynomial defining the underlying field (GF2m)
+    * A - parameter of the curve equation
+    * B - parameter of the curve equation
+    */
+  private lazy val (curveParam_P, curveParam_A, curveParam_B) = {
+    val params = List.fill(3)(openSslApi.BN_new)
+    params.foreach(p => assert(p != null && p.address != 0))
+
+    val res = openSslApi.EC_GROUP_get_curve(ecGroup, params(0), params(1), params(2), bnCtx)
+    assert(res)
+
+    val bigIntParams = params.map { p =>
+      val buf = new Array[Byte](64)
+      val len = openSslApi.BN_bn2bin(p, buf)
+      assert(len <= 64)
+      if (len > 0) BigInt(1, buf.take(len)) else BigInt(0)
+    }
+
+    params.foreach(openSslApi.BN_free)
+
+    (bigIntParams(0), bigIntParams(1), bigIntParams(2))
+  }
+
+  override def getA: BigInt = curveParam_A
+
+  override def getB: BigInt = curveParam_B
+
+  override def getFieldCharacteristic: BigInt = curveParam_P
+
   override def reconstructGroupElement(bytes: Array[Byte]): Try[GroupElement] = ???
 
   override def finalize(): Unit = {

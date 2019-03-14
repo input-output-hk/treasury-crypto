@@ -7,6 +7,7 @@ import treasury.crypto.native.OpenSslAPI.PointConversionForm.PointConversionForm
 trait OpenSslAPI {
 
   // bn.h
+  def BN_new: BIGNUM_PTR
   def BN_CTX_new: BN_CTX_PTR
   def BN_bin2bn(s: Array[Byte], len: Int, out: BIGNUM_PTR): BIGNUM_PTR
   def BN_bn2bin(p: BIGNUM_PTR, out: Array[Byte]): Int
@@ -22,6 +23,7 @@ trait OpenSslAPI {
   def EC_curve_nid2nist(nid: Int): String
   def EC_curve_nist2nid(name: String): Int
 
+  def EC_GROUP_get_curve(group: EC_GROUP_PTR, p: BIGNUM_PTR, a: BIGNUM_PTR, b: BIGNUM_PTR, bnCtx: BN_CTX_PTR): Boolean
   def EC_GROUP_new_curve_GFp(p: BIGNUM_PTR, a: BIGNUM_PTR, b: BIGNUM_PTR, bnCtx: BN_CTX_PTR): EC_GROUP_PTR
   def EC_GROUP_new_by_curve_name(nid: Int): EC_GROUP_PTR
   def EC_GROUP_set_generator(group: EC_GROUP_PTR, generator: EC_POINT_PTR, order: BIGNUM_PTR, cofactor: BIGNUM_PTR): Boolean

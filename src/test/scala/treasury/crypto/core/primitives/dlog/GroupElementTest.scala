@@ -12,7 +12,8 @@ class GroupElementTest extends FunSuite with TableDrivenPropertyChecks {
   import DiscreteLogGroupTest.dlogGroups
 
   test("any group element should support multiplication on the other group element") {
-    forAll(dlogGroups) { implicit group =>
+    forAll(dlogGroups) { case (groupType, g) =>
+      implicit val group = g
       val e1 = group.createRandomGroupElement.get
       val e2 = group.createRandomGroupElement.get
       val res1 = (e1 * e2).get
@@ -26,7 +27,8 @@ class GroupElementTest extends FunSuite with TableDrivenPropertyChecks {
   }
 
   test("any group element should support division on the other group element") {
-    forAll(dlogGroups) { implicit group =>
+    forAll(dlogGroups) { case (groupType, g) =>
+      implicit val group = g
       val e1 = group.createRandomGroupElement.get
       val e2 = group.createRandomGroupElement.get
 
@@ -42,7 +44,8 @@ class GroupElementTest extends FunSuite with TableDrivenPropertyChecks {
   }
 
   test("any group element should support exponentiation") {
-    forAll(dlogGroups) { implicit group =>
+    forAll(dlogGroups) { case (groupType, g) =>
+      implicit val group = g
       val e = group.createRandomGroupElement.get
 
       val res1 = e.pow(2).get
@@ -67,7 +70,8 @@ class GroupElementTest extends FunSuite with TableDrivenPropertyChecks {
   }
 
   test("any group element should support inversion") {
-    forAll(dlogGroups) { implicit group =>
+    forAll(dlogGroups) { case (groupType, g) =>
+      implicit val group = g
       val e = group.createRandomGroupElement.get
       val e_inv = e.inverse.get
 
@@ -83,7 +87,8 @@ class GroupElementTest extends FunSuite with TableDrivenPropertyChecks {
   }
 
   test("any group element should support operations with Try[GroupElement] arguments") {
-    forAll(dlogGroups) { implicit group =>
+    forAll(dlogGroups) { case (groupType, g) =>
+      implicit val group = g
       val e1 = group.createRandomGroupElement.get
       val e2Try = group.createRandomGroupElement
 

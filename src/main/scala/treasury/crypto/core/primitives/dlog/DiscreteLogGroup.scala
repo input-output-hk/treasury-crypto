@@ -57,6 +57,11 @@ trait DiscreteLogGroup {
   def inverse(groupElement: GroupElement): Try[GroupElement]
 
   /**
+    * Checks if the provided element belongs to the group
+    */
+  def isValidGroupElement(groupElement: GroupElement): Boolean
+
+  /**
     * Creates a random element of this Dlog group
     */
   def createRandomGroupElement: Try[GroupElement] = {
