@@ -2,6 +2,7 @@ package treasury.crypto.core.encryption
 
 import org.scalatest.FunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
+import treasury.crypto.core.dlog.DiscreteLogGroupTest
 import treasury.crypto.core.encryption.hybrid.HybridEncryption
 import treasury.crypto.core.primitives.blockcipher.BlockCipherFactory
 import treasury.crypto.core.primitives.blockcipher.BlockCipherFactory.AvailableBlockCiphers
@@ -13,7 +14,7 @@ class HybridEncryptionTest extends FunSuite with TableDrivenPropertyChecks {
   val dlogGroups =
     Table(
       "group",
-      DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256k1).get
+      AvailableGroups.values.toSeq.map(g => DiscreteLogGroupFactory.constructDlogGroup(g).get):_*
     )
 
   val blockCiphers =

@@ -2,6 +2,7 @@ package treasury.crypto.core.encryption
 
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FunSuite, Matchers}
+import treasury.crypto.core.dlog.DiscreteLogGroupTest
 import treasury.crypto.core.encryption.encryption.createKeyPair
 import treasury.crypto.core.encryption.elgamal.{ElGamalEnc, LiftedElGamalEnc}
 import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory
@@ -12,7 +13,7 @@ class ElGamalEncTest extends FunSuite with TableDrivenPropertyChecks with Matche
   val dlogGroups =
     Table(
       "group",
-      DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256k1).get
+      AvailableGroups.values.toSeq.map(g => DiscreteLogGroupFactory.constructDlogGroup(g).get):_*
     )
 
   test("ElGamalEnc should correctly encrypt and decrypt messages") {

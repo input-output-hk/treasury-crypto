@@ -1,6 +1,7 @@
 package treasury.crypto.nizk
 
 import org.scalatest.FunSuite
+import org.scalatest.prop.TableDrivenPropertyChecks
 import treasury.crypto.core.Cryptosystem
 import treasury.crypto.core.encryption.encryption
 import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory
@@ -8,7 +9,7 @@ import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGro
 import treasury.crypto.core.primitives.hash.CryptographicHashFactory
 import treasury.crypto.core.primitives.hash.CryptographicHashFactory.AvailableHashes
 
-class DecryptionShareNIZKTestNew extends FunSuite {
+class sDecryptionShareNIZKTestNew extends FunSuite with TableDrivenPropertyChecks {
 
   implicit val dlogGroup = DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256k1).get
   implicit val hashFunction = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
