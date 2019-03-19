@@ -26,27 +26,27 @@ class ECDiscreteLogGroupBc private (curveNameIn: String, ecSpecIn: ECParameterSp
 
   override def exponentiate(base: GroupElement, exponent: BigInt): Try[GroupElement] = Try {
     val point = base.asInstanceOf[ECPointBc].point
-    val result = point.multiply(exponent.bigInteger).normalize
+    val result = point.multiply(exponent.bigInteger)//.normalize // without normilizing seems to work a bit faster
     ECPointBc(result)
   }
 
   override def multiply(groupElement1: GroupElement, groupElement2: GroupElement): Try[GroupElement] = Try {
     val point1 = groupElement1.asInstanceOf[ECPointBc].point
     val point2 = groupElement2.asInstanceOf[ECPointBc].point
-    val result = point1.add(point2).normalize
+    val result = point1.add(point2)//.normalize  // without normilizing seems to work a bit faster
     ECPointBc(result)
   }
 
   override def divide(groupElement1: GroupElement, groupElement2: GroupElement): Try[GroupElement] = Try {
     val point1 = groupElement1.asInstanceOf[ECPointBc].point
     val point2 = groupElement2.asInstanceOf[ECPointBc].point
-    val result = point1.subtract(point2).normalize
+    val result = point1.subtract(point2)//.normalize  // without normilizing seems to work a bit faster
     ECPointBc(result)
   }
 
   override def inverse(groupElement: GroupElement): Try[GroupElement] = Try {
     val point = groupElement.asInstanceOf[ECPointBc].point
-    val result = point.multiply(BigInt(-1).bigInteger).normalize
+    val result = point.multiply(BigInt(-1).bigInteger)//.normalize  // without normilizing seems to work a bit faster
     ECPointBc(result)
   }
 

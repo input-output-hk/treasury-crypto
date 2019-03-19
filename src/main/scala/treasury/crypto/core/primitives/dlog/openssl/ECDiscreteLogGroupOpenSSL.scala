@@ -1,14 +1,12 @@
 package treasury.crypto.core.primitives.dlog.openssl
 
-import java.math.BigInteger
 import java.security.InvalidAlgorithmParameterException
-import java.security.spec.ECPoint
 
 import org.bouncycastle.jce.ECNamedCurveTable
 import org.bouncycastle.jce.spec.ECParameterSpec
 import treasury.crypto.core.primitives.dlog.openssl.ECDiscreteLogGroupOpenSSL.AvailableCurves.AvailableCurves
 import treasury.crypto.core.primitives.dlog.{ECDiscreteLogGroup, ECGroupElement, GroupElement}
-import treasury.crypto.native.OpenSslAPI.{BN_CTX_PTR, BadPointerException, EC_GROUP_PTR, PointConversionForm}
+import treasury.crypto.native.OpenSslAPI.{BN_CTX_PTR, BadPointerException, EC_GROUP_PTR}
 import treasury.crypto.native.{NativeLibraryLoader, OpenSslAPI}
 
 import scala.util.Try
@@ -161,7 +159,7 @@ object ECDiscreteLogGroupOpenSSL {
 
   object AvailableCurves extends Enumeration {
     type AvailableCurves = String
-    val secp256k1 = "secp256k1"
+    val secp256k1 = "secp256k1" // this one is significantly slower because it is manually constructed TODO: why?
     val secp256r1 = "secp256r1"
   }
 
@@ -184,6 +182,8 @@ object ECDiscreteLogGroupOpenSSL {
 
   /* Creates an elliptic curve group based on the provided ECParameterSpec. In may be useful if needed to use a curve
   *  that is not defined in the OpenSSL library.
+  *  TODO: for some reason manually constructed curves are significantly slower compared to ones natively supported by OpenSSL
+  *  TODO: so that secp256r1 constructed with this function will be much slower than native secp256r1 built-in in OpenSSL
   */
   private def createECGroupFromSpec(ecSpec: ECParameterSpec, openSslApi: OpenSslAPI, bnCtxIn: BN_CTX_PTR): Try[EC_GROUP_PTR] = Try {
     val a = ecSpec.getCurve.getA.toBigInteger.toByteArray

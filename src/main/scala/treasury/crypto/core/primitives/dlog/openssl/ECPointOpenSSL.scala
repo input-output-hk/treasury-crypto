@@ -5,7 +5,6 @@ import java.util
 import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, ECGroupElement, GroupElement}
 import treasury.crypto.core.serialization.Serializer
 import treasury.crypto.native.OpenSslAPI
-import treasury.crypto.native.OpenSslAPI.PointConversionForm
 import treasury.crypto.native.OpenSslAPI.PointConversionForm.PointConversionForm
 import treasury.crypto.native.OpenSslAPI.{BN_CTX_PTR, EC_GROUP_PTR, EC_POINT_PTR, PointConversionForm}
 
@@ -26,10 +25,10 @@ import scala.util.Try
   * @param bnCtx
   * @param openSslApi
   */
-class ECPointOpenSSL(override val bytes: Array[Byte],
-                     private val ecGroup: EC_GROUP_PTR,
-                     private val bnCtx: BN_CTX_PTR,
-                     private val openSslApi: OpenSslAPI) extends ECGroupElement {
+class ECPointOpenSSL protected (override val bytes: Array[Byte],
+                                protected val ecGroup: EC_GROUP_PTR,
+                                protected val bnCtx: BN_CTX_PTR,
+                                protected val openSslApi: OpenSslAPI) extends ECGroupElement {
 
   override lazy val isInfinity: Boolean = bytes.isEmpty
 
@@ -62,7 +61,7 @@ class ECPointOpenSSL(override val bytes: Array[Byte],
 
   override def equals(o: Any): Boolean = {
     o match {
-      case that: ECPointOpenSSL => o.isInstanceOf[ECPointOpenSSL] && (this.hashCode == that.hashCode)
+      case that: ECPointOpenSSL => this.hashCode == that.hashCode
       case _ => false
     }
   }
@@ -102,16 +101,36 @@ class ECPointOpenSSL(override val bytes: Array[Byte],
 
 object ECPointOpenSSL {
 
+//  def apply(point: EC_POINT_PTR, ecGroup: EC_GROUP_PTR, bnCtx: BN_CTX_PTR, openSslApi: OpenSslAPI): Try[ECPointOpenSSL] = Try {
+//    OpenSslAPI.checkPointerWithException(point, "Can not create ECPointOpenSSL object because of the bad pointer")
+//    require(openSslApi.EC_POINT_is_on_curve(ecGroup, point, bnCtx), "Can not create ECPointOpenSSL object from the EC_POINT that is not on the curve")
+//
+//    val bytes = nativePointToBytes(point, ecGroup, bnCtx, openSslApi).get
+//    new ECPointOpenSSL(bytes, ecGroup, bnCtx, openSslApi)
+//  }
+//
+//  def getInfinityPoint(ecGroup: EC_GROUP_PTR, bnCtx: BN_CTX_PTR, openSslApi: OpenSslAPI): ECPointOpenSSL = {
+//    new ECPointOpenSSL(Array(), ecGroup, bnCtx, openSslApi)
+//  }
+
+  /**
+    * Creates a ECPointCachedOpenSSL. If cached native points are undesirable - uncomment implementation above.
+    * TODO: improve the code design so there is no need to comment/uncomment something if we want to change implementation (is it needed? maybe just chose one implementation)
+    */
   def apply(point: EC_POINT_PTR, ecGroup: EC_GROUP_PTR, bnCtx: BN_CTX_PTR, openSslApi: OpenSslAPI): Try[ECPointOpenSSL] = Try {
     OpenSslAPI.checkPointerWithException(point, "Can not create ECPointOpenSSL object because of the bad pointer")
-    require(openSslApi.EC_POINT_is_on_curve(ecGroup, point, bnCtx), "Can not create ECPointOpenSSL object from the EC_POINT that is not on the curve")
-
-    val bytes = nativePointToBytes(point, ecGroup, bnCtx, openSslApi).get
-    new ECPointOpenSSL(bytes, ecGroup, bnCtx, openSslApi)
+    new ECPointCachedOpenSSL(openSslApi.EC_POINT_dup(point, ecGroup), ecGroup, bnCtx, openSslApi)
   }
 
+  /**
+    * Creates a ECPointCachedOpenSSL. If cached native points are undesirable - uncomment implementation above.
+    * TODO: improve the code design so there is no need to comment/uncomment something if we want to change implementation (is it needed? maybe just chose one implementation)
+    */
   def getInfinityPoint(ecGroup: EC_GROUP_PTR, bnCtx: BN_CTX_PTR, openSslApi: OpenSslAPI): ECPointOpenSSL = {
-    new ECPointOpenSSL(Array(), ecGroup, bnCtx, openSslApi)
+    val point = openSslApi.EC_POINT_new(ecGroup)
+    OpenSslAPI.checkPointerWithException(point, "Can create point")
+    require(openSslApi.EC_POINT_set_to_infinity(ecGroup, point))
+    new ECPointCachedOpenSSL(point, ecGroup, bnCtx, openSslApi)
   }
 
   /**
@@ -155,10 +174,10 @@ object ECPointOpenSSL {
   /**
     * Returns an array of bytes that encodes the point. In case of point at infinity, it returns an empty Array[Byte]
     */
-  protected def nativePointToBytes(point: EC_POINT_PTR,
-                         ecGroup: EC_GROUP_PTR,
-                         bnCtx: BN_CTX_PTR,
-                         openSslApi: OpenSslAPI): Try[Array[Byte]] = Try {
+  protected[openssl] def nativePointToBytes( point: EC_POINT_PTR,
+                                                     ecGroup: EC_GROUP_PTR,
+                                                     bnCtx: BN_CTX_PTR,
+                                                     openSslApi: OpenSslAPI): Try[Array[Byte]] = Try {
     if (openSslApi.EC_POINT_is_at_infinity(ecGroup, point)) {
       Array()
     } else {

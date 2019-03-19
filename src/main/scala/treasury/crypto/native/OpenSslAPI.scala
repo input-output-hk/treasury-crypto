@@ -37,6 +37,7 @@ trait OpenSslAPI {
   def EC_POINT_new(group: EC_GROUP_PTR): EC_POINT_PTR
   def EC_POINT_free(point: EC_POINT_PTR)
   def EC_POINT_clear_free(point: EC_POINT_PTR)
+  def EC_POINT_dup(src: EC_POINT_PTR, group: EC_GROUP_PTR): EC_POINT_PTR
   def EC_POINT_point2hex(group: EC_GROUP_PTR, point: EC_POINT_PTR, form: PointConversionForm, bnCtx: BN_CTX_PTR): String
   def EC_POINT_hex2point(group: EC_GROUP_PTR, point: String, outPoint: EC_POINT_PTR, bnCtx: BN_CTX_PTR): EC_POINT_PTR
   def EC_POINT_bn2point(group: EC_GROUP_PTR, bigNum: BIGNUM_PTR, outPoint: EC_POINT_PTR, bnCtx: BN_CTX_PTR): EC_POINT_PTR

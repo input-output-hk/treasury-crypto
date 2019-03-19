@@ -32,11 +32,13 @@ class SHVZKPerformance {
   def run2(): Unit = {
     val shvzkTest = new SHVZKTest()
 
-    val unitVectorSize = List(7, 9, 12, 15, 16, 21, 26, 31, 32, 40, 48, 56, 63, 64, 85, 106, 127, 128, 170, 212, 255)
+    val unitVectorSize = List(/*7, 9, 12, 15, 16, 21, 26, 31, 32, 40, 48, 56, 63, 64, 85, 106, */127/*, 128, 170, 212, 255*/)
     for (size <- unitVectorSize) {
       println("Running test for unit vector of size " + size + " ...")
 
       val (uv, rand) = TimeUtils.time("\tUV creation: ", shvzkTest.createUnitVector(size, 1))
+      TimeUtils.accurate_time("\tUV creation ms: ", shvzkTest.createUnitVector(size, 1))
+
 
       val proof = new SHVZKGen(shvzkTest.cs, shvzkTest.pubKey, uv, 1, rand).produceNIZK()
       TimeUtils.accurate_time("\tSHV NIZK creation: ",

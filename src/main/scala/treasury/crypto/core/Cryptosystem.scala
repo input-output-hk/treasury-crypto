@@ -21,7 +21,7 @@ class Cryptosystem {
 
   Security.addProvider(new BouncyCastleProvider())
 
-  private val ecSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec("secp256k1");
+  private val ecSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec("secp256r1");
   private lazy val curve = ecSpec.getCurve
   private lazy val secureRandom = new SecureRandom()
 
