@@ -11,12 +11,13 @@ case class OpenedShare(receiverID: Integer, S: HybridPlaintext)
   extends HasSize with BytesSerializable {
 
   override type M = OpenedShare
-  override val serializer: Serializer[M] = OpenedShareSerializer
+  override type DECODER = Cryptosystem
+  override val serializer: Serializer[M, DECODER] = OpenedShareSerializer
 
   def size: Int = bytes.length
 }
 
-object OpenedShareSerializer extends Serializer[OpenedShare] {
+object OpenedShareSerializer extends Serializer[OpenedShare, Cryptosystem] {
 
   override def toBytes(obj: OpenedShare): Array[Byte] = {
 
@@ -29,8 +30,8 @@ object OpenedShareSerializer extends Serializer[OpenedShare] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[OpenedShare] = Try {
-
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[OpenedShare] = Try {
+    val cs = csOpt.get
     val offset = IntAccumulator(0)
 
     val receiverID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -38,7 +39,7 @@ object OpenedShareSerializer extends Serializer[OpenedShare] {
     val S_bytes_len = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
     val S_bytes = bytes.slice(offset.value, offset.plus(S_bytes_len))
 
-    val S = HybridPlaintextSerializer.parseBytes(S_bytes, cs)
+    val S = HybridPlaintextSerializer.parseBytes(S_bytes, Option(cs))
 
     OpenedShare(receiverID, S.get)
   }

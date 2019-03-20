@@ -21,6 +21,7 @@ object MultRelationNIZK {
   case class MultRelationNIZKProof(X: Ciphertext, Z: Ciphertext, x: Element, y: Element, z: Element) extends BytesSerializable {
 
     override type M = MultRelationNIZKProof
+    override type DECODER = Cryptosystem
     override val serializer = MultRelationNIZKProofSerializer
 
     lazy val size: Int = bytes.length
@@ -148,7 +149,7 @@ object MultRelationNIZK {
   }
 }
 
-object MultRelationNIZKProofSerializer extends Serializer[MultRelationNIZKProof] {
+object MultRelationNIZKProofSerializer extends Serializer[MultRelationNIZKProof, Cryptosystem] {
 
   override def toBytes(p: MultRelationNIZKProof): Array[Byte] = {
     val X1bytes = p.X._1.getEncoded(true)
@@ -172,7 +173,8 @@ object MultRelationNIZKProofSerializer extends Serializer[MultRelationNIZKProof]
     Bytes.concat(XZbytes, xyzbytes)
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[MultRelationNIZKProof] = Try {
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[MultRelationNIZKProof] = Try {
+    val cs = csOpt.get
     var position = 0
     def nextPosition= position + 1 + bytes(position)
 

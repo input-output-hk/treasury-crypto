@@ -101,7 +101,7 @@ class SHVZKTest extends FunSuite {
   test("serialization") {
     val (uv, rand) = createUnitVector(5, 0)
     val proofBytes = new SHVZKGen(cs, pubKey, uv, 0, rand).produceNIZK().bytes
-    val proof = SHVZKProofSerializer.parseBytes(proofBytes, cs)
+    val proof = SHVZKProofSerializer.parseBytes(proofBytes, Option(cs))
 
     assert(new SHVZKVerifier(cs, pubKey, uv, proof.get).verifyProof())
   }

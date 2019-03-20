@@ -16,7 +16,8 @@ case class R5_2Data(
   extends HasSize with BytesSerializable {
 
   override type M = R5_2Data
-  override val serializer: Serializer[M] = R5_2DataSerializer
+  override type DECODER = Cryptosystem
+  override val serializer: Serializer[M, DECODER] = R5_2DataSerializer
 
   def size: Int = bytes.length
 
@@ -38,7 +39,7 @@ case class R5_2Data(
   }
 }
 
-object R5_2DataSerializer extends Serializer[R5_2Data] {
+object R5_2DataSerializer extends Serializer[R5_2Data, Cryptosystem] {
 
   override def toBytes(obj: R5_2Data): Array[Byte] = {
 
@@ -53,8 +54,8 @@ object R5_2DataSerializer extends Serializer[R5_2Data] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[R5_2Data] = Try {
-
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[R5_2Data] = Try {
+    val cs = csOpt.get
     val offset = IntAccumulator(0)
 
     val issuerID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -67,7 +68,7 @@ object R5_2DataSerializer extends Serializer[R5_2Data] {
     val violatorsSecretKeys = for (_ <- 0 until violatorsSecretKeysLen) yield {
       val violatorsSecretKeyLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
       val violatorsSecretKeyBytes = bytes.slice(offset.value, offset.plus(violatorsSecretKeyLen))
-      SecretKeySerializer.parseBytes(violatorsSecretKeyBytes, cs).get
+      SecretKeySerializer.parseBytes(violatorsSecretKeyBytes, Option(cs)).get
     }
 
     R5_2Data(issuerID, sharedPublicKeyBytes, violatorsSecretKeys.toArray)

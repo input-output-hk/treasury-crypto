@@ -14,12 +14,13 @@ case class SecretKey(
   extends HasSize with BytesSerializable {
 
   override type M = SecretKey
-  override val serializer: Serializer[M] = SecretKeySerializer
+  override type DECODER = Cryptosystem
+  override val serializer: Serializer[M, DECODER] = SecretKeySerializer
 
   def size: Int = bytes.length
 }
 
-object SecretKeySerializer extends Serializer[SecretKey] {
+object SecretKeySerializer extends Serializer[SecretKey, Cryptosystem] {
 
   override def toBytes(obj: SecretKey): Array[Byte] = {
 
@@ -30,7 +31,7 @@ object SecretKeySerializer extends Serializer[SecretKey] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[SecretKey] = Try {
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[SecretKey] = Try {
 
     val offset = IntAccumulator(0)
 

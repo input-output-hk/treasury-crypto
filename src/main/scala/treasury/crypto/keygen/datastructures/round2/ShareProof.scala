@@ -16,12 +16,13 @@ case class ShareProof(
   extends HasSize with BytesSerializable {
 
   override type M = ShareProof
-  override val serializer: Serializer[M] = ShareProofSerializer
+  override type DECODER = Cryptosystem
+  override val serializer: Serializer[M, DECODER] = ShareProofSerializer
 
   def size: Int = bytes.length
 }
 
-object ShareProofSerializer extends Serializer[ShareProof] {
+object ShareProofSerializer extends Serializer[ShareProof, Cryptosystem] {
 
   override def toBytes(obj: ShareProof): Array[Byte] = {
     Bytes.concat(
@@ -34,8 +35,8 @@ object ShareProofSerializer extends Serializer[ShareProof] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[ShareProof] = Try {
-
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[ShareProof] = Try {
+    val cs = csOpt.get
     val offset = IntAccumulator(0)
 
     val encryptedShareBytesLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -48,9 +49,9 @@ object ShareProofSerializer extends Serializer[ShareProof] {
     val NIZKProofBytes = bytes.slice(offset.value, offset.plus(NIZKProofLen))
 
     ShareProof(
-      HybridCiphertextSerializer.parseBytes(encryptedShareBytes, cs).get,
-      HybridPlaintextSerializer.parseBytes(decryptedShareBytes, cs).get,
-      ElgamalDecrNIZKProofSerializer.parseBytes(NIZKProofBytes, cs).get
+      HybridCiphertextSerializer.parseBytes(encryptedShareBytes, Option(cs)).get,
+      HybridPlaintextSerializer.parseBytes(decryptedShareBytes, Option(cs)).get,
+      ElgamalDecrNIZKProofSerializer.parseBytes(NIZKProofBytes, Option(cs)).get
     )
   }
 }

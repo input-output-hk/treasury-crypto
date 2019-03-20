@@ -17,12 +17,13 @@ case class C1Share(
 ) extends HasSize with BytesSerializable {
 
   override type M = C1Share
+  override type DECODER = Cryptosystem
   override val serializer = C1ShareSerializer
 
   def size: Int = bytes.length
 }
 
-object C1ShareSerializer extends Serializer[C1Share] {
+object C1ShareSerializer extends Serializer[C1Share, Cryptosystem] {
 
   override def toBytes(obj: C1Share): Array[Byte] = {
     val decryptedC1Bytes = obj.decryptedC1.foldLeft(Array[Byte]()) { (acc, c1) =>
@@ -37,7 +38,8 @@ object C1ShareSerializer extends Serializer[C1Share] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[C1Share] = Try {
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[C1Share] = Try {
+    val cs = csOpt.get
     val proposalID = Ints.fromByteArray(bytes.slice(0,4))
     val issuerID = Ints.fromByteArray(bytes.slice(4,8))
 
@@ -47,7 +49,7 @@ object C1ShareSerializer extends Serializer[C1Share] {
       val len = bytes(pos)
       val point = cs.decodePoint(bytes.slice(pos+1, pos+1+len))
       pos = pos + len + 1
-      val proof = ElgamalDecrNIZKProofSerializer.parseBytes(bytes.drop(pos), cs).get
+      val proof = ElgamalDecrNIZKProofSerializer.parseBytes(bytes.drop(pos), Option(cs)).get
       pos = pos + proof.bytes.length
       (point, proof)
     }

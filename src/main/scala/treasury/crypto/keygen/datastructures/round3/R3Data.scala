@@ -14,7 +14,8 @@ case class R3Data(
   extends HasSize with BytesSerializable {
 
   override type M = R3Data
-  override val serializer: Serializer[M] = R3DataSerializer
+  override type DECODER = Cryptosystem
+  override val serializer: Serializer[M, DECODER] = R3DataSerializer
 
   def size: Int = bytes.length
   def canEqual(a: Any): Boolean = a.isInstanceOf[M]
@@ -35,7 +36,7 @@ case class R3Data(
   }
 }
 
-object R3DataSerializer extends Serializer[R3Data] {
+object R3DataSerializer extends Serializer[R3Data, Cryptosystem] {
 
   override def toBytes(obj: R3Data): Array[Byte] = {
 
@@ -48,8 +49,8 @@ object R3DataSerializer extends Serializer[R3Data] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[R3Data] = Try {
-
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[R3Data] = Try {
+    val cs = csOpt.get
     val offset = IntAccumulator(0)
 
     val issuerID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))

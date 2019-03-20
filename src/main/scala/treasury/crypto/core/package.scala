@@ -45,12 +45,13 @@ package object core {
     extends BytesSerializable {
 
     override type M = HybridCiphertext
-    override val serializer: Serializer[M] = HybridCiphertextSerializer
+    override type DECODER = Cryptosystem
+    override val serializer: Serializer[M, DECODER] = HybridCiphertextSerializer
 
     def size: Int = bytes.length
   }
 
-  object HybridCiphertextSerializer extends Serializer[HybridCiphertext] {
+  object HybridCiphertextSerializer extends Serializer[HybridCiphertext, Cryptosystem] {
 
     override def toBytes(obj: HybridCiphertext): Array[Byte] = {
       Bytes.concat(
@@ -60,10 +61,11 @@ package object core {
       )
     }
 
-    override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[HybridCiphertext] = Try {
+    override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[HybridCiphertext] = Try {
+      val cs = csOpt.get
       val offset = IntAccumulator(0)
 
-      val encryptedKey = CiphertextSerizlizer.parseBytes(bytes, cs).get
+      val encryptedKey = CiphertextSerizlizer.parseBytes(bytes, Option(cs)).get
       offset.plus(CiphertextSerizlizer.toBytes(encryptedKey).length)
 
       val encryptedMessageLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -77,12 +79,13 @@ package object core {
     extends BytesSerializable {
 
     override type M = HybridPlaintext
-    override val serializer: Serializer[M] = HybridPlaintextSerializer
+    override type DECODER = Cryptosystem
+    override val serializer: Serializer[M, DECODER] = HybridPlaintextSerializer
 
     def size: Int = bytes.length
   }
 
-  object HybridPlaintextSerializer extends Serializer[HybridPlaintext] {
+  object HybridPlaintextSerializer extends Serializer[HybridPlaintext, Cryptosystem] {
 
     override def toBytes(obj: HybridPlaintext): Array[Byte] =
     {
@@ -96,8 +99,8 @@ package object core {
       )
     }
 
-    override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[HybridPlaintext] = Try {
-
+    override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[HybridPlaintext] = Try {
+      val cs = csOpt.get
       val offset = IntAccumulator(0)
 
       val decryptedKeyBytesLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -113,7 +116,7 @@ package object core {
     }
   }
 
-  object CiphertextSerizlizer extends Serializer[Ciphertext] {
+  object CiphertextSerizlizer extends Serializer[Ciphertext, Cryptosystem] {
 
     override def toBytes(obj: Ciphertext): Array[Byte] = {
       val c1Bytes = obj._1.getEncoded(true)
@@ -127,7 +130,8 @@ package object core {
       )
     }
 
-    override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[Ciphertext] = Try {
+    override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[Ciphertext] = Try {
+      val cs = csOpt.get
       val offset = IntAccumulator(0)
 
       val c1BytesLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -140,14 +144,15 @@ package object core {
     }
   }
 
-  object PointSerizlizer extends Serializer[Point] {
+  object PointSerizlizer extends Serializer[Point, Cryptosystem] {
 
     override def toBytes(obj: Point): Array[Byte] = {
       val bytes = obj.getEncoded(true)
       Bytes.concat(Ints.toByteArray(bytes.length), bytes)
     }
 
-    override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[Point] = Try {
+    override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[Point] = Try {
+      val cs = csOpt.get
       val bytesLen = Ints.fromByteArray(bytes.slice(0, 4))
       val pointBytes = bytes.slice(4, 4 + bytesLen)
       cs.decodePoint(pointBytes)

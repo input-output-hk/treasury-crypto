@@ -74,22 +74,24 @@ object RandomnessGenManager {
 case class DecryptedRandomnessShare(randomness: Point, proof: ElgamalDecrNIZKProof) extends BytesSerializable {
 
   override type M = DecryptedRandomnessShare
+  override type DECODER = Cryptosystem
   override val serializer = DecryptedRandomnessShareSerializer
 
   def size: Int = bytes.length
 }
 
-object DecryptedRandomnessShareSerializer extends Serializer[DecryptedRandomnessShare] {
+object DecryptedRandomnessShareSerializer extends Serializer[DecryptedRandomnessShare, Cryptosystem] {
 
   override def toBytes(obj: DecryptedRandomnessShare): Array[Byte] = {
     val randomnessBytes = obj.randomness.getEncoded(true)
     Bytes.concat(Ints.toByteArray(randomnessBytes.length), randomnessBytes, obj.proof.bytes)
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[DecryptedRandomnessShare] = Try {
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[DecryptedRandomnessShare] = Try {
+    val cs = csOpt.get
     val randomnessBytesLen = Ints.fromByteArray(bytes.slice(0, 4))
     val randomness = cs.decodePoint(bytes.slice(4, 4 + randomnessBytesLen))
-    val proof = ElgamalDecrNIZKProofSerializer.parseBytes(bytes.drop(4 + randomnessBytesLen), cs).get
+    val proof = ElgamalDecrNIZKProofSerializer.parseBytes(bytes.drop(4 + randomnessBytesLen), Option(cs)).get
     DecryptedRandomnessShare(randomness, proof)
   }
 }

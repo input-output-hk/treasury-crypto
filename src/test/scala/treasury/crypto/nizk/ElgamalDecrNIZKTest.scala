@@ -46,7 +46,7 @@ class ElgamalDecrNIZKTest extends FunSuite {
     assert(plaintext.equals(decrypted))
 
     val bytes = ElgamalDecrNIZK.produceNIZK(cs, ciphertext, privKey).bytes
-    val proof = ElgamalDecrNIZKProofSerializer.parseBytes(bytes, cs).get
+    val proof = ElgamalDecrNIZKProofSerializer.parseBytes(bytes, Option(cs)).get
 
     val verified = ElgamalDecrNIZK.verifyNIZK(cs, pubKey, ciphertext, decrypted, proof)
 

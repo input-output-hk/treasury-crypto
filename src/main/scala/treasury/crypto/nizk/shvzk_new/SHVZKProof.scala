@@ -5,7 +5,7 @@ import java.math.BigInteger
 import com.google.common.primitives.{Bytes, Shorts}
 import treasury.crypto.core.Cryptosystem
 import treasury.crypto.core.encryption.elgamal.ElGamalCiphertext
-import treasury.crypto.core.primitives.dlog.GroupElement
+import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
 
 import scala.util.Try
@@ -18,12 +18,13 @@ case class SHVZKProof(
 ) extends BytesSerializable {
 
   override type M = SHVZKProof
+  override type DECODER = DiscreteLogGroup
   override val serializer = SHVZKProofSerializer
 
   def size: Int = bytes.length
 }
 
-object SHVZKProofSerializer extends Serializer[SHVZKProof] {
+object SHVZKProofSerializer extends Serializer[SHVZKProof, DiscreteLogGroup] {
 
   override def toBytes(p: SHVZKProof): Array[Byte] = { ???
 //    val IBAbytes = p.IBA.foldLeft(Array[Byte]()) { (acc, b) =>
@@ -52,7 +53,7 @@ object SHVZKProofSerializer extends Serializer[SHVZKProof] {
 //      Array(Rbytes.length.toByte), Rbytes)
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[SHVZKProof] = Try { ???
+  override def parseBytes(bytes: Array[Byte], groupOpt: Option[DiscreteLogGroup]): Try[SHVZKProof] = Try { ???
 //    val IBALength = Shorts.fromByteArray(bytes.slice(0, 2))
 //    var position = 2
 //    val IBA: Seq[(Point, Point, Point)] = (0 until IBALength*3).map { _ =>

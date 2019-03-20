@@ -1,8 +1,8 @@
 package treasury.crypto.core.encryption.hybrid
 
-import treasury.crypto.core.Cryptosystem
 import treasury.crypto.core.encryption.elgamal.ElGamalCiphertext
 import treasury.crypto.core.primitives.blockcipher.BlockCipher
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
 
 import scala.util.Try
@@ -11,12 +11,13 @@ case class HybridCiphertext(encryptedSymmetricKey: ElGamalCiphertext, encryptedM
   extends BytesSerializable {
 
   override type M = HybridCiphertext
-  override val serializer: Serializer[M] = HybridCiphertextSerializer
+  override type DECODER = DiscreteLogGroup
+  override val serializer: Serializer[M, DECODER] = HybridCiphertextSerializer
 
   def size: Int = bytes.length
 }
 
-object HybridCiphertextSerializer extends Serializer[HybridCiphertext] {
+object HybridCiphertextSerializer extends Serializer[HybridCiphertext, DiscreteLogGroup] {
 
   override def toBytes(obj: HybridCiphertext): Array[Byte] = { ???
 //    Bytes.concat(
@@ -26,7 +27,7 @@ object HybridCiphertextSerializer extends Serializer[HybridCiphertext] {
 //    )
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[HybridCiphertext] = Try { ???
+  override def parseBytes(bytes: Array[Byte], group: Option[DiscreteLogGroup]): Try[HybridCiphertext] = Try { ???
 //    val offset = IntAccumulator(0)
 //
 //    val encryptedKey = CiphertextSerizlizer.parseBytes(bytes, cs).get

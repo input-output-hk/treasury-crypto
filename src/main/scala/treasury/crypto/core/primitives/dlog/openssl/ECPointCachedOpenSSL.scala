@@ -32,9 +32,6 @@ class ECPointCachedOpenSSL private[openssl] (protected val nativePoint: EC_POINT
 
   override lazy val isInfinity: Boolean = openSslApi.EC_POINT_is_at_infinity(ecGroup, nativePoint)
 
-  override type M = this.type
-  override def serializer: Serializer[ECPointCachedOpenSSL.this.type] = ???
-
   override def isOnCurve: Boolean = openSslApi.EC_POINT_is_on_curve(ecGroup, nativePoint, bnCtx)
 
   override def getHexString(form: PointConversionForm = PointConversionForm.POINT_CONVERSION_COMPRESSED): String =

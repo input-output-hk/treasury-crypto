@@ -9,9 +9,6 @@ import scala.util.Try
  */
 trait GroupElement extends BytesSerializable {
 
-  /**
-    * checks if this element is the identity of the group
-    */
   def isIdentity: Boolean
 
   def multiply(that: GroupElement)(implicit dlog: DiscreteLogGroup): Try[GroupElement]

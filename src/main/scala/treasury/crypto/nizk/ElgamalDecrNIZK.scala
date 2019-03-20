@@ -67,12 +67,13 @@ object ElgamalDecrNIZK {
 case class ElgamalDecrNIZKProof(A1: Point, A2: Point, z: Element) extends BytesSerializable {
 
   override type M = ElgamalDecrNIZKProof
+  override type DECODER = Cryptosystem
   override val serializer = ElgamalDecrNIZKProofSerializer
 
   def size: Int = bytes.length
 }
 
-object ElgamalDecrNIZKProofSerializer extends Serializer[ElgamalDecrNIZKProof] {
+object ElgamalDecrNIZKProofSerializer extends Serializer[ElgamalDecrNIZKProof, Cryptosystem] {
 
   override def toBytes(obj: ElgamalDecrNIZKProof): Array[Byte] = {
     val A1Bytes = obj.A1.getEncoded(true)
@@ -84,7 +85,8 @@ object ElgamalDecrNIZKProofSerializer extends Serializer[ElgamalDecrNIZKProof] {
       Array(zBytes.length.toByte), zBytes)
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[ElgamalDecrNIZKProof] = Try {
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[ElgamalDecrNIZKProof] = Try {
+    val cs = csOpt.get
     val A1Len = bytes(0)
     val A1 = cs.decodePoint(bytes.slice(1,A1Len+1))
     var pos = A1Len + 1

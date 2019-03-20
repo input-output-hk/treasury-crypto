@@ -13,7 +13,8 @@ case class R2Data(issuerID:   Integer,
   extends HasSize with BytesSerializable {
 
   override type M = R2Data
-  override val serializer: Serializer[M] = R2DataSerializer
+  override type DECODER = Cryptosystem
+  override val serializer: Serializer[M, DECODER] = R2DataSerializer
 
   def size: Int = bytes.length
 
@@ -35,7 +36,7 @@ case class R2Data(issuerID:   Integer,
   }
 }
 
-object R2DataSerializer extends Serializer[R2Data] {
+object R2DataSerializer extends Serializer[R2Data, Cryptosystem] {
 
   override def toBytes(obj: R2Data): Array[Byte] = {
 
@@ -48,8 +49,8 @@ object R2DataSerializer extends Serializer[R2Data] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[R2Data] = Try {
-
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[R2Data] = Try {
+    val cs = csOpt.get
     val offset = IntAccumulator(0)
 
     val issuerID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -59,7 +60,7 @@ object R2DataSerializer extends Serializer[R2Data] {
     val complaints = for (_ <- 0 until complaintsLen) yield {
       val complaintBytesLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
       val complaintBytes = bytes.slice(offset.value, offset.plus(complaintBytesLen))
-      ComplaintR2Serializer.parseBytes(complaintBytes, cs).get
+      ComplaintR2Serializer.parseBytes(complaintBytes, Option(cs)).get
     }
 
     R2Data(issuerID, complaints.toArray)

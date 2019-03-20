@@ -15,7 +15,8 @@ case class R1Data(
   ) extends HasSize with BytesSerializable {
 
   override type M = R1Data
-  override val serializer: Serializer[M] = R1DataSerializer
+  override type DECODER = Cryptosystem
+  override val serializer: Serializer[M, DECODER] = R1DataSerializer
 
   def size: Int = bytes.length
 
@@ -37,7 +38,7 @@ case class R1Data(
   }
 }
 
-object R1DataSerializer extends Serializer[R1Data] {
+object R1DataSerializer extends Serializer[R1Data, Cryptosystem] {
 
   override def toBytes(obj: R1Data): Array[Byte] = {
 
@@ -56,8 +57,8 @@ object R1DataSerializer extends Serializer[R1Data] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[R1Data] = Try {
-
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[R1Data] = Try {
+    val cs = csOpt.get
     val offset = IntAccumulator(0)
 
     val issuerID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -74,7 +75,7 @@ object R1DataSerializer extends Serializer[R1Data] {
     val S_a = for (_ <- 0 until S_a_len) yield {
         val S_a_bytes_len = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
         val S_a_bytes = bytes.slice(offset.value, offset.plus(S_a_bytes_len))
-        SecretShareSerializer.parseBytes(S_a_bytes, cs).get
+        SecretShareSerializer.parseBytes(S_a_bytes, Option(cs)).get
     }
 
     val S_b_len = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -82,7 +83,7 @@ object R1DataSerializer extends Serializer[R1Data] {
     val S_b = for (_ <- 0 until S_b_len) yield {
         val S_b_bytes_len = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
         val S_b_bytes = bytes.slice(offset.value, offset.plus(S_b_bytes_len))
-        SecretShareSerializer.parseBytes(S_b_bytes, cs).get
+        SecretShareSerializer.parseBytes(S_b_bytes, Option(cs)).get
     }
 
     R1Data(issuerID, E.toArray, S_a.toArray, S_b.toArray)

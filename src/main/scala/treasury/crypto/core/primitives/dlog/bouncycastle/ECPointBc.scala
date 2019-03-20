@@ -12,6 +12,9 @@ import scala.util.Try
 case class ECPointBc(point: ECPoint) extends ECGroupElement {
 
   override type M = ECPointBc
+  override type DECODER = ECDiscreteLogGroupBc
+
+  override val serializer = ECPointBcSerializer
 
   override def getX: BigInt = if (isInfinity) -1 else point.normalize.getXCoord.toBigInteger
 
@@ -39,19 +42,17 @@ case class ECPointBc(point: ECPoint) extends ECGroupElement {
     dlog.inverse(this)
   }
 
-  override val serializer = ECPointBcSerializer
-
   override def toString: String = Hex.toHexString(point.getEncoded(true))
 }
 
-object ECPointBcSerializer extends Serializer[ECPointBc] {
+object ECPointBcSerializer extends Serializer[ECPointBc, ECDiscreteLogGroupBc] {
 
   override def toBytes(obj: ECPointBc): Array[Byte] = {
     val bytes = obj.point.getEncoded(true)
     Bytes.concat(Array(bytes.length.toByte), bytes)
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[ECPointBc] = Try {
+  override def parseBytes(bytes: Array[Byte], decoder: Option[ECDiscreteLogGroupBc]): Try[ECPointBc] = Try {
     ???
   }
 }

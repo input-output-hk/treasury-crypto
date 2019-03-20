@@ -16,12 +16,13 @@ case class ComplaintR2(
   extends HasSize  with BytesSerializable {
 
   override type M = ComplaintR2
-  override val serializer: Serializer[M] = ComplaintR2Serializer
+  override type DECODER = Cryptosystem
+  override val serializer: Serializer[M, DECODER] = ComplaintR2Serializer
 
   def size: Int = bytes.length
 }
 
-object ComplaintR2Serializer extends Serializer[ComplaintR2] {
+object ComplaintR2Serializer extends Serializer[ComplaintR2, Cryptosystem] {
 
   override def toBytes(obj: ComplaintR2): Array[Byte] = {
 
@@ -38,8 +39,8 @@ object ComplaintR2Serializer extends Serializer[ComplaintR2] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[ComplaintR2] = Try {
-
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[ComplaintR2] = Try {
+    val cs = csOpt.get
     val offset = IntAccumulator(0)
 
     val violatorID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -56,8 +57,8 @@ object ComplaintR2Serializer extends Serializer[ComplaintR2] {
     ComplaintR2(
       violatorID,
       cs.decodePoint(issuerPublicKeyBytes),
-      ShareProofSerializer.parseBytes(shareProof_a_Bytes, cs).get,
-      ShareProofSerializer.parseBytes(shareProof_b_Bytes, cs).get
+      ShareProofSerializer.parseBytes(shareProof_a_Bytes, Option(cs)).get,
+      ShareProofSerializer.parseBytes(shareProof_b_Bytes, Option(cs)).get
     )
   }
 }

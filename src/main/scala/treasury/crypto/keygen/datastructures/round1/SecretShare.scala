@@ -11,12 +11,13 @@ case class SecretShare(receiverID: Integer, S: HybridCiphertext)
   extends HasSize with BytesSerializable {
 
   override type M = SecretShare
-  override val serializer: Serializer[M] = SecretShareSerializer
+  override type DECODER = Cryptosystem
+  override val serializer: Serializer[M, DECODER] = SecretShareSerializer
 
   def size: Int = bytes.length
 }
 
-object SecretShareSerializer extends Serializer[SecretShare] {
+object SecretShareSerializer extends Serializer[SecretShare, Cryptosystem] {
 
   override def toBytes(obj: SecretShare): Array[Byte] = {
 
@@ -29,8 +30,8 @@ object SecretShareSerializer extends Serializer[SecretShare] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[SecretShare] = Try {
-
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[SecretShare] = Try {
+    val cs = csOpt.get
     val offset = IntAccumulator(0)
 
     val receiverID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -38,7 +39,7 @@ object SecretShareSerializer extends Serializer[SecretShare] {
     val S_bytes_len = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
     val S_bytes = bytes.slice(offset.value, offset.plus(S_bytes_len))
 
-    val S = HybridCiphertextSerializer.parseBytes(S_bytes, cs)
+    val S = HybridCiphertextSerializer.parseBytes(S_bytes, Option(cs))
 
     SecretShare(receiverID, S.get)
   }

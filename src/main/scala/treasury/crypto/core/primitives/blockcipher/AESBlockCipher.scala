@@ -2,7 +2,7 @@ package treasury.crypto.core.primitives.blockcipher
 
 import treasury.crypto.core.Cryptosystem
 import treasury.crypto.core.primitives.blockcipher.BlockCipher.{Ciphertext, SecretKey}
-import treasury.crypto.core.serialization.Serializer
+import treasury.crypto.core.serialization.{NODECODER, Serializer}
 
 import scala.util.Try
 
@@ -18,20 +18,22 @@ trait AES256 extends AESBlockCipher
 
 case class AESCiphertext(ciphertext: Array[Byte]) extends Ciphertext {
   override type M = AESCiphertext
-  override def serializer: Serializer[AESCiphertext] = AESCiphertextSerializer
+  override type DECODER = NODECODER
+  override def serializer: Serializer[M, DECODER] = AESCiphertextSerializer
 }
 
-object AESCiphertextSerializer extends Serializer[AESCiphertext] {
+object AESCiphertextSerializer extends Serializer[AESCiphertext, NODECODER] {
   override def toBytes(obj: AESCiphertext): Array[Byte] = obj.ciphertext
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[AESCiphertext] = Try(AESCiphertext(bytes))
+  override def parseBytes(bytes: Array[Byte], d: Option[NODECODER] = None): Try[AESCiphertext] = Try(AESCiphertext(bytes))
 }
 
 case class AESSecretKey(key: Array[Byte]) extends SecretKey {
   override type M = AESSecretKey
-  override def serializer: Serializer[AESSecretKey] = AESSecretKeySerializer
+  override type DECODER = NODECODER
+  override def serializer: Serializer[M, DECODER] = AESSecretKeySerializer
 }
 
-object AESSecretKeySerializer extends Serializer[AESSecretKey] {
+object AESSecretKeySerializer extends Serializer[AESSecretKey, NODECODER] {
   override def toBytes(obj: AESSecretKey): Array[Byte] = obj.key
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[AESSecretKey] = Try(AESSecretKey(bytes))
+  override def parseBytes(bytes: Array[Byte], d: Option[NODECODER] = None): Try[AESSecretKey] = Try(AESSecretKey(bytes))
 }

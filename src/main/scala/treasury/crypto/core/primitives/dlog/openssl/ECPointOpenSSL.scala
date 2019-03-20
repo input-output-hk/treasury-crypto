@@ -57,7 +57,8 @@ class ECPointOpenSSL protected (override val bytes: Array[Byte],
   override def getY: BigInt = ???
 
   override type M = this.type
-  override def serializer: Serializer[ECPointOpenSSL.this.type] = ???
+  override type DECODER = ECDiscreteLogGroupOpenSSL
+  override def serializer: Serializer[M, DECODER] = ???
 
   override def equals(o: Any): Boolean = {
     o match {

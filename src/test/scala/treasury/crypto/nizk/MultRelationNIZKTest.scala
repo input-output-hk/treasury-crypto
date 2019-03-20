@@ -126,7 +126,7 @@ class MultRelationNIZKTest extends FunSuite {
       encryptedUnitVectorWithValue.map(_._2))
 
     val bytes = MultRelationNIZKProofSerializer.toBytes(proof)
-    val proofFromBytes = MultRelationNIZKProofSerializer.parseBytes(bytes, cs).get
+    val proofFromBytes = MultRelationNIZKProofSerializer.parseBytes(bytes, Option(cs)).get
 
     val res = MultRelationNIZK.verifyNIZK(cs, pubKey, encryptedValue,
       encryptedUnitVector.map(_._1),

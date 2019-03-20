@@ -27,7 +27,7 @@ object ExpertBallot {
   val BallotTypeId = 2.toByte
 }
 
-object ExpertBallotCompanion extends Serializer[ExpertBallot] {
+object ExpertBallotCompanion extends Serializer[ExpertBallot, Cryptosystem] {
   override def toBytes(b: ExpertBallot): Array[Byte] = {
     val uvBytes = b.unitVector.foldLeft(Array[Byte]()) { (acc, b) =>
       val c1Bytes = b._1.getEncoded(true)
@@ -46,7 +46,8 @@ object ExpertBallotCompanion extends Serializer[ExpertBallot] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[ExpertBallot] = Try {
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[ExpertBallot] = Try {
+    val cs = csOpt.get
     val proposalId = Ints.fromByteArray(bytes.slice(0,4))
     val expertId = Ints.fromByteArray(bytes.slice(4,8))
     var position = 8
@@ -62,7 +63,7 @@ object ExpertBallotCompanion extends Serializer[ExpertBallot] {
     }.toArray
 
     val proofLen = Ints.fromByteArray(bytes.slice(position, position+4))
-    val proof = SHVZKProofSerializer.parseBytes(bytes.slice(position+4, position+4+proofLen), cs).get
+    val proof = SHVZKProofSerializer.parseBytes(bytes.slice(position+4, position+4+proofLen), Option(cs)).get
 
     ExpertBallot(proposalId, expertId, uvChoice, proof)
   }

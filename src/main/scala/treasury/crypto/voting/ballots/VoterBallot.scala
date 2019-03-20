@@ -30,7 +30,7 @@ object VoterBallot {
   val BallotTypeId = 1.toByte
 }
 
-object VoterBallotCompanion extends Serializer[VoterBallot] {
+object VoterBallotCompanion extends Serializer[VoterBallot, Cryptosystem] {
   override def toBytes(b: VoterBallot): Array[Byte] = {
     val uvBytes = b.unitVector.foldLeft(Array[Byte]()) { (acc, b) =>
       val c1Bytes = b._1.getEncoded(true)
@@ -50,7 +50,8 @@ object VoterBallotCompanion extends Serializer[VoterBallot] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], cs: Cryptosystem): Try[VoterBallot] = Try {
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[VoterBallot] = Try {
+    val cs = csOpt.get
     val proposalId = Ints.fromByteArray(bytes.slice(0,4))
     val uvLen = Shorts.fromByteArray(bytes.slice(4,6))
     var position = 6
@@ -67,7 +68,7 @@ object VoterBallotCompanion extends Serializer[VoterBallot] {
     val (uvDelegations, uvChoices) = unitVector.splitAt(unitVector.length - Voter.VOTER_CHOISES_NUM)
 
     val proofLen = Ints.fromByteArray(bytes.slice(position, position+4))
-    val proof = SHVZKProofSerializer.parseBytes(bytes.slice(position+4, position+4+proofLen), cs).get
+    val proof = SHVZKProofSerializer.parseBytes(bytes.slice(position+4, position+4+proofLen), Option(cs)).get
     position = position + 4 + proofLen
 
     val stakeLen = bytes(position)

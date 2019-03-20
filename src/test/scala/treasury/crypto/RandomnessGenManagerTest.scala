@@ -24,7 +24,7 @@ class RandomnessGenManagerTest extends FunSuite {
     val decryptedShare = RandomnessGenManager.decryptRandomnessShare(cs, priv, share)
 
     val bytes = decryptedShare.bytes
-    val decrypted = DecryptedRandomnessShareSerializer.parseBytes(bytes, cs).get
+    val decrypted = DecryptedRandomnessShareSerializer.parseBytes(bytes, Option(cs)).get
 
     assert(decrypted.randomness == randomness)
     assert(RandomnessGenManager.validateDecryptedRandomnessShare(cs, pub, share, decrypted))
