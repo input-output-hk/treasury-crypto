@@ -48,7 +48,7 @@ class ECPointCachedOpenSSL private[openssl] (protected val nativePoint: EC_POINT
     point
   }
 
-  override def hashCode(): Int = util.Arrays.hashCode(bytes)
+  override def hashCode(): Int = util.Arrays.hashCode(encodedPoint)
 
   override def finalize(): Unit = {
     openSslApi.EC_POINT_free(nativePoint)

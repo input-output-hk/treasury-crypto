@@ -166,7 +166,13 @@ class DiscreteLogGroupTest extends FunSuite with TableDrivenPropertyChecks {
 
   test("any group should be able to reconstruct an element from bytes") {
     forAll(dlogGroups) { case (groupType, group) =>
-      // TODO
+      val e = group.createRandomGroupElement.get
+      val e_reconstructed = group.reconstructGroupElement(e.bytes).get
+      require(e == e_reconstructed)
+
+      val iden = group.groupIdentity
+      val iden_reconstructed = group.reconstructGroupElement(iden.bytes).get
+      require(iden == iden_reconstructed)
     }
   }
 }

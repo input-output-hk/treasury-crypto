@@ -1,18 +1,15 @@
 package treasury.crypto.core.primitives.dlog.bouncycastle
 
-import java.math.BigInteger
-
 import org.bouncycastle.jce.ECNamedCurveTable
 import org.bouncycastle.jce.spec.ECParameterSpec
-import org.bouncycastle.util.encoders.Hex
 import treasury.crypto.core.primitives.dlog.{ECDiscreteLogGroup, ECGroupElement, GroupElement}
 
 import scala.util.Try
 
 class ECDiscreteLogGroupBc private (curveNameIn: String, ecSpecIn: ECParameterSpec) extends ECDiscreteLogGroup {
 
-  private val curveSpec = ecSpecIn
-  private val curve = ecSpecIn.getCurve
+  private[bouncycastle] val curveSpec = ecSpecIn
+  private[bouncycastle] val curve = ecSpecIn.getCurve
 
   override val curveName: String = curveNameIn
 
@@ -54,9 +51,11 @@ class ECDiscreteLogGroupBc private (curveNameIn: String, ecSpecIn: ECParameterSp
     groupElement.asInstanceOf[ECPointBc].point.isValid
   }.getOrElse(false)
 
-  override def reconstructGroupElement(bytes: Array[Byte]): Try[GroupElement] = ???
+  override def reconstructGroupElement(bytes: Array[Byte]): Try[GroupElement] =
+    ECPointBcSerializer.parseBytes(bytes, Option(this))
 
-  override def generateElement(x: BigInt, y: BigInt): Try[ECGroupElement] = ???
+  override def generateElement(x: BigInt, y: BigInt): Try[ECGroupElement] =
+    Try(ECPointBc(curve.createPoint(x.bigInteger,y.bigInteger)))
 
   override def getA: BigInt = curve.getA.toBigInteger
 

@@ -12,9 +12,9 @@ import treasury.crypto.native.{NativeLibraryLoader, OpenSslAPI}
 import scala.util.Try
 
 class ECDiscreteLogGroupOpenSSL private (override val curveName: String,
-                                         openSslApi: OpenSslAPI,
-                                         bnCtx: BN_CTX_PTR,
-                                         ecGroup: EC_GROUP_PTR) extends ECDiscreteLogGroup {
+                                         private[openssl] val openSslApi: OpenSslAPI,
+                                         private[openssl] val bnCtx: BN_CTX_PTR,
+                                         private[openssl] val ecGroup: EC_GROUP_PTR) extends ECDiscreteLogGroup {
 
   override def generateElement(x: BigInt, y: BigInt): Try[ECGroupElement] = ???
 
@@ -145,7 +145,8 @@ class ECDiscreteLogGroupOpenSSL private (override val curveName: String,
 
   override def getFieldCharacteristic: BigInt = curveParam_P
 
-  override def reconstructGroupElement(bytes: Array[Byte]): Try[GroupElement] = ???
+  override def reconstructGroupElement(bytes: Array[Byte]): Try[GroupElement] =
+    ECPointOpenSSLSerializer.parseBytes(bytes, Option(this))
 
   override def finalize(): Unit = {
     openSslApi.BN_free(bnCtx)

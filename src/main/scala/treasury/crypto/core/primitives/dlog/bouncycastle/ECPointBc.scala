@@ -3,7 +3,6 @@ package treasury.crypto.core.primitives.dlog.bouncycastle
 import com.google.common.primitives.Bytes
 import org.bouncycastle.math.ec.ECPoint
 import org.bouncycastle.util.encoders.Hex
-import treasury.crypto.core.Cryptosystem
 import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, ECGroupElement, GroupElement}
 import treasury.crypto.core.serialization.Serializer
 
@@ -53,6 +52,9 @@ object ECPointBcSerializer extends Serializer[ECPointBc, ECDiscreteLogGroupBc] {
   }
 
   override def parseBytes(bytes: Array[Byte], decoder: Option[ECDiscreteLogGroupBc]): Try[ECPointBc] = Try {
-    ???
+    val group = decoder.get
+    val len = bytes(0)
+    val point = group.curve.decodePoint(bytes.tail.take(len))
+    ECPointBc(point)
   }
 }

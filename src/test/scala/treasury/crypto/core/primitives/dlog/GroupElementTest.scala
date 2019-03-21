@@ -98,4 +98,22 @@ class GroupElementTest extends FunSuite with TableDrivenPropertyChecks {
       require(e1Try.get == e1)
     }
   }
+
+  test("any random group element should be serializable and decerializable") {
+    forAll(dlogGroups) { case (groupType, g) =>
+      implicit val group = g
+      val e = group.createRandomGroupElement.get
+      val e_reconstructed = group.reconstructGroupElement(e.bytes).get
+      require(e == e_reconstructed)
+    }
+  }
+
+  test("group identity element should be serializable and decerializable") {
+    forAll(dlogGroups) { case (groupType, g) =>
+      implicit val group = g
+      val e = group.groupIdentity
+      val e_reconstructed = group.reconstructGroupElement(e.bytes).get
+      require(e == e_reconstructed)
+    }
+  }
 }
