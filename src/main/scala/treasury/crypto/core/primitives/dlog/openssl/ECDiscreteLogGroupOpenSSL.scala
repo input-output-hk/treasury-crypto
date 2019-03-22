@@ -18,12 +18,19 @@ class ECDiscreteLogGroupOpenSSL private (override val curveName: String,
 
   override def generateElement(x: BigInt, y: BigInt): Try[ECGroupElement] = ???
 
-  override lazy val infinityPoint: ECGroupElement = ECPointOpenSSL.getInfinityPoint(ecGroup, bnCtx, openSslApi)
+  override lazy val infinityPoint: ECGroupElement = {
+    val point = openSslApi.EC_POINT_new(ecGroup)
+    OpenSslAPI.checkPointerWithException(point, "Can not create point! Maybe something is wrong with EC group???")
+    if (!openSslApi.EC_POINT_set_to_infinity(ecGroup, point)) {
+      openSslApi.EC_POINT_free(point)
+      throw new Exception("Can not set point to infinity!")
+    }
+    ECPointOpenSSL(point, this).get
+  }
 
   override lazy val groupGenerator: GroupElement = {
     val nativePoint = openSslApi.EC_GROUP_get0_generator(ecGroup)
-    val point = ECPointOpenSSL(nativePoint, ecGroup, bnCtx, openSslApi).get
-    point
+    ECPointOpenSSL(openSslApi.EC_POINT_dup(nativePoint, ecGroup), this).get
   }
 
   override lazy val groupOrder: BigInt = {
@@ -37,16 +44,14 @@ class ECDiscreteLogGroupOpenSSL private (override val curveName: String,
   override def groupIdentity: GroupElement = infinityPoint
 
   override def exponentiate(base: GroupElement, exponent: BigInt): Try[GroupElement] = Try {
-    val nativeBase = base.asInstanceOf[ECPointOpenSSL].generateNativePoint.get
+    val nativeBase = base.asInstanceOf[ECPointOpenSSL].nativePoint
 
     // We cannot use BN_bin2bn for negative numbers, so use the absolute value of exponent and then
     // make the BIGNUM negative if needed
     val exponentBytes = exponent.abs.toByteArray
     val nativeExponent = openSslApi.BN_bin2bn(exponentBytes, exponentBytes.length, null)
-    if (nativeExponent == null || nativeExponent.address() == 0) {
-      openSslApi.EC_POINT_free(nativeBase)
-      throw new BadPointerException("Can not convert exponent to BigNum")
-    }
+    OpenSslAPI.checkPointerWithException(nativeExponent, "Can not convert exponent to BigNum")
+
     if (exponent < 0) {
       openSslApi.BN_set_negative(nativeExponent, 1)
       val nativeMod = openSslApi.BN_bin2bn(groupOrder.toByteArray, groupOrder.toByteArray.length, null)
@@ -54,40 +59,33 @@ class ECDiscreteLogGroupOpenSSL private (override val curveName: String,
       openSslApi.BN_free(nativeMod)
     }
 
-    val res = openSslApi.EC_POINT_mul(ecGroup, nativeBase, null, nativeBase, nativeExponent, bnCtx)
+    val resPoint = openSslApi.EC_POINT_new(ecGroup)
+    OpenSslAPI.checkPointerWithException(resPoint, "Can not create point")
+
+    val res = openSslApi.EC_POINT_mul(ecGroup, resPoint, null, nativeBase, nativeExponent, bnCtx)
     openSslApi.BN_free(nativeExponent)
     if (!res) {
-      openSslApi.EC_POINT_free(nativeBase)
+      openSslApi.EC_POINT_free(resPoint)
       throw new Exception("Error while exponentiating")
     }
 
-    val result = ECPointOpenSSL(nativeBase, ecGroup, bnCtx, openSslApi).get
-    openSslApi.EC_POINT_free(nativeBase)
-
-    result
+    ECPointOpenSSL(resPoint, this).get
   }
 
   override def multiply(groupElement1: GroupElement, groupElement2: GroupElement): Try[GroupElement] = Try {
-    val nativeElem1 = groupElement1.asInstanceOf[ECPointOpenSSL].generateNativePoint.get
-    val nativeElem2Try = groupElement2.asInstanceOf[ECPointOpenSSL].generateNativePoint
-    if (nativeElem2Try.isFailure) {
-      openSslApi.EC_POINT_free(nativeElem1)
-      throw new Exception("Can not generate native point")
-    }
-    val nativeElem2 = nativeElem2Try.get
+    val nativeElem1 = groupElement1.asInstanceOf[ECPointOpenSSL].nativePoint
+    val nativeElem2 = groupElement2.asInstanceOf[ECPointOpenSSL].nativePoint
 
-    // store result in nativeElem1
-    val res = openSslApi.EC_POINT_add(ecGroup, nativeElem1, nativeElem1, nativeElem2, bnCtx)
-    openSslApi.EC_POINT_free(nativeElem2)
+    val resPoint = openSslApi.EC_POINT_new(ecGroup)
+    OpenSslAPI.checkPointerWithException(resPoint, "Can not create point")
+
+    val res = openSslApi.EC_POINT_add(ecGroup, resPoint, nativeElem1, nativeElem2, bnCtx)
     if (!res) {
-      openSslApi.EC_POINT_free(nativeElem1)
+      openSslApi.EC_POINT_free(resPoint)
       throw new Exception("Can not add native points")
     }
 
-    val groupElem = ECPointOpenSSL(nativeElem1, ecGroup, bnCtx, openSslApi).get
-    openSslApi.EC_POINT_free(nativeElem1)
-
-    groupElem
+    ECPointOpenSSL(resPoint, this).get
   }
 
   override def divide(groupElement1: GroupElement, groupElement2: GroupElement): Try[GroupElement] = {
@@ -97,17 +95,18 @@ class ECDiscreteLogGroupOpenSSL private (override val curveName: String,
   }
 
   override def inverse(groupElement: GroupElement): Try[GroupElement] = Try {
-    val nativeElem = groupElement.asInstanceOf[ECPointOpenSSL].generateNativePoint.get
-    val res = openSslApi.EC_POINT_invert(ecGroup, nativeElem, bnCtx)
+    val nativeElem = groupElement.asInstanceOf[ECPointOpenSSL].nativePoint
+
+    val resPoint = openSslApi.EC_POINT_dup(nativeElem, ecGroup)
+    OpenSslAPI.checkPointerWithException(resPoint, "Can not duplicate point")
+
+    val res = openSslApi.EC_POINT_invert(ecGroup, resPoint, bnCtx)
     if (!res) {
-      openSslApi.EC_POINT_free(nativeElem)
+      openSslApi.EC_POINT_free(resPoint)
       throw new Exception("Can not invert point")
     }
 
-    val groupElem = ECPointOpenSSL(nativeElem, ecGroup, bnCtx, openSslApi).get
-    openSslApi.EC_POINT_free(nativeElem)
-
-    groupElem
+    ECPointOpenSSL(resPoint, this).get
   }
 
   override def isValidGroupElement(groupElement: GroupElement): Boolean = Try {

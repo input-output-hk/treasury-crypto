@@ -50,6 +50,7 @@ trait OpenSslAPI {
   def EC_POINT_mul(group: EC_GROUP_PTR, out: EC_POINT_PTR, multiplier: BIGNUM_PTR, base: EC_POINT_PTR, exponent: BIGNUM_PTR, bnCtx: BN_CTX_PTR): Boolean
   def EC_POINT_add(group: EC_GROUP_PTR, out: EC_POINT_PTR, point1: EC_POINT_PTR, point2: EC_POINT_PTR, bnCtx: BN_CTX_PTR): Boolean
   def EC_POINT_invert(group: EC_GROUP_PTR, point: EC_POINT_PTR, bnCtx: BN_CTX_PTR): Boolean
+  def EC_POINT_cmp(group: EC_GROUP_PTR, p1: EC_POINT_PTR, p2: EC_POINT_PTR, bnCtx: BN_CTX_PTR): Int
 }
 
 object OpenSslAPI {

@@ -12,45 +12,41 @@ import treasury.crypto.native.OpenSslAPI.{BN_CTX_PTR, EC_GROUP_PTR, EC_POINT_PTR
 import scala.util.Try
 
 /**
-  * This class represents a point on the curve. Note that instead of holding a reference to the native EC_POINT object
-  * we decided to hold serialized point, so that we don't care about managing native objects. Additionally we provide
-  * methods for reconstructing EC_POINT from serialized representation.
-  * An alternative approach would be to hold EC_POINT_PTR directly and override finalize method to free the native object when
-  * it is not needed anymore. Such an approach was taken in SCAPI library. But using 'finalize' method is not reliable
-  * and not guaranteed to be called at all, thus we avoid to keep native objects to prevent possible memory leakages,
-  * even though it may cost a bit more because of additional conversions.
+  * This class represents a point on the curve. Note that it holds a reference to the native EC_POINT object which is
+  * freed in the finalize method. In general, the method finalize is not guaranteed to be called upon object descrutcion,
+  * so the memory leaks are possible.
+  * An alternative approach would be to hold only serialized point and recover native object only when operations to be
+  * performed and free it right after that. Such an approach comes with performance penalty (approx 30% slower), thus
+  * we chosed in favour of the first approach.
   *
-  * @param encodedPoint serialized point acquired through the EC_POINT_point2bn and BN_bn2bin. If the length is zero then
-  *              it represents point at infinity.
-  * @param ecGroup
-  * @param bnCtx
-  * @param openSslApi
+  * @param nativePoint pointer to the native object. IMPORTANT: it is responsibility of the ECPointOpenSSL object to
+  *                    free the native point. Caller should not do this, otherwise the system may crash
+  * @param group
   */
-class ECPointOpenSSL protected (protected[openssl] val encodedPoint: Array[Byte],
-                                protected val ecGroup: EC_GROUP_PTR,
-                                protected val bnCtx: BN_CTX_PTR,
-                                protected val openSslApi: OpenSslAPI) extends ECGroupElement {
+class ECPointOpenSSL private (val nativePoint: EC_POINT_PTR,
+                              val group: ECDiscreteLogGroupOpenSSL) extends ECGroupElement {
 
-  override lazy val isInfinity: Boolean = encodedPoint.isEmpty
+  private val (ecGroup, bnCtx, openSslApi) = (group.ecGroup, group.bnCtx, group.openSslApi)
+  require(openSslApi.EC_POINT_is_on_curve(ecGroup, nativePoint, bnCtx))
+
+  lazy val encodedPoint: Array[Byte] = ECPointOpenSSL.nativePointToBytes(nativePoint, ecGroup, bnCtx, openSslApi).get
+
+  override lazy val isInfinity: Boolean = openSslApi.EC_POINT_is_at_infinity(ecGroup, nativePoint)
 
   override def multiply(that: GroupElement)(implicit dlog: DiscreteLogGroup): Try[GroupElement] = {
-    require(dlog.isInstanceOf[ECDiscreteLogGroupOpenSSL])
-    dlog.multiply(this, that)
+    group.multiply(this, that)
   }
 
   override def pow(exp: BigInt)(implicit dlog: DiscreteLogGroup): Try[GroupElement] = {
-    require(dlog.isInstanceOf[ECDiscreteLogGroupOpenSSL])
-    dlog.exponentiate(this, exp)
+    group.exponentiate(this, exp)
   }
 
   override def divide(that: GroupElement)(implicit dlog: DiscreteLogGroup): Try[GroupElement] = {
-    require(dlog.isInstanceOf[ECDiscreteLogGroupOpenSSL])
-    dlog.divide(this, that)
+    group.divide(this, that)
   }
 
   override def inverse()(implicit dlog: DiscreteLogGroup): Try[GroupElement] = {
-    require(dlog.isInstanceOf[ECDiscreteLogGroupOpenSSL])
-    dlog.inverse(this)
+    group.inverse(this)
   }
 
   override def getX: BigInt = ???
@@ -63,7 +59,7 @@ class ECPointOpenSSL protected (protected[openssl] val encodedPoint: Array[Byte]
 
   override def equals(o: Any): Boolean = {
     o match {
-      case that: ECPointOpenSSL => this.hashCode == that.hashCode
+      case that: ECPointOpenSSL => 0 == openSslApi.EC_POINT_cmp(ecGroup, this.nativePoint, that.nativePoint, bnCtx)
       case _ => false
     }
   }
@@ -72,82 +68,29 @@ class ECPointOpenSSL protected (protected[openssl] val encodedPoint: Array[Byte]
 
   override def toString: String = getHexString()
 
+  override def finalize(): Unit = {
+    openSslApi.EC_POINT_free(nativePoint)
+    super.finalize()
+  }
+
   /**
     * This method is mostly for testing purposes
     */
-  def isOnCurve: Boolean =
-    generateNativePoint.map { p =>
-      val res = openSslApi.EC_POINT_is_on_curve(ecGroup, p, bnCtx)
-      openSslApi.EC_POINT_free(p)
-      res
-    }.getOrElse(false)
+  def isOnCurve: Boolean = openSslApi.EC_POINT_is_on_curve(ecGroup, nativePoint, bnCtx)
 
-  def getHexString(form: PointConversionForm = PointConversionForm.POINT_CONVERSION_COMPRESSED): String = Try {
-    val nativePoint = generateNativePoint.get
-    val string = openSslApi.EC_POINT_point2hex(ecGroup, nativePoint, form, bnCtx)
-    openSslApi.EC_POINT_free(nativePoint)
-    string
-  }.getOrElse("N/A")
-
-  /**
-    * Creates a native openssl object EC_POINT.
-    * IMPORTANT: it is responsibility of the caller to free EC_POINT object with EC_POINT_free
-    */
-  def generateNativePoint: Try[EC_POINT_PTR] = {
-    if (encodedPoint.length == 0) // point at infinity
-      ECPointOpenSSL.generateNativeInfinityPoint(ecGroup, bnCtx, openSslApi)
-    else
-      ECPointOpenSSL.generateNativePointFromBytes(encodedPoint, ecGroup, bnCtx, openSslApi)
-  }
+  def getHexString(form: PointConversionForm = PointConversionForm.POINT_CONVERSION_COMPRESSED): String =
+    openSslApi.EC_POINT_point2hex(ecGroup, nativePoint, form, bnCtx)
 }
 
 object ECPointOpenSSL {
 
-//  def apply(point: EC_POINT_PTR, ecGroup: EC_GROUP_PTR, bnCtx: BN_CTX_PTR, openSslApi: OpenSslAPI): Try[ECPointOpenSSL] = Try {
-//    OpenSslAPI.checkPointerWithException(point, "Can not create ECPointOpenSSL object because of the bad pointer")
-//    require(openSslApi.EC_POINT_is_on_curve(ecGroup, point, bnCtx), "Can not create ECPointOpenSSL object from the EC_POINT that is not on the curve")
-//
-//    val bytes = nativePointToBytes(point, ecGroup, bnCtx, openSslApi).get
-//    new ECPointOpenSSL(bytes, ecGroup, bnCtx, openSslApi)
-//  }
-//
-//  def getInfinityPoint(ecGroup: EC_GROUP_PTR, bnCtx: BN_CTX_PTR, openSslApi: OpenSslAPI): ECPointOpenSSL = {
-//    new ECPointOpenSSL(Array(), ecGroup, bnCtx, openSslApi)
-//  }
-
   /**
-    * Creates a ECPointCachedOpenSSL. If cached native points are undesirable - uncomment implementation above.
-    * TODO: improve the code design so there is no need to comment/uncomment something if we want to change implementation (is it needed? maybe just chose one implementation)
+    * Creates a ECPointOpenSSL. Note that from now the responsibility to free the point is on the ECPointOpenSSL object,
+    * so that the caller MUST NOT free the point.
     */
-  def apply(point: EC_POINT_PTR, ecGroup: EC_GROUP_PTR, bnCtx: BN_CTX_PTR, openSslApi: OpenSslAPI): Try[ECPointOpenSSL] = Try {
+  def apply(point: EC_POINT_PTR, group: ECDiscreteLogGroupOpenSSL): Try[ECPointOpenSSL] = Try {
     OpenSslAPI.checkPointerWithException(point, "Can not create ECPointOpenSSL object because of the bad pointer")
-    new ECPointCachedOpenSSL(openSslApi.EC_POINT_dup(point, ecGroup), ecGroup, bnCtx, openSslApi)
-  }
-
-  /**
-    * Creates a ECPointCachedOpenSSL. If cached native points are undesirable - uncomment implementation above.
-    * TODO: improve the code design so there is no need to comment/uncomment something if we want to change implementation (is it needed? maybe just chose one implementation)
-    */
-  def getInfinityPoint(ecGroup: EC_GROUP_PTR, bnCtx: BN_CTX_PTR, openSslApi: OpenSslAPI): ECPointOpenSSL = {
-    val point = generateNativeInfinityPoint(ecGroup, bnCtx, openSslApi).get
-    new ECPointCachedOpenSSL(point, ecGroup, bnCtx, openSslApi)
-  }
-
-  /**
-    * Creates a native openssl object EC_POINT that represents point at infinity.
-    * IMPORTANT: it is responsibility of the caller to free EC_POINT object with EC_POINT_free
-    */
-  protected[openssl] def generateNativeInfinityPoint(ecGroup: EC_GROUP_PTR,
-                                  bnCtx: BN_CTX_PTR,
-                                  openSslApi: OpenSslAPI): Try[EC_POINT_PTR] = Try {
-    val point = openSslApi.EC_POINT_new(ecGroup)
-    if (point == null || point.address == 0)
-      throw new Exception("Can not create point! Maybe something is wrong with EC group???")
-    if (!openSslApi.EC_POINT_set_to_infinity(ecGroup, point)) {
-      openSslApi.EC_POINT_free(point)
-      throw new Exception("Can not set point to infinity!")
-    }
-    point
+    new ECPointOpenSSL(point, group)
   }
 
   /**
@@ -155,9 +98,9 @@ object ECPointOpenSSL {
     * IMPORTANT: it is responsibility of the caller to free EC_POINT object with EC_POINT_free
     */
   protected[openssl] def generateNativePointFromBytes(bytes: Array[Byte],
-                                   ecGroup: EC_GROUP_PTR,
-                                   bnCtx: BN_CTX_PTR,
-                                   openSslApi: OpenSslAPI): Try[EC_POINT_PTR] = Try {
+                                                      ecGroup: EC_GROUP_PTR,
+                                                      bnCtx: BN_CTX_PTR,
+                                                      openSslApi: OpenSslAPI): Try[EC_POINT_PTR] = Try {
     require(bytes.length > 0)
 
     val point = openSslApi.EC_POINT_new(ecGroup)
@@ -207,10 +150,10 @@ object ECPointOpenSSLSerializer extends Serializer[ECPointOpenSSL, ECDiscreteLog
     val group = decoder.get
     val len = bytes(0)
     if (len == 0) // point at infinity
-      ECPointOpenSSL.getInfinityPoint(group.ecGroup, group.bnCtx, group.openSslApi)
+      group.infinityPoint.asInstanceOf[ECPointOpenSSL]
     else {
       val point = ECPointOpenSSL.generateNativePointFromBytes(bytes.tail.take(len), group.ecGroup, group.bnCtx, group.openSslApi).get
-      new ECPointCachedOpenSSL(point, group.ecGroup, group.bnCtx, group.openSslApi)
+      ECPointOpenSSL(point, group).get
     }
   }
 }
