@@ -9,7 +9,7 @@ class CryptographicHashTest extends PropSpec with TableDrivenPropertyChecks with
   val hashes =
     Table(
       "hash",
-      CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
+      AvailableHashes.values.toSeq.map(h => CryptographicHashFactory.constructHash(h).get):_*
     )
 
   property("any hash function should produce the same hash for the same message") {

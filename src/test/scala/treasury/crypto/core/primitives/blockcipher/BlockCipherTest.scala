@@ -9,7 +9,7 @@ class BlockCipherTest extends PropSpec with TableDrivenPropertyChecks with Match
   val ciphers =
     Table(
       "cipher",
-      BlockCipherFactory.constructBlockCipher(AvailableBlockCiphers.AES128_BSM_Bc).get
+      AvailableBlockCiphers.values.toSeq.map(c => BlockCipherFactory.constructBlockCipher(c).get):_*
     )
 
   property("any cipher should support key generation") {
