@@ -2,8 +2,7 @@ package treasury.crypto.core.encryption
 
 import org.scalatest.FunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
-import treasury.crypto.core.dlog.DiscreteLogGroupTest
-import treasury.crypto.core.encryption.hybrid.HybridEncryption
+import treasury.crypto.core.encryption.hybrid.{HybridCiphertextSerializer, HybridEncryption}
 import treasury.crypto.core.primitives.blockcipher.BlockCipherFactory
 import treasury.crypto.core.primitives.blockcipher.BlockCipherFactory.AvailableBlockCiphers
 import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory
@@ -20,7 +19,7 @@ class HybridEncryptionTest extends FunSuite with TableDrivenPropertyChecks {
   val blockCiphers =
     Table(
       "blockCipher",
-      BlockCipherFactory.constructBlockCipher(AvailableBlockCiphers.AES128_BSM_Bc).get
+      AvailableBlockCiphers.values.toSeq.map(c => BlockCipherFactory.constructBlockCipher(c).get):_*
     )
 
   test("HybridEncryption should correctly encrypt and decrypt message for any dlog and any block cipher") {
@@ -46,6 +45,22 @@ class HybridEncryptionTest extends FunSuite with TableDrivenPropertyChecks {
 
         val ciphertext = HybridEncryption.encrypt(pubKey, message, seed).get
         val decryptedMessage = HybridEncryption.decrypt(privKey, ciphertext).get
+
+        require(message.sameElements(decryptedMessage))
+      }
+    }
+  }
+
+  test("HybridCiphertext should support serialization") {
+    forAll(dlogGroups) { implicit group =>
+      forAll(blockCiphers) { implicit blockCipher =>
+        val message = "Message".getBytes
+        val (privKey, pubKey) = encryption.createKeyPair.get
+
+        val ciphertext = HybridEncryption.encrypt(pubKey, message).get
+        val bytes = ciphertext.bytes
+        val reconstructedCiphertext = HybridCiphertextSerializer.parseBytes(bytes, Option(group, blockCipher)).get
+        val decryptedMessage = HybridEncryption.decrypt(privKey, reconstructedCiphertext).get
 
         require(message.sameElements(decryptedMessage))
       }
