@@ -143,16 +143,18 @@ object ECPointOpenSSL {
 object ECPointOpenSSLSerializer extends Serializer[ECPointOpenSSL, ECDiscreteLogGroupOpenSSL] {
 
   override def toBytes(obj: ECPointOpenSSL): Array[Byte] = {
-    Bytes.concat(Array(obj.encodedPoint.length.toByte), obj.encodedPoint)
+    if (obj.isInfinity) // handle infinity point separately, encode it just as a 1-byte array that contains zero
+      Array(0.toByte)
+    else
+      obj.encodedPoint
   }
 
   override def parseBytes(bytes: Array[Byte], decoder: Option[ECDiscreteLogGroupOpenSSL]): Try[ECPointOpenSSL] = Try {
     val group = decoder.get
-    val len = bytes(0)
-    if (len == 0) // point at infinity
+    if (bytes.length == 1 && bytes(0) == 0) // point at infinity
       group.infinityPoint.asInstanceOf[ECPointOpenSSL]
     else {
-      val point = ECPointOpenSSL.generateNativePointFromBytes(bytes.tail.take(len), group.ecGroup, group.bnCtx, group.openSslApi).get
+      val point = ECPointOpenSSL.generateNativePointFromBytes(bytes, group.ecGroup, group.bnCtx, group.openSslApi).get
       ECPointOpenSSL(point, group).get
     }
   }

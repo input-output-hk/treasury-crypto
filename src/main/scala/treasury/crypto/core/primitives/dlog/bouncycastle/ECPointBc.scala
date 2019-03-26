@@ -47,14 +47,12 @@ case class ECPointBc(point: ECPoint) extends ECGroupElement {
 object ECPointBcSerializer extends Serializer[ECPointBc, ECDiscreteLogGroupBc] {
 
   override def toBytes(obj: ECPointBc): Array[Byte] = {
-    val bytes = obj.point.getEncoded(true)
-    Bytes.concat(Array(bytes.length.toByte), bytes)
+    obj.point.getEncoded(true)
   }
 
   override def parseBytes(bytes: Array[Byte], decoder: Option[ECDiscreteLogGroupBc]): Try[ECPointBc] = Try {
     val group = decoder.get
-    val len = bytes(0)
-    val point = group.curve.decodePoint(bytes.tail.take(len))
+    val point = group.curve.decodePoint(bytes)
     ECPointBc(point)
   }
 }
