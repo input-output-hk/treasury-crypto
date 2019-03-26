@@ -48,4 +48,32 @@ class BlockCipherTest extends PropSpec with TableDrivenPropertyChecks with Match
       decryptedMsg.sameElements(msg) should be (true)
     }
   }
+
+  property("any cipher should support serialization of the ciphertext") {
+    forAll(ciphers) { cipher =>
+      val key = cipher.generateKey
+      val msg = "Test msg".getBytes
+
+      val ciphertext = cipher.encrypt(key, msg).get
+      val bytes = ciphertext.bytes
+      val reconstructedCiphertext = cipher.reconstructCiphertextFromBytes(bytes).get
+      val decryptedMsg = cipher.decrypt(key, reconstructedCiphertext).get
+
+      decryptedMsg.sameElements(msg) should be (true)
+    }
+  }
+
+  property("any cipher should support serialization of the secret key") {
+    forAll(ciphers) { cipher =>
+      val key = cipher.generateKey
+      val msg = "Test msg".getBytes
+
+      val ciphertext = cipher.encrypt(key, msg).get
+      val bytes = key.bytes
+      val reconstructedKey = cipher.reconstructSecretKeyFromBytes(bytes).get
+      val decryptedMsg = cipher.decrypt(reconstructedKey, ciphertext).get
+
+      decryptedMsg.sameElements(msg) should be (true)
+    }
+  }
 }

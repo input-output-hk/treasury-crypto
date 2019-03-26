@@ -1,12 +1,21 @@
 package treasury.crypto.core.primitives.blockcipher
 
-import treasury.crypto.core.Cryptosystem
 import treasury.crypto.core.primitives.blockcipher.BlockCipher.{Ciphertext, SecretKey}
 import treasury.crypto.core.serialization.{NODECODER, Serializer}
 
 import scala.util.Try
 
-trait AESBlockCipher extends BlockCipher
+trait AESBlockCipher extends BlockCipher {
+
+  override def reconstructCiphertextFromBytes(bytes: Array[Byte]): Try[BlockCipher.Ciphertext] = Try {
+    AESCiphertext(bytes)
+  }
+
+  override def reconstructSecretKeyFromBytes(bytes: Array[Byte]): Try[SecretKey] = Try {
+    require(bytes.length == keySize)
+    AESSecretKey(bytes)
+  }
+}
 
 trait AES128 extends AESBlockCipher
 trait AES128_GSM extends AES128
