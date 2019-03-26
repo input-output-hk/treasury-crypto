@@ -132,12 +132,12 @@ class SHVZKTestNew extends FunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  ignore("serialization") {
+  test("serialization") {
     forAll(dlogGroups) { implicit group =>
       val (privKey, pubKey) = encryption.createKeyPair.get
       val (uv, rand) = createUnitVector(5, 0, pubKey)
       val proofBytes = new SHVZKGen(pubKey, uv, 0, rand).produceNIZK.get.bytes
-      val proof = SHVZKProofSerializer.parseBytes(proofBytes, null)
+      val proof = SHVZKProofSerializer.parseBytes(proofBytes, Option(group))
 
       assert(new SHVZKVerifier(pubKey, uv, proof.get).verifyProof)
     }
