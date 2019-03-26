@@ -2,7 +2,8 @@ package treasury.crypto.core.encryption
 
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FunSuite, Matchers}
-import treasury.crypto.core.encryption.elgamal.ElGamalCiphertext
+import treasury.crypto.core.encryption.elgamal.{ElGamalCiphertext, ElGamalCiphertextSerializer, ElGamalEnc}
+import treasury.crypto.core.encryption.encryption.createKeyPair
 import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory
 import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
 
@@ -50,6 +51,20 @@ class ElGamalCiphertextTest extends FunSuite with TableDrivenPropertyChecks with
       res3.c1 should not be (e1)
       res4.c1 should be (res4.c2)
       res4.c1 should not be (e1)
+    }
+  }
+
+  test("ElGamalCiphertext should support serialization") {
+    forAll(dlogGroups) { implicit group =>
+      val (privKey, pubKey) = createKeyPair.get
+      val message = group.createRandomGroupElement.get
+
+      val (ciphertext, _) = ElGamalEnc.encrypt(pubKey, message).get
+      val bytes = ciphertext.bytes
+      val reconstructedCiphertext = ElGamalCiphertextSerializer.parseBytes(bytes, Option(group)).get
+      val decryptedMsg = ElGamalEnc.decrypt(privKey, reconstructedCiphertext).get
+
+      decryptedMsg should be (message)
     }
   }
 }
