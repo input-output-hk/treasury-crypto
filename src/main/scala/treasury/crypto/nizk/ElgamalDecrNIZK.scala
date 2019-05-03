@@ -3,81 +3,77 @@ package treasury.crypto.nizk
 import java.math.BigInteger
 
 import com.google.common.primitives.Bytes
-import treasury.crypto.core._
+import treasury.crypto.core.encryption.encryption._
+import treasury.crypto.core.encryption.elgamal.ElGamalCiphertext
+import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, GroupElement}
+import treasury.crypto.core.primitives.hash.CryptographicHash
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
 
 import scala.util.Try
 
+/**
+  * The ElGamalDecrNIZK allows to verify that the "ciphertext" is an encryption of the "plaintext" with the "privKey",
+  * where (privKey, pubKey) constitutes a valid key pair
+  */
 object ElgamalDecrNIZK {
 
-  def produceNIZK(
-    cs: Cryptosystem,
-    ciphertext: Ciphertext,
-    privKey: PrivKey
-  ): ElgamalDecrNIZKProof = {
+  def produceNIZK(ciphertext: ElGamalCiphertext, privKey: PrivKey)
+                 (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Try[ElgamalDecrNIZKProof] = Try {
 
-    val drng = DRNG(privKey.toByteArray ++ ciphertext._1.getEncoded(true) ++ ciphertext._2.getEncoded(true), cs)
-    val w = drng.getRand
-    val A1 = cs.basePoint.multiply(w)
-    val A2 = ciphertext._1.multiply(w)
-    val D = ciphertext._1.multiply(privKey)
+    val w = dlogGroup.createRandomNumber
+    val A1 = dlogGroup.groupGenerator.pow(w).get
+    val A2 = ciphertext.c1.pow(w).get
+    val D = ciphertext.c1.pow(privKey).get
 
     val e = new BigInteger(
-      cs.hash256 {
-        ciphertext._1.getEncoded(true) ++
-        ciphertext._2.getEncoded(true) ++
-        D.getEncoded(true) ++
-        A1.getEncoded(true) ++
-        A2.getEncoded(true)
-      }).mod(cs.orderOfBasePoint)
+      hashFunction.hash {
+        ciphertext.bytes ++
+        D.bytes ++
+        A1.bytes ++
+        A2.bytes
+      }).mod(dlogGroup.groupOrder)
 
-    val z = privKey.multiply(e).add(w).mod(cs.orderOfBasePoint)
+    val z = (privKey * e + w) mod dlogGroup.groupOrder
 
-    ElgamalDecrNIZKProof(A1.normalize(), A2.normalize(), z)
+    ElgamalDecrNIZKProof(A1, A2, z)
   }
 
-  def verifyNIZK(
-    cs: Cryptosystem,
-    pubKey: PubKey,
-    ciphertext: Ciphertext,
-    plaintext: Point,
-    proof: ElgamalDecrNIZKProof
-  ): Boolean = {
+  def verifyNIZK(pubKey: PubKey, ciphertext: ElGamalCiphertext, plaintext: GroupElement, proof: ElgamalDecrNIZKProof)
+                (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Boolean = Try {
 
-    val D = ciphertext._2.subtract(plaintext)
+    val D = ciphertext.c2.divide(plaintext).get
     val e = new BigInteger(
-      cs.hash256 {
-        ciphertext._1.getEncoded(true) ++
-          ciphertext._2.getEncoded(true) ++
-          D.getEncoded(true) ++
-          proof.A1.getEncoded(true) ++
-          proof.A2.getEncoded(true)
-      }).mod(cs.orderOfBasePoint)
+      hashFunction.hash {
+        ciphertext.bytes ++
+        D.bytes ++
+        proof.A1.bytes ++
+        proof.A2.bytes
+      }).mod(dlogGroup.groupOrder)
 
-    val gz = cs.basePoint.multiply(proof.z)
-    val heA1 = pubKey.multiply(e).add(proof.A1)
+    val gz = dlogGroup.groupGenerator.pow(proof.z).get
+    val heA1 = pubKey.pow(e).get.multiply(proof.A1).get
 
-    val C1z = ciphertext._1.multiply(proof.z)
-    val DeA2 = D.multiply(e).add(proof.A2)
+    val C1z = ciphertext.c1.pow(proof.z).get
+    val DeA2 = D.pow(e).get.multiply(proof.A2).get
 
     gz.equals(heA1) && C1z.equals(DeA2)
-  }
+  }.getOrElse(false)
 }
 
-case class ElgamalDecrNIZKProof(A1: Point, A2: Point, z: Element) extends BytesSerializable {
+case class ElgamalDecrNIZKProof(A1: GroupElement, A2: GroupElement, z: BigInt) extends BytesSerializable {
 
   override type M = ElgamalDecrNIZKProof
-  override type DECODER = Cryptosystem
+  override type DECODER = DiscreteLogGroup
   override val serializer = ElgamalDecrNIZKProofSerializer
 
   def size: Int = bytes.length
 }
 
-object ElgamalDecrNIZKProofSerializer extends Serializer[ElgamalDecrNIZKProof, Cryptosystem] {
+object ElgamalDecrNIZKProofSerializer extends Serializer[ElgamalDecrNIZKProof, DiscreteLogGroup] {
 
   override def toBytes(obj: ElgamalDecrNIZKProof): Array[Byte] = {
-    val A1Bytes = obj.A1.getEncoded(true)
-    val A2Bytes = obj.A2.getEncoded(true)
+    val A1Bytes = obj.A1.bytes
+    val A2Bytes = obj.A2.bytes
     val zBytes = obj.z.toByteArray
 
     Bytes.concat(Array(A1Bytes.length.toByte), A1Bytes,
@@ -85,18 +81,18 @@ object ElgamalDecrNIZKProofSerializer extends Serializer[ElgamalDecrNIZKProof, C
       Array(zBytes.length.toByte), zBytes)
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[ElgamalDecrNIZKProof] = Try {
-    val cs = csOpt.get
+  override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[ElgamalDecrNIZKProof] = Try {
+    val group = decoder.get
     val A1Len = bytes(0)
-    val A1 = cs.decodePoint(bytes.slice(1,A1Len+1))
+    val A1 = group.reconstructGroupElement(bytes.slice(1,A1Len+1)).get
     var pos = A1Len + 1
 
     val A2Len = bytes(pos)
-    val A2 = cs.decodePoint(bytes.slice(pos+1,A2Len+pos+1))
+    val A2 = group.reconstructGroupElement(bytes.slice(pos+1,A2Len+pos+1)).get
     pos = pos + A2Len + 1
 
     val zLen = bytes(pos)
-    val z = new BigInteger(bytes.slice(pos+1, pos+1+zLen))
+    val z = BigInt(bytes.slice(pos+1, pos+1+zLen))
 
     ElgamalDecrNIZKProof(A1, A2, z)
   }
