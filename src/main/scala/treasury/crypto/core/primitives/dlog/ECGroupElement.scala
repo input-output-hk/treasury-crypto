@@ -24,4 +24,20 @@ trait ECGroupElement extends GroupElement {
   def isInfinity: Boolean
 
   override def isIdentity: Boolean = isInfinity
+
+  override def compare(that: GroupElement): Int = {
+    require(that.isInstanceOf[ECGroupElement])
+    val e = that.asInstanceOf[ECGroupElement]
+
+    val x1 = this.getX
+    val x2 = e.getX
+    x1.compareTo(x2) match {
+      case 0 => {
+        val y1 = this.getY
+        val y2 = e.getY
+        y1.compareTo(y2)
+      }
+      case x => x
+    }
+  }
 }

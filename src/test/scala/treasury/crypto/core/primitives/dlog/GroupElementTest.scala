@@ -99,6 +99,20 @@ class GroupElementTest extends FunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  test("any group element should support compare operation") {
+    forAll(dlogGroups) { case (groupType, g) =>
+      implicit val group = g
+      val e1 = group.createRandomGroupElement.get
+      val e2 = group.createRandomGroupElement.get
+
+      val res = e1.compare(e2)
+      require(res != 0)
+      require(e2.compare(e1) == (-res))
+      require(e1.compare(e1) == 0)
+      require(e2.compare(e2) == 0)
+    }
+  }
+
   test("any random group element should be serializable and decerializable") {
     forAll(dlogGroups) { case (groupType, g) =>
       implicit val group = g

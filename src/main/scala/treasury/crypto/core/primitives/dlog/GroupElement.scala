@@ -7,7 +7,7 @@ import scala.util.Try
 /*
  * An interface for a group element of the discrete multiplicative group
  */
-trait GroupElement extends BytesSerializable {
+trait GroupElement extends BytesSerializable with Ordered[GroupElement] {
 
   def isIdentity: Boolean
 
@@ -32,4 +32,13 @@ trait GroupElement extends BytesSerializable {
   def inverse()(implicit dlog: DiscreteLogGroup): Try[GroupElement]
 
   def size: Int = bytes.length
+
+
+  /**
+    * Compares 2 group elements
+    *
+    * @param that a group element of the same type as this. Otherwise exception will be thrown
+    * @return -1 if this < that, 0 if this == that and 1 if this > that
+    */
+  override def compare(that: GroupElement): Int
 }

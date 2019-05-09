@@ -49,9 +49,33 @@ class ECPointOpenSSL private (val nativePoint: EC_POINT_PTR,
     group.inverse(this)
   }
 
-  override def getX: BigInt = ???
+  /**
+    * @return (x,y) coordinates of the point
+    */
+  def getAffineCoordinates: (BigInt, BigInt) = if (isInfinity) (-1,-1) else {
+    val bnX = openSslApi.BN_new
+    val bnY = openSslApi.BN_new
+    val res = openSslApi.EC_POINT_get_affine_coordinates(ecGroup, nativePoint, bnX, bnY, bnCtx)
+    require(res == 1)
 
-  override def getY: BigInt = ???
+    val buf = new Array[Byte](64)
+
+    val len = openSslApi.BN_bn2bin(bnX, buf)
+    require(len <= 64)
+    val X = BigInt(1, buf.take(len))
+
+    val len2 = openSslApi.BN_bn2bin(bnY, buf)
+    require(len2 <= 64)
+    val Y = BigInt(1, buf.take(len2))
+
+    openSslApi.BN_free(bnX)
+    openSslApi.BN_free(bnY)
+    (X,Y)
+  }
+
+  override def getX: BigInt = getAffineCoordinates._1
+
+  override def getY: BigInt = getAffineCoordinates._2
 
   override type M = ECPointOpenSSL
   override type DECODER = ECDiscreteLogGroupOpenSSL

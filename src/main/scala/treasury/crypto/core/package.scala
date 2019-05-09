@@ -10,7 +10,6 @@ import org.scalameter._
 import treasury.crypto.core.encryption.elgamal.ElGamalCiphertext
 import treasury.crypto.core.primitives.dlog.GroupElement
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
-import treasury.crypto.keygen.IntAccumulator
 
 import scala.util.Try
 
