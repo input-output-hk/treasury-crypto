@@ -7,12 +7,12 @@ import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGro
 import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, DiscreteLogGroupFactory}
 import treasury.crypto.core.primitives.hash.CryptographicHashFactory.AvailableHashes
 import treasury.crypto.core.primitives.hash.{CryptographicHash, CryptographicHashFactory}
-import treasury.crypto.nizk.shvzk_new.SHVZKVerifier
-import treasury.crypto.nizk.shvzk_new.SHVZKGen
+import treasury.crypto.nizk.shvzk.SHVZKVerifier
+import treasury.crypto.nizk.shvzk.SHVZKGen
 
 object SHVZKBench extends Bench.ForkedTime {
 
-  val shvzkTest = new SHVZKTestNew()
+  val shvzkTest = new SHVZKTest()
 
   case class TestData(dlogGroup: DiscreteLogGroup, hash: CryptographicHash, vectorSize: Int) {
     val (privKey, pubKey) = encryption.createKeyPair(dlogGroup).get

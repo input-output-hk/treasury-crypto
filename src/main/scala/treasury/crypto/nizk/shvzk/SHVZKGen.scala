@@ -1,51 +1,53 @@
 package treasury.crypto.nizk.shvzk
 
-import java.math.BigInteger
-
-import treasury.crypto.core._
+import treasury.crypto.core.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
+import treasury.crypto.core.encryption.encryption.{PubKey, Randomness}
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
+import treasury.crypto.core.primitives.hash.CryptographicHash
 import treasury.crypto.math.BigIntPolynomial
 
+import scala.util.Try
+
 /* This class implements generation of Special Honest Verifier Zero Knowledge proof for unit vector */
-class SHVZKGen(
-  cs: Cryptosystem,
-  pubKey: PubKey,
-  unitVector: Seq[Ciphertext],
-  val choiceIndex: Int,
-  val randomness: Seq[Randomness]
-) extends SHVZKCommon(cs, pubKey, unitVector) {
+class SHVZKGen(pubKey: PubKey,
+               unitVector: Seq[ElGamalCiphertext],
+               choiceIndex: Int,
+               randomness: Seq[Randomness])
+              (override implicit val dlog: DiscreteLogGroup,
+               override implicit val hashFunction: CryptographicHash) extends SHVZKCommon(pubKey, unitVector) {
 
   private class Commitment(val idxBit: Byte) {
     assert(idxBit == 0 || idxBit == 1)
-    val ik = BigInteger.valueOf(idxBit)
-    val alpha = cs.getRand
-    val beta = cs.getRand
-    val gamma = cs.getRand
-    val delta = cs.getRand
+    val ik = BigInt(idxBit)
+    val alpha = dlog.createRandomNumber
+    val beta = dlog.createRandomNumber
+    val gamma = dlog.createRandomNumber
+    val delta = dlog.createRandomNumber
 
-    val I = pedersenCommitment(crs, ik, alpha)
-    val B = pedersenCommitment(crs, beta, gamma)
-    val A = pedersenCommitment(crs, ik.multiply(beta), delta)
+    val I = pedersenCommitment(crs, ik, alpha).get
+    val B = pedersenCommitment(crs, beta, gamma).get
+    val A = pedersenCommitment(crs, ik * beta, delta).get
   }
 
   private class Polinoms(val comm: Commitment) {
     private val z_1_coeffs =
-      Array(comm.beta, comm.ik) ++            // z_1 = ik*x + beta
-      Array.fill[BigInteger](log - 1)(Zero)   // other coeffs equal zero (there should be log + 1 coeffs)
+      Array(comm.beta, comm.ik) ++                  // z_1 = ik*x + beta
+      Array.fill[BigInt](log - 1)(0)         // other coeffs equal zero (there should be log + 1 coeffs)
 
     private val z_0_coeffs =
-      Array(comm.beta.negate, One.subtract(comm.ik)) ++     // z_0 = x-z_1 = (1-ik)*x - beta
-      Array.fill[BigInteger](log - 1)(Zero)            // other coeffs equal zero (there should be log + 1 coeffs)
+      Array(-comm.beta, 1 - comm.ik) ++             // z_0 = x-z_1 = (1-ik)*x - beta
+      Array.fill[BigInt](log - 1)(0)         // other coeffs equal zero (there should be log + 1 coeffs)
 
     val z = Array(
-      new BigIntPolynomial(z_0_coeffs),  // z_0 = (1-ik)*x - beta
-      new BigIntPolynomial(z_1_coeffs)   // z_1 = ik*x + beta
+      new BigIntPolynomial(z_0_coeffs.map(_.bigInteger)),  // z_0 = (1-ik)*x - beta
+      new BigIntPolynomial(z_1_coeffs.map(_.bigInteger))   // z_1 = ik*x + beta
     )
   }
 
-  assert(unitVector.size > choiceIndex)
-  assert(unitVector.size == randomness.size)
+  require(unitVector.size > choiceIndex)
+  require(unitVector.size == randomness.size)
 
-  def produceNIZK(): SHVZKProof = {
+  def produceNIZK(): Try[SHVZKProof] = Try {
     /* We want a unit vector to be the size of perfect power of 2. So pad unit vector with Enc(0,0) if it is not.
      * Actually for NIZK generation we need only to pad randomness because we will not hash padded elements during
      * challenges calculation */
@@ -60,13 +62,13 @@ class SHVZKGen(
 
     /* Step 2. Compute first verifier challenge */
     val statement = unitVector.foldLeft(Array[Byte]()) {
-      (acc, c) => acc ++ c._1.getEncoded(true) ++ c._2.getEncoded(true)
+      (acc, c) => acc ++ c.c1.bytes ++ c.c2.bytes
     }
     val commitment = commitments.foldLeft(Array[Byte]()) {
-      (acc, c) => acc ++ c.I.getEncoded(true) ++ c.B.getEncoded(true) ++ c.A.getEncoded(true)
+      (acc, c) => acc ++ c.I.bytes ++ c.B.bytes ++ c.A.bytes
     }
-    val y = cs.hash256(pubKey.getEncoded(true) ++ statement ++ commitment)
-    val Y = new BigInteger(y)
+    val y = hashFunction.hash(pubKey.bytes ++ statement ++ commitment)
+    val Y = BigInt(1, y)
 
     /* Step 3. Compute Dk */
     val Dk = computeDk(commitments, Y)
@@ -74,11 +76,11 @@ class SHVZKGen(
     /* Step 4. Compute second verifier challenge */
     val x = {
       val commitment2 = Dk.foldLeft(Array[Byte]()) {
-        (acc, d) => acc ++ d._1._1.getEncoded(true) ++ d._1._2.getEncoded(true)
+        (acc, d) => acc ++ d._1.c1.bytes ++ d._1.c2.bytes
       }
-      cs.hash256(pubKey.getEncoded(true) ++ statement ++ commitment ++ commitment2)
+      hashFunction.hash(pubKey.bytes ++ statement ++ commitment ++ commitment2)
     }
-    val X = new BigInteger(x)
+    val X = BigInt(1, x)
 
     /* Step 5. Compute z,w,v */
     val zwv = computeZwv(commitments, X)
@@ -95,7 +97,7 @@ class SHVZKGen(
     )
   }
 
-  private def computeDk(commitments: Seq[Commitment], y: BigInteger): Seq[(Ciphertext, BigInteger)] = {
+  private def computeDk(commitments: Seq[Commitment], y: BigInt): Seq[(ElGamalCiphertext, BigInt)] = {
     /* Prepare polinoms f_1 = ik*x+beta ; f_2 = x-f_1 for each bit of index */
     val polinoms = for (i <- 0 until log) yield new Polinoms(commitments(i))
 
@@ -109,7 +111,7 @@ class SHVZKGen(
           val t = polinoms(k).z(j(k))
           acc = acc.mult(t)
         }
-        acc.mod(cs.orderOfBasePoint)
+        acc.mod(dlog.groupOrder.bigInteger)
         acc.getCoeffs
       }
 
@@ -117,21 +119,21 @@ class SHVZKGen(
     val Dk =
       for (i <- 0 until log) yield {
         val sum = {
-          var acc = Zero
+          var acc = BigInt(0)
           for (j <- 0 until uvSize) {
-            acc = y.pow(j).multiply(Pj(j)(i)).add(acc)
+            acc = y.pow(j) * Pj(j)(i) + acc
           }
           acc
-        }.mod(cs.orderOfBasePoint)
+        }.mod(dlog.groupOrder)
 
-        val Rk = cs.getRand
-        (cs.encrypt(pubKey, Rk, sum), Rk)
+        val Rk = dlog.createRandomNumber
+        (LiftedElGamalEnc.encrypt(pubKey, Rk, sum).get, Rk)
       }
 
     Dk
   }
 
-  private def computeZwv(commitments: Seq[Commitment], x: BigInteger): Seq[(BigInteger, BigInteger, BigInteger)] = {
+  private def computeZwv(commitments: Seq[Commitment], x: BigInt): Seq[(BigInt, BigInt, BigInt)] = {
     val zwv =
       for (i <- 0 until log) yield {
         val beta = commitments(i).beta
@@ -141,33 +143,33 @@ class SHVZKGen(
 
         val z = {
           if (commitments(i).idxBit == 1)
-            x.add(beta) // z = ik*x + beta = x + beta (if ik = 1)
+            x + beta    // z = ik*x + beta = x + beta (if ik = 1)
           else
             beta        // z = ik*x + beta = beta (if ik = 0)
-        }.mod(cs.orderOfBasePoint)
+        }.mod(dlog.groupOrder)
 
-        val w = alpha.multiply(x).add(gamma).mod(cs.orderOfBasePoint)             // wk = alpha*x + gamma (mod n)
-        val v = x.subtract(z).multiply(alpha).add(delta).mod(cs.orderOfBasePoint) // v = alpha*(x-z)+delta (mod n)
+        val w = (alpha * x + gamma).mod(dlog.groupOrder)             // wk = alpha*x + gamma (mod n)
+        val v = ((x - z) * alpha + delta).mod(dlog.groupOrder)       // v = alpha*(x-z)+delta (mod n)
 
         (z,w,v)
       }
     zwv
   }
 
-  def computeR(y: BigInteger, x: BigInteger, rand: Seq[Randomness], Rk: Seq[Randomness]): BigInteger = {
-    var sum1 = Zero
-    val xpow = x.pow(log).mod(cs.orderOfBasePoint)
+  def computeR(y: BigInt, x: BigInt, rand: Seq[Randomness], Rk: Seq[Randomness]): BigInt = {
+    var sum1 = BigInt(0)
+    val xpow = x.pow(log).mod(dlog.groupOrder)
     for (i <- 0 until uvSize) {
-      val ypow = y.pow(i).mod(cs.orderOfBasePoint)
-      sum1 = sum1.add(rand(i).multiply(xpow).multiply(ypow))
+      val ypow = y.pow(i).mod(dlog.groupOrder)
+      sum1 = sum1 + (rand(i) * xpow * ypow)
     }
 
-    var sum2 = Zero
+    var sum2 = BigInt(0)
     for (i <- 0 until log) {
-      val xpow = x.pow(i).mod(cs.orderOfBasePoint)
-      sum2 = sum2.add(Rk(i).multiply(xpow))
+      val xpow = x.pow(i).mod(dlog.groupOrder)
+      sum2 = sum2 + (Rk(i) * xpow)
     }
 
-    sum1.add(sum2).mod(cs.orderOfBasePoint)
+    (sum1 + sum2).mod(dlog.groupOrder)
   }
 }
