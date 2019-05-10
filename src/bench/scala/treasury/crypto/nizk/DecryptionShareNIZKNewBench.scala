@@ -15,7 +15,7 @@ object DecryptionShareNIZKNewBench extends Bench.ForkedTime {
 
     val share = dlogGroup.createRandomGroupElement.get
     val decryptedShare = dlogGroup.exponentiate(share, privKey).get
-    val proof = DecryptionShareNIZKNew.produceNIZK(share, privKey)(dlogGroup, hash).get
+    val proof = DecryptionShareNIZK.produceNIZK(share, privKey)(dlogGroup, hash).get
   }
 
   val dlogIdsGen = Gen.enumeration("dlog group")(AvailableGroups.values.toSeq:_*)
@@ -51,7 +51,7 @@ object DecryptionShareNIZKNewBench extends Bench.ForkedTime {
       using(primitivesGen) in { testData: TestData =>
         implicit val dlog = testData.dlogGroup
         implicit val hash = testData.hash
-        DecryptionShareNIZKNew.produceNIZK(testData.share, testData.privKey)
+        DecryptionShareNIZK.produceNIZK(testData.share, testData.privKey)
       }
     }
 
@@ -59,7 +59,7 @@ object DecryptionShareNIZKNewBench extends Bench.ForkedTime {
       using(primitivesGen) in { testData: TestData =>
         implicit val dlog = testData.dlogGroup
         implicit val hash = testData.hash
-        DecryptionShareNIZKNew.verifyNIZK(testData.pubKey, testData.share, testData.decryptedShare, testData.proof)
+        DecryptionShareNIZK.verifyNIZK(testData.pubKey, testData.share, testData.decryptedShare, testData.proof)
       }
     }
   }

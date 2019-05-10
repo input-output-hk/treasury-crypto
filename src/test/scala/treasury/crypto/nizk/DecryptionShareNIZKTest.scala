@@ -1,46 +1,43 @@
 package treasury.crypto.nizk
 
 import org.scalatest.FunSuite
+import org.scalatest.prop.TableDrivenPropertyChecks
 import treasury.crypto.core.Cryptosystem
+import treasury.crypto.core.encryption.encryption
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory.AvailableHashes
 
-class DecryptionShareNIZKTest extends FunSuite {
+class DecryptionShareNIZKTest extends FunSuite with TableDrivenPropertyChecks {
+
+  implicit val dlogGroup = DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256k1).get
+  implicit val hashFunction = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
+  val (privKey, pubKey) = encryption.createKeyPair.get
+
+  val share = dlogGroup.createRandomGroupElement.get
+  val decryptedShare = dlogGroup.exponentiate(share, privKey).get
 
   test("valid nizk") {
-    val cs = new Cryptosystem
-    val (privKey, pubKey) = cs.createKeyPair
+    val proof = DecryptionShareNIZK.produceNIZK(share, privKey).get
+    val verified = DecryptionShareNIZK.verifyNIZK(pubKey, share, decryptedShare, proof)
 
-    val share = cs.basePoint.multiply(cs.getRand)
-    val decryptedShare = share.multiply(privKey)
-
-    val proof = DecryptionShareNIZK.produceNIZK(cs, share, privKey)
-    val verified = DecryptionShareNIZK.verifyNIZK(cs, pubKey, share, decryptedShare, proof)
-
-    assert(verified)
+    require(verified)
   }
 
   test("test wrong decryption") {
-    val cs = new Cryptosystem
-    val (privKey, pubKey) = cs.createKeyPair
+    val decryptedShare = dlogGroup.exponentiate(share, dlogGroup.createRandomNumber).get // use wrong key to decrypt
 
-    val share = cs.basePoint.multiply(cs.getRand)
-    val decryptedShare = share.multiply(cs.getRand) // use wrong key to decrypt
+    val proof = DecryptionShareNIZK.produceNIZK(share, privKey).get
+    val verified = DecryptionShareNIZK.verifyNIZK(pubKey, share, decryptedShare, proof)
 
-    val proof = DecryptionShareNIZK.produceNIZK(cs, share, privKey)
-    val verified = DecryptionShareNIZK.verifyNIZK(cs, pubKey, share, decryptedShare, proof)
-
-    assert(verified == false)
+    require(verified == false)
   }
 
   test("test invalid share") {
-    val cs = new Cryptosystem
-    val (privKey, pubKey) = cs.createKeyPair
+    val proof = DecryptionShareNIZK.produceNIZK(share, privKey).get
+    val verified = DecryptionShareNIZK.verifyNIZK(pubKey, dlogGroup.exponentiate(share, BigInt(4)).get, decryptedShare, proof)
 
-    val share = cs.basePoint.multiply(cs.getRand)
-    val decryptedShare = share.multiply(cs.getRand) // use wrong key to decrypt
-
-    val proof = DecryptionShareNIZK.produceNIZK(cs, share, privKey)
-    val verified = DecryptionShareNIZK.verifyNIZK(cs, pubKey, share.multiply(cs.getRand), decryptedShare, proof)
-
-    assert(verified == false)
+    require(verified == false)
   }
 }

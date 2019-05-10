@@ -2,64 +2,59 @@ package treasury.crypto.nizk
 
 import java.math.BigInteger
 
-import treasury.crypto.core._
+import treasury.crypto.core.encryption.encryption.{PrivKey, PubKey}
+import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, GroupElement}
+import treasury.crypto.core.primitives.hash.CryptographicHash
 
+import scala.util.Try
+
+/* This is a version of the Decryption Share NIZK based on the new crypto core layer */
 object DecryptionShareNIZK {
 
-  case class DecryptionShareNIZKProof(A1: Point, A2: Point, z: Element) {
-    def size: Int = {
-      A1.getEncoded(true).length +
-      A2.getEncoded(true).length +
-      z.toByteArray.length
-    }
-  }
+  case class DecryptionShareNIZKProof(A1: GroupElement, A2: GroupElement, z: BigInt)
 
-  def produceNIZK(
-    cs: Cryptosystem,
-    share: Point,
-    privKey: PrivKey
-  ): DecryptionShareNIZKProof = {
-    val w = cs.getRand
-    val A1 = cs.basePoint.multiply(w)
-    val A2 = share.multiply(w)
-    val D = share.multiply(privKey)
+  def produceNIZK(share: GroupElement, privKey: PrivKey)
+                 (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Try[DecryptionShareNIZKProof] = Try {
+
+    val w = dlogGroup.createRandomNumber
+    val G = dlogGroup.groupGenerator
+    val A1 = dlogGroup.exponentiate(G, w).get
+    val A2 = dlogGroup.exponentiate(share, w).get
+    val D = dlogGroup.exponentiate(share, privKey).get
 
     val e = new BigInteger(
-      cs.hash256 {
-        share.getEncoded(true) ++
-        D.getEncoded(true) ++
-        A1.getEncoded(true) ++
-        A2.getEncoded(true)
-      }).mod(cs.orderOfBasePoint)
+      hashFunction.hash {
+        share.bytes ++
+          D.bytes ++
+          A1.bytes ++
+          A2.bytes
+      }).mod(dlogGroup.groupOrder)
 
-    val z = privKey.multiply(e).add(w).mod(cs.orderOfBasePoint)
+    val z = (privKey * e + w) mod dlogGroup.groupOrder
 
-    DecryptionShareNIZKProof(A1.normalize(), A2.normalize(), z)
+    DecryptionShareNIZKProof(A1, A2, z)
   }
 
-  def verifyNIZK(
-    cs: Cryptosystem,
-    pubKey: PubKey,
-    share: Point,
-    decryptedShare: Point,
-    proof: DecryptionShareNIZKProof
-  ): Boolean = {
+  def verifyNIZK(pubKey: PubKey, share: GroupElement, decryptedShare: GroupElement, proof: DecryptionShareNIZKProof)
+                (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Boolean = {
 
     val e = new BigInteger(
-      cs.hash256 {
-          share.getEncoded(true) ++
-          decryptedShare.getEncoded(true) ++
-          proof.A1.getEncoded(true) ++
-          proof.A2.getEncoded(true)
-      }).mod(cs.orderOfBasePoint)
+      hashFunction.hash {
+        share.bytes ++
+        decryptedShare.bytes ++
+        proof.A1.bytes ++
+        proof.A2.bytes
+      }).mod(dlogGroup.groupOrder)
 
-    val gz = cs.basePoint.multiply(proof.z)
-    val heA1 = pubKey.multiply(e).add(proof.A1)
+    val G = dlogGroup.groupGenerator
+    val Gz = dlogGroup.exponentiate(G, proof.z).get
+    val He = dlogGroup.exponentiate(pubKey, e).get
+    val HeA1 = dlogGroup.multiply(He, proof.A1).get
 
-    val C1z = share.multiply(proof.z)
-    val DeA2 = decryptedShare.multiply(e).add(proof.A2)
+    val C1z = dlogGroup.exponentiate(share, proof.z).get
+    val De = dlogGroup.exponentiate(decryptedShare, e).get
+    val DeA2 = dlogGroup.multiply(De, proof.A2).get
 
-    gz.equals(heA1) && C1z.equals(DeA2)
+    Gz.equals(HeA1) && C1z.equals(DeA2)
   }
 }
-
