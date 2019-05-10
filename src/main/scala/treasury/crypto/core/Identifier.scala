@@ -1,24 +1,11 @@
-package treasury.crypto.core
+package treasury.crypto
 
-import java.math.BigInteger
+import treasury.crypto.core.PubKey
 
 abstract class Identifier[T](val pubKeys: Seq[PubKey]) {
 
   protected def sorter(key1: PubKey, key2: PubKey): Boolean = {
-    val x1 = key1.getXCoord.toBigInteger
-    val x2 = key2.getXCoord.toBigInteger
-    x1.compareTo(x2) match {
-      case 1 => true
-      case -1 => false
-      case 0 => {
-        val y1 = key1.getYCoord.toBigInteger
-        val y2 = key2.getYCoord.toBigInteger
-        y1.compareTo(y2) match {
-          case 1 => true
-          case _ => false
-        }
-      }
-    }
+    (key1.compare(key2) >= 0)
   }
 
   protected val sortedPubKeys = pubKeys.sortWith(sorter)
