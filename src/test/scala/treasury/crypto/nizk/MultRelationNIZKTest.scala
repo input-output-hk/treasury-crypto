@@ -1,39 +1,46 @@
 package treasury.crypto.nizk
 
-import java.math.BigInteger
-
 import org.scalatest.FunSuite
-import treasury.crypto.core
-import treasury.crypto.core._
+import org.scalatest.prop.TableDrivenPropertyChecks
+import treasury.crypto.core.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
+import treasury.crypto.core.encryption.encryption
+import treasury.crypto.core.encryption.encryption.Randomness
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory.AvailableHashes
 import treasury.crypto.nizk.unitvectornizk.{MultRelationNIZK, MultRelationNIZKProofSerializer}
 
-class MultRelationNIZKTest extends FunSuite {
-  private val cs = new Cryptosystem
-  private val (privKey, pubKey) = cs.createKeyPair
+class MultRelationNIZKTest extends FunSuite with TableDrivenPropertyChecks {
 
-  private val value = BigInteger.valueOf(111)
-  private val encryptedValue = cs.encrypt(pubKey, cs.getRand, value)
+  implicit val dlogGroup = DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256k1).get
+  implicit val hashFunction = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
 
-  private def encryptUnitVector(uv: Array[BigInteger]): Seq[(Ciphertext, Randomness)] = {
+  private val (privKey, pubKey) = encryption.createKeyPair.get
+
+  private val value = BigInt(111)
+  private val encryptedValue = LiftedElGamalEnc.encrypt(pubKey, value).get._1
+
+  private def encryptUnitVector(uv: Array[BigInt]): Seq[(ElGamalCiphertext, Randomness)] = {
     uv.map { x =>
-      val r = cs.getRand
-      (cs.encrypt(pubKey, r, x), r)
+      val r = dlogGroup.createRandomNumber
+      (LiftedElGamalEnc.encrypt(pubKey, r, x).get, r)
     }
   }
 
-  private def doValueTest(value: BigInteger): Unit = {
-    val unitVector = Array[BigInteger](Zero, Zero, One)
-    val encryptedValue_ = cs.encrypt(pubKey, cs.getRand, value)
+  private def doValueTest(value: BigInt): Unit = {
+    val unitVector = Array[BigInt](0, 0, 1)
+    val encryptedValue_ = LiftedElGamalEnc.encrypt(pubKey, value).get
 
-    val encryptedUnitVectorWithValue = MultRelationNIZK.produceEncryptedUnitVectorWithValue(cs, pubKey, encryptedValue_, unitVector)
+    val encryptedUnitVectorWithValue = MultRelationNIZK.produceEncryptedUnitVectorWithValue(pubKey, encryptedValue_._1, unitVector)
 
-    val decrypted0 = cs.decrypt(privKey, encryptedUnitVectorWithValue(0)._1)
-    val decrypted1 = cs.decrypt(privKey, encryptedUnitVectorWithValue(1)._1)
-    val decrypted2 = cs.decrypt(privKey, encryptedUnitVectorWithValue(2)._1)
+    val decrypted0 = LiftedElGamalEnc.decrypt(privKey, encryptedUnitVectorWithValue(0)._1).get
+    val decrypted1 = LiftedElGamalEnc.decrypt(privKey, encryptedUnitVectorWithValue(1)._1).get
+    val decrypted2 = LiftedElGamalEnc.decrypt(privKey, encryptedUnitVectorWithValue(2)._1).get
 
-    assert(decrypted0.equals(core.Zero))
-    assert(decrypted1.equals(core.Zero))
-    assert(decrypted2.equals(value))
+    assert(decrypted0 == 0)
+    assert(decrypted1 == 0)
+    assert(decrypted2 == value)
   }
 
   test("test for valid encrypted unit vector with value") {
@@ -41,25 +48,25 @@ class MultRelationNIZKTest extends FunSuite {
   }
 
   test("test zero value") {
-    doValueTest(core.Zero)
+    doValueTest(0)
   }
 
   test("test neutral value") {
-    doValueTest(core.One)
+    doValueTest(0)
   }
 
   test("test for valid proof") {
-    val unitVector = Array[BigInteger](Zero, Zero, One)
+    val unitVector = Array[BigInt](0, 0, 1)
 
     val encryptedUnitVector = encryptUnitVector(unitVector)
-    val encryptedUnitVectorWithValue = MultRelationNIZK.produceEncryptedUnitVectorWithValue(cs, pubKey, encryptedValue, unitVector)
+    val encryptedUnitVectorWithValue = MultRelationNIZK.produceEncryptedUnitVectorWithValue(pubKey, encryptedValue, unitVector)
 
-    val proof = MultRelationNIZK.produceNIZK(cs, pubKey, encryptedValue,
+    val proof = MultRelationNIZK.produceNIZK(pubKey, encryptedValue,
       unitVector,
       encryptedUnitVector.map(_._2),
-      encryptedUnitVectorWithValue.map(_._2))
+      encryptedUnitVectorWithValue.map(_._2)).get
 
-    val res = MultRelationNIZK.verifyNIZK(cs, pubKey, encryptedValue,
+    val res = MultRelationNIZK.verifyNIZK(pubKey, encryptedValue,
       encryptedUnitVector.map(_._1),
       encryptedUnitVectorWithValue.map(_._1),
       proof)
@@ -67,68 +74,68 @@ class MultRelationNIZKTest extends FunSuite {
   }
 
   test("test invalid proof") {
-    val unitVector = Array[BigInteger](Zero, Zero, One)
+    val unitVector = Array[BigInt](0, 0, 1)
 
     val encryptedUnitVector = encryptUnitVector(unitVector)
-    val encryptedUnitVectorWithValue = MultRelationNIZK.produceEncryptedUnitVectorWithValue(cs, pubKey, encryptedValue, unitVector)
+    val encryptedUnitVectorWithValue = MultRelationNIZK.produceEncryptedUnitVectorWithValue(pubKey, encryptedValue, unitVector)
 
-    val proof = MultRelationNIZK.produceNIZK(cs, pubKey, encryptedValue,
+    val proof = MultRelationNIZK.produceNIZK(pubKey, encryptedValue,
       unitVector,
       encryptedUnitVector.map(_._2),
-      encryptedUnitVectorWithValue.map(_._2))
+      encryptedUnitVectorWithValue.map(_._2)).get
 
 
     assert {
-      !MultRelationNIZK.verifyNIZK(cs, pubKey, encryptedValue,
+      !MultRelationNIZK.verifyNIZK(pubKey, encryptedValue,
         encryptedUnitVector.map(_._1),
         encryptedUnitVectorWithValue.map(_._1),
-        proof.copy(X = cs.multiply(proof.X, BigInteger.valueOf(2))))
+        proof.copy(X = proof.X.pow(2).get))
     }
 
     assert {
-      !MultRelationNIZK.verifyNIZK(cs, pubKey, encryptedValue,
+      !MultRelationNIZK.verifyNIZK(pubKey, encryptedValue,
         encryptedUnitVector.map(_._1),
         encryptedUnitVectorWithValue.map(_._1),
-        proof.copy(Z = cs.multiply(proof.X, BigInteger.valueOf(2))))
+        proof.copy(Z = proof.X.pow(2).get))
     }
 
     assert {
-      !MultRelationNIZK.verifyNIZK(cs, pubKey, encryptedValue,
+      !MultRelationNIZK.verifyNIZK(pubKey, encryptedValue,
         encryptedUnitVector.map(_._1),
         encryptedUnitVectorWithValue.map(_._1),
-        proof.copy(x = proof.x.add(core.One)))
+        proof.copy(x = proof.x + 1))
     }
 
     assert {
-      !MultRelationNIZK.verifyNIZK(cs, pubKey, encryptedValue,
+      !MultRelationNIZK.verifyNIZK(pubKey, encryptedValue,
         encryptedUnitVector.map(_._1),
         encryptedUnitVectorWithValue.map(_._1),
-        proof.copy(y = core.Zero))
+        proof.copy(y = 0))
     }
 
     assert {
-      !MultRelationNIZK.verifyNIZK(cs, pubKey, encryptedValue,
+      !MultRelationNIZK.verifyNIZK(pubKey, encryptedValue,
         encryptedUnitVector.map(_._1),
         encryptedUnitVectorWithValue.map(_._1),
-        proof.copy(z = core.One))
+        proof.copy(z = 1))
     }
   }
 
   test("serialization") {
-    val unitVector = Array[BigInteger](Zero, Zero, One)
+    val unitVector = Array[BigInt](0, 0, 1)
 
     val encryptedUnitVector = encryptUnitVector(unitVector)
-    val encryptedUnitVectorWithValue = MultRelationNIZK.produceEncryptedUnitVectorWithValue(cs, pubKey, encryptedValue, unitVector)
+    val encryptedUnitVectorWithValue = MultRelationNIZK.produceEncryptedUnitVectorWithValue(pubKey, encryptedValue, unitVector)
 
-    val proof = MultRelationNIZK.produceNIZK(cs, pubKey, encryptedValue,
+    val proof = MultRelationNIZK.produceNIZK(pubKey, encryptedValue,
       unitVector,
       encryptedUnitVector.map(_._2),
-      encryptedUnitVectorWithValue.map(_._2))
+      encryptedUnitVectorWithValue.map(_._2)).get
 
     val bytes = MultRelationNIZKProofSerializer.toBytes(proof)
-    val proofFromBytes = MultRelationNIZKProofSerializer.parseBytes(bytes, Option(cs)).get
+    val proofFromBytes = MultRelationNIZKProofSerializer.parseBytes(bytes, Option(dlogGroup)).get
 
-    val res = MultRelationNIZK.verifyNIZK(cs, pubKey, encryptedValue,
+    val res = MultRelationNIZK.verifyNIZK(pubKey, encryptedValue,
       encryptedUnitVector.map(_._1),
       encryptedUnitVectorWithValue.map(_._1),
       proofFromBytes)

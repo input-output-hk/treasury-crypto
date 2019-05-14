@@ -3,8 +3,10 @@ package treasury.crypto.nizk.unitvectornizk
 import java.math.BigInteger
 
 import com.google.common.primitives.Bytes
-import treasury.crypto.core
-import treasury.crypto.core._
+import treasury.crypto.core.encryption.elgamal.{ElGamalCiphertext, ElGamalCiphertextSerializer, LiftedElGamalEnc}
+import treasury.crypto.core.encryption.encryption.{PubKey, Randomness}
+import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, GroupElement}
+import treasury.crypto.core.primitives.hash.CryptographicHash
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
 import treasury.crypto.nizk.unitvectornizk.MultRelationNIZK.MultRelationNIZKProof
 
@@ -18,10 +20,10 @@ import scala.util.Try
 
 object MultRelationNIZK {
 
-  case class MultRelationNIZKProof(X: Ciphertext, Z: Ciphertext, x: Element, y: Element, z: Element) extends BytesSerializable {
+  case class MultRelationNIZKProof(X: ElGamalCiphertext, Z: ElGamalCiphertext, x: BigInt, y: BigInt, z: BigInt) extends BytesSerializable {
 
     override type M = MultRelationNIZKProof
-    override type DECODER = Cryptosystem
+    override type DECODER = DiscreteLogGroup
     override val serializer = MultRelationNIZKProofSerializer
 
     lazy val size: Int = bytes.length
@@ -30,54 +32,46 @@ object MultRelationNIZK {
   /**
     * @param encryptedValue An encrypted value
     * @param unitVector (witness) a plain unit vector
-    * @param unitVectorRandomness (witness) an arrray of random values that were used to encrypt unit vector
-    * @param zeroVectorRandomness (witness) an arrray of random values that were used to encrypt zero vector (which is
+    * @param unitVectorRandomness (witness) an array of random values that were used to encrypt unit vector
+    * @param zeroVectorRandomness (witness) an array of random values that were used to encrypt zero vector (which is
     *                             needed to produce V)
     * @return MultRelationNIZKProof
     */
-  def produceNIZK(
-                   cs: Cryptosystem,
-                   pubKey: PubKey,
-                   encryptedValue: Ciphertext,
-                   unitVector: Seq[BigInteger],
-                   unitVectorRandomness: Seq[Randomness],
-                   zeroVectorRandomness: Seq[Randomness]
-                 ): MultRelationNIZKProof = {
+  def produceNIZK(pubKey: PubKey, encryptedValue: ElGamalCiphertext, unitVector: Seq[BigInt],
+                  unitVectorRandomness: Seq[Randomness], zeroVectorRandomness: Seq[Randomness])
+                 (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Try[MultRelationNIZKProof] = Try {
     require(unitVector.size == unitVectorRandomness.size)
     require(unitVector.size == zeroVectorRandomness.size)
-    require(unitVector.count(_.equals(core.One)) == 1)
-    require(unitVector.count(_.equals(core.Zero)) == (unitVector.size - 1))
+    require(unitVector.count(_ == 1) == 1)
+    require(unitVector.count(_ == 0) == (unitVector.size - 1))
 
-    val x = cs.getRand
-    val y = cs.getRand
-    val z = cs.getRand
+    val x = dlogGroup.createRandomNumber
+    val y = dlogGroup.createRandomNumber
+    val z = dlogGroup.createRandomNumber
 
-    val X = cs.encrypt(pubKey, y, x)
-    val Z = cs.add(cs.multiply(encryptedValue, x), cs.encrypt(pubKey, z, core.Zero))
+    val X = LiftedElGamalEnc.encrypt(pubKey, y, x).get
+    val Z = encryptedValue.pow(x).get * LiftedElGamalEnc.encrypt(pubKey, z, 0).get
 
     val challenge = new BigInteger(
-      cs.hash256 {
-        pubKey.getEncoded(true) ++
-        encryptedValue._1.getEncoded(true) ++
-        encryptedValue._2.getEncoded(true) ++
-        X._1.getEncoded(true) ++
-        X._2.getEncoded(true) ++
-        Z._1.getEncoded(true) ++
-        Z._2.getEncoded(true)
-      }).mod(cs.orderOfBasePoint)
+      hashFunction.hash {
+        pubKey.bytes ++
+        encryptedValue.bytes ++
+        X.bytes ++
+        Z.bytes
+      }).mod(dlogGroup.groupOrder)
 
-    val uvIndex = unitVector.indexOf(core.One)
-    val x_ = x.add(challenge.pow(uvIndex+1)).mod(cs.orderOfBasePoint)
+    val uvIndex = unitVector.indexOf(1)
+    val x_ = (x + challenge.pow(uvIndex+1)) mod(dlogGroup.groupOrder)
 
-    val rSum = unitVectorRandomness.zipWithIndex.foldLeft(core.Zero) { case (acc, (r,i)) =>
-      acc.add(r.multiply(challenge.pow(i+1)))
+    val rSum = unitVectorRandomness.zipWithIndex.foldLeft(BigInt(0)) { case (acc, (r,i)) =>
+      acc + (r * challenge.pow(i+1))
     }
-    val y_ = y.add(rSum).mod(cs.orderOfBasePoint)
+    val y_ = (y + rSum) mod(dlogGroup.groupOrder)
 
-    val tSum = zeroVectorRandomness.zipWithIndex.foldLeft(core.Zero) { case (acc, (t,i)) =>
-      acc.add(t.multiply(challenge.pow(i+1)))
+    val tSum = zeroVectorRandomness.zipWithIndex.foldLeft(BigInt(0)) { case (acc, (t,i)) =>
+      acc + (t * challenge.pow(i+1))
     }
-    val z_ = z.add(tSum).mod(cs.orderOfBasePoint)
+    val z_ = (z + tSum) mod(dlogGroup.groupOrder)
 
     MultRelationNIZKProof(X, Z, x_, y_, z_)
   }
@@ -90,77 +84,62 @@ object MultRelationNIZK {
     *
     * @return true if succeeds
     */
-  def verifyNIZK(
-                  cs: Cryptosystem,
-                  pubKey: PubKey,
-                  encryptedValue: Ciphertext,
-                  encryptedUnitVector: Seq[Ciphertext],
-                  encryptedUnitVectorWithValue: Seq[Ciphertext],
-                  proof: MultRelationNIZKProof
-                ): Boolean = {
+  def verifyNIZK(pubKey: PubKey, encryptedValue: ElGamalCiphertext, encryptedUnitVector: Seq[ElGamalCiphertext],
+                 encryptedUnitVectorWithValue: Seq[ElGamalCiphertext], proof: MultRelationNIZKProof)
+                (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Boolean = Try {
     require(encryptedUnitVector.size == encryptedUnitVectorWithValue.size)
 
     val challenge = new BigInteger(
-      cs.hash256 {
-        pubKey.getEncoded(true) ++
-        encryptedValue._1.getEncoded(true) ++
-        encryptedValue._2.getEncoded(true) ++
-        proof.X._1.getEncoded(true) ++
-        proof.X._2.getEncoded(true) ++
-        proof.Z._1.getEncoded(true) ++
-        proof.Z._2.getEncoded(true)
-      }).mod(cs.orderOfBasePoint)
+      hashFunction.hash {
+        pubKey.bytes ++
+        encryptedValue.bytes ++
+        proof.X.bytes ++
+        proof.Z.bytes
+      }).mod(dlogGroup.groupOrder)
 
-    val accum = (cs.infinityPoint, cs.infinityPoint)
-    var exponent = core.One
+    val accum = ElGamalCiphertext(dlogGroup.groupIdentity, dlogGroup.groupIdentity)
+    var exponent = BigInt(1)
     val (vMult, uMult) = encryptedUnitVectorWithValue.zip(encryptedUnitVector).zipWithIndex.foldLeft((accum,accum)) {
       case ((vAcc,uAcc), ((v,u),i)) =>
-        exponent = exponent.multiply(challenge).mod(cs.orderOfBasePoint)
-        cs.add(vAcc, cs.multiply(v,exponent)) -> cs.add(uAcc, cs.multiply(u,exponent))
+        exponent = (exponent * challenge) mod(dlogGroup.groupOrder)
+        vAcc * v.pow(exponent).get -> uAcc * u.pow(exponent).get
     }
 
-    val Z_VMult = cs.add(proof.Z, vMult)
-    val Cx = cs.multiply(encryptedValue, proof.x)
-    val CxEnc = cs.add(Cx, cs.encrypt(pubKey, proof.z, core.Zero))
-    val check1 = Z_VMult._1.equals(CxEnc._1) && Z_VMult._2.equals(CxEnc._2)
+    val Z_VMult = proof.Z * vMult
+    val Cx = encryptedValue.pow(proof.x).get
+    val CxEnc = Cx * LiftedElGamalEnc.encrypt(pubKey, proof.z, 0).get
+    val check1 = Z_VMult.c1.equals(CxEnc.c1) && Z_VMult.c2.equals(CxEnc.c2)
 
-    val X_UMult = cs.add(proof.X, uMult)
-    val Enc_xy = cs.encrypt(pubKey, proof.y, proof.x)
-    val check2 = X_UMult._1.equals(Enc_xy._1) && X_UMult._2.equals(Enc_xy._2)
+    val X_UMult = proof.X * uMult
+    val Enc_xy = LiftedElGamalEnc.encrypt(pubKey, proof.y, proof.x).get
+    val check2 = X_UMult.c1.equals(Enc_xy.c1) && X_UMult.c2.equals(Enc_xy.c2)
 
     check1 && check2
-  }
+  }.getOrElse(false)
 
-  def produceEncryptedUnitVectorWithValue(cs: Cryptosystem,
-                                          pubKey: PubKey,
-                                          encryptedValue: Ciphertext,
-                                          unitVector: Seq[BigInteger]
-                                         ): Seq[(Ciphertext, Randomness)] = {
+  def produceEncryptedUnitVectorWithValue(pubKey: PubKey, encryptedValue: ElGamalCiphertext, unitVector: Seq[BigInt])
+                                         (implicit dlogGroup: DiscreteLogGroup): Seq[(ElGamalCiphertext, Randomness)] = {
 
-    require(unitVector.count(_.equals(core.One)) == 1)
-    require(unitVector.count(_.equals(core.Zero)) == (unitVector.size - 1))
+    require(unitVector.count(_.equals(1)) == 1)
+    require(unitVector.count(_.equals(0)) == (unitVector.size - 1))
 
     unitVector.map { u =>
-      val Cu = cs.multiply(encryptedValue, u)
-      val t = cs.getRand
-      val Enc = cs.encrypt(pubKey, t, core.Zero)
-      cs.add(Cu, Enc) -> t
+      val Cu = encryptedValue.pow(u).get
+      val t = dlogGroup.createRandomNumber
+      val Enc = LiftedElGamalEnc.encrypt(pubKey, t, 0).get
+      Cu * Enc -> t
     }
   }
 }
 
-object MultRelationNIZKProofSerializer extends Serializer[MultRelationNIZKProof, Cryptosystem] {
+object MultRelationNIZKProofSerializer extends Serializer[MultRelationNIZKProof, DiscreteLogGroup] {
 
   override def toBytes(p: MultRelationNIZKProof): Array[Byte] = {
-    val X1bytes = p.X._1.getEncoded(true)
-    val X2bytes = p.X._2.getEncoded(true)
-    val Z1bytes = p.Z._1.getEncoded(true)
-    val Z2bytes = p.Z._2.getEncoded(true)
-    val XZbytes = Bytes.concat (
-      Array(X1bytes.length.toByte), X1bytes,
-      Array(X2bytes.length.toByte), X2bytes,
-      Array(Z1bytes.length.toByte), Z1bytes,
-      Array(Z2bytes.length.toByte), Z2bytes)
+    val Xbytes = p.X.bytes
+    val Zbytes = p.Z.bytes
+    assert(Xbytes.length < Byte.MaxValue)
+    assert(Zbytes.length < Byte.MaxValue)
+    val XZbytes = Bytes.concat(Array(Xbytes.length.toByte), Xbytes, Array(Zbytes.length.toByte), Zbytes)
 
     val xbytes = p.x.toByteArray
     val ybytes = p.y.toByteArray
@@ -173,31 +152,24 @@ object MultRelationNIZKProofSerializer extends Serializer[MultRelationNIZKProof,
     Bytes.concat(XZbytes, xyzbytes)
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[MultRelationNIZKProof] = Try {
-    val cs = csOpt.get
+  override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[MultRelationNIZKProof] = Try {
     var position = 0
     def nextPosition= position + 1 + bytes(position)
 
-    val X1 = cs.decodePoint(bytes.slice(position+1, nextPosition))
-
+    val X = ElGamalCiphertextSerializer.parseBytes(bytes.slice(position+1, nextPosition), decoder).get
     position = nextPosition
-    val X2 = cs.decodePoint(bytes.slice(position+1, nextPosition))
 
+    val Z = ElGamalCiphertextSerializer.parseBytes(bytes.slice(position+1, nextPosition), decoder).get
     position = nextPosition
-    val Z1 = cs.decodePoint(bytes.slice(position+1, nextPosition))
 
+    val x = BigInt(bytes.slice(position+1, nextPosition))
     position = nextPosition
-    val Z2 = cs.decodePoint(bytes.slice(position+1, nextPosition))
 
+    val y = BigInt(bytes.slice(position+1, nextPosition))
     position = nextPosition
-    val x = new BigInteger(bytes.slice(position+1, nextPosition))
 
-    position = nextPosition
-    val y = new BigInteger(bytes.slice(position+1, nextPosition))
+    val z = BigInt(bytes.slice(position+1, nextPosition))
 
-    position = nextPosition
-    val z = new BigInteger(bytes.slice(position+1, nextPosition))
-
-    MultRelationNIZKProof((X1,X2), (Z1,Z2), x, y, z)
+    MultRelationNIZKProof(X, Z, x, y, z)
   }
 }
