@@ -2,64 +2,59 @@ package treasury.crypto.nizk.unitvectornizk
 
 import java.math.BigInteger
 
-import treasury.crypto.core._
+import treasury.crypto.core.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
+import treasury.crypto.core.encryption.encryption.{PubKey, Randomness}
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
+import treasury.crypto.core.primitives.hash.CryptographicHash
+
+import scala.util.Try
 
 /* This class implements the protocol developed by prof. Bingsheng Zhang to prove that a ciphertext encrypts
  * zero or one. Ciphertext is obtained with Lifted Elgamal encryption scheme. */
 
 object ZeroOrOneBZNIZK {
-  case class ZeroOrOneBZNIZKProof(A: Ciphertext, B: Ciphertext, f: Element, w: Element, v: Element)
+  case class ZeroOrOneBZNIZKProof(A: ElGamalCiphertext, B: ElGamalCiphertext, f: BigInt, w: BigInt, v: BigInt)
 
-  def produceNIZK(
-    cs: Cryptosystem,
-    pubKey: PubKey,
-    plaintext: BigInteger,
-    ciphertext: Ciphertext,
-    r: Randomness
-  ): ZeroOrOneBZNIZKProof = {
-    val beta = cs.getRand
-    val gamma = cs.getRand
-    val delta = cs.getRand
+  def produceNIZK(pubKey: PubKey, plaintext: BigInt, ciphertext: ElGamalCiphertext, r: Randomness)
+                 (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Try[ZeroOrOneBZNIZKProof] = Try {
+    val beta = dlogGroup.createRandomNumber
+    val gamma = dlogGroup.createRandomNumber
+    val delta = dlogGroup.createRandomNumber
 
-    val B = cs.encrypt(pubKey, gamma, beta)
-    val A = cs.encrypt(pubKey, delta, plaintext.multiply(beta))
+    val B = LiftedElGamalEnc.encrypt(pubKey, gamma, beta).get
+    val A = LiftedElGamalEnc.encrypt(pubKey, delta, plaintext * beta).get
 
-    val e = new BigInteger(cs.hash256 {
-      pubKey.getEncoded(true) ++
-      ciphertext._1.getEncoded(true) ++
-      ciphertext._2.getEncoded(true) ++
-      B._1.getEncoded(true) ++
-      B._2.getEncoded(true) ++
-      A._1.getEncoded(true) ++
-      A._2.getEncoded(true)
-    }).mod(cs.orderOfBasePoint)
+    val e = new BigInteger(hashFunction.hash {
+      pubKey.bytes ++
+      ciphertext.bytes ++
+      B.bytes ++
+      A.bytes
+    }).mod(dlogGroup.groupOrder)
 
-    val f = plaintext.multiply(e).add(beta).mod(cs.orderOfBasePoint)
-    val w = r.multiply(e).add(gamma).mod(cs.orderOfBasePoint)
-    val v = e.subtract(f).multiply(r).add(delta).mod(cs.orderOfBasePoint)
+    val f = (plaintext * e + beta) mod(dlogGroup.groupOrder)
+    val w = (r * e + gamma) mod(dlogGroup.groupOrder)
+    val v = ((e - f) * r + delta) mod(dlogGroup.groupOrder)
 
     ZeroOrOneBZNIZKProof(A, B, f, w, v)
   }
 
-  def verifyNIZK(cs: Cryptosystem, pubKey: PubKey, ciphertext: Ciphertext, proof: ZeroOrOneBZNIZKProof): Boolean = {
-    val e = new BigInteger(cs.hash256 {
-      pubKey.getEncoded(true) ++
-      ciphertext._1.getEncoded(true) ++
-      ciphertext._2.getEncoded(true) ++
-      proof.B._1.getEncoded(true) ++
-      proof.B._2.getEncoded(true) ++
-      proof.A._1.getEncoded(true) ++
-      proof.A._2.getEncoded(true)
-    }).mod(cs.orderOfBasePoint)
+  def verifyNIZK(pubKey: PubKey, ciphertext: ElGamalCiphertext, proof: ZeroOrOneBZNIZKProof)
+                (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Boolean = Try {
+    val e = new BigInteger(hashFunction.hash {
+      pubKey.bytes ++
+      ciphertext.bytes ++
+      proof.B.bytes ++
+      proof.A.bytes
+    }).mod(dlogGroup.groupOrder)
 
-    val ceB = cs.add(cs.multiply(ciphertext, e), proof.B)
-    val encfw = cs.encrypt(pubKey, proof.w, proof.f)
-    val check1 = ceB._1.equals(encfw._1) && ceB._2.equals(encfw._2)
+    val ceB = ciphertext.pow(e).get * proof.B
+    val encfw = LiftedElGamalEnc.encrypt(pubKey, proof.w, proof.f).get
+    val check1 = ceB == encfw
 
-    val cefA = cs.add(cs.multiply(ciphertext, e.subtract(proof.f)), proof.A)
-    val enc0v = cs.encrypt(pubKey, proof.v, Zero)
-    val check2 = cefA._1.equals(enc0v._1) && cefA._2.equals(enc0v._2)
+    val cefA = ciphertext.pow(e - proof.f).get * proof.A
+    val enc0v = LiftedElGamalEnc.encrypt(pubKey, proof.v, 0).get
+    val check2 = cefA == enc0v
 
     check1 && check2
-  }
+  }.getOrElse(false)
 }
