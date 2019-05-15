@@ -1,55 +1,61 @@
 package treasury.crypto.nizk
 
-import java.math.BigInteger
-
 import org.scalatest.FunSuite
-import treasury.crypto.core._
+import treasury.crypto.core.encryption.elgamal.LiftedElGamalEnc
+import treasury.crypto.core.encryption.encryption
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory.AvailableHashes
 import treasury.crypto.nizk.unitvectornizk.UVSumNIZK
 
 class UVSumNIZKTest extends FunSuite {
-  private val cs = new Cryptosystem
-  private val (privKey, pubKey) = cs.createKeyPair
 
-  def doTest(unitVector: Array[BigInteger]): Boolean = {
+  implicit val dlogGroup = DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256k1).get
+  implicit val hashFunction = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
+
+  private val (privKey, pubKey) = encryption.createKeyPair.get
+
+  def doTest(unitVector: Array[BigInt]): Boolean = {
     val ciphertexts = unitVector.map { x =>
-      val r = cs.getRand
-      (cs.encrypt(pubKey, r, x), r)
+      val r = dlogGroup.createRandomNumber
+      (LiftedElGamalEnc.encrypt(pubKey, r, x).get, r)
     }
 
-    val proof = UVSumNIZK.produceNIZK(cs, pubKey, ciphertexts)
-    UVSumNIZK.verifyNIZK(cs, pubKey, ciphertexts.map(_._1), proof)
+    val proof = UVSumNIZK.produceNIZK(pubKey, ciphertexts).get
+    UVSumNIZK.verifyNIZK(pubKey, ciphertexts.map(_._1), proof)
   }
 
   test("test for valid unitvector") {
-    val unitVector = Array[BigInteger](Zero, Zero, One)
+    val unitVector = Array[BigInt](0, 0, 1)
     val verified = doTest(unitVector)
 
     assert(verified)
   }
 
   test("test for valid sum") {
-    val unitVector = Array[BigInteger](BigInteger.valueOf(-1), Zero, One, One)
+    val unitVector = Array[BigInt](-1, 0, 1, 1)
     val verified = doTest(unitVector)
 
     assert(verified)
   }
 
   test("test for unit vector of all zeros") {
-    val unitVector = Array[BigInteger](Zero, Zero, Zero)
+    val unitVector = Array[BigInt](0, 0, 0)
     val verified = doTest(unitVector)
 
     assert(verified == false)
   }
 
   test("test for unit vector with incorrect sum") {
-    val unitVector = Array[BigInteger](Zero, One, One)
+    val unitVector = Array[BigInt](0, 1, 1)
     val verified = doTest(unitVector)
 
     assert(verified == false)
   }
 
   test("test for unit vector with negative sum") {
-    val unitVector = Array[BigInteger](Zero, BigInteger.valueOf(-1), Zero)
+    val unitVector = Array[BigInt](0, -1, 0)
     val verified = doTest(unitVector)
 
     assert(verified == false)

@@ -2,7 +2,12 @@ package treasury.crypto.nizk.unitvectornizk
 
 import java.math.BigInteger
 
-import treasury.crypto.core._
+import treasury.crypto.core.encryption.elgamal.ElGamalCiphertext
+import treasury.crypto.core.encryption.encryption.{PubKey, Randomness}
+import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, GroupElement}
+import treasury.crypto.core.primitives.hash.CryptographicHash
+
+import scala.util.Try
 
 /* UVSumNIZK implements non-interactive zero knowledge proof for a unit vector of ciphertext.
  * Each ciphertext obtained with Lifted Elgamal Encryption Scheme.
@@ -11,67 +16,60 @@ import treasury.crypto.core._
 
 object UVSumNIZK {
 
-  case class UVSumNIZKProof(A1: Point, A2: Point, z: Element)
+  case class UVSumNIZKProof(A1: GroupElement, A2: GroupElement, z: BigInt)
 
-  def produceNIZK(
-    cs: Cryptosystem,
-    pubKey: PubKey,
-    ciphertexts: Seq[(Ciphertext, Randomness)]
-  ): UVSumNIZKProof = {
+  def produceNIZK(pubKey: PubKey, ciphertexts: Seq[(ElGamalCiphertext, Randomness)])
+                 (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Try[UVSumNIZKProof] = Try {
 
-    val C = ciphertexts.foldLeft((cs.infinityPoint, cs.infinityPoint)) {
-      (acc, c) => (acc._1.add(c._1._1), acc._2.add(c._1._2))
+    val init = ElGamalCiphertext(dlogGroup.groupIdentity, dlogGroup.groupIdentity)
+    val C = ciphertexts.foldLeft(init) {
+      (acc, c) => acc * c._1
     }
-    val R = ciphertexts.foldLeft(Zero) {
-      (acc, c) => acc.add(c._2)
-    }.mod(cs.orderOfBasePoint)
+    val R = ciphertexts.foldLeft(BigInt(0)) {
+      (acc, c) => acc + c._2
+    }.mod(dlogGroup.groupOrder)
 
-    val w = cs.getRand
-    val A1 = cs.basePoint.multiply(w).normalize()
-    val A2 = pubKey.multiply(w).normalize()
+    val w = dlogGroup.createRandomNumber
+    val A1 = dlogGroup.groupGenerator.pow(w).get
+    val A2 = pubKey.pow(w).get
 
     val e = new BigInteger(
-      cs.hash256 {
-        pubKey.getEncoded(true) ++
-        C._1.getEncoded(true) ++
-        C._2.getEncoded(true) ++
-        A1.getEncoded(true) ++
-        A2.getEncoded(true)
-      }).mod(cs.orderOfBasePoint)
+      hashFunction.hash {
+        pubKey.bytes ++
+        C.bytes ++
+        A1.bytes ++
+        A2.bytes
+      }).mod(dlogGroup.groupOrder)
 
-    val z = R.multiply(e).add(w).mod(cs.orderOfBasePoint)
+    val z = (R * e + w) mod dlogGroup.groupOrder
 
     UVSumNIZKProof(A1, A2, z)
   }
 
-  def verifyNIZK(
-    cs: Cryptosystem,
-    pubKey: PubKey,
-    ciphertexts: Seq[(Ciphertext)],
-    proof: UVSumNIZKProof
-  ): Boolean = {
+  def verifyNIZK(pubKey: PubKey, ciphertexts: Seq[ElGamalCiphertext], proof: UVSumNIZKProof)
+                (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Boolean = Try {
 
-    val C = ciphertexts.foldLeft((cs.infinityPoint, cs.infinityPoint)) {
-      (acc, c) => (acc._1.add(c._1), acc._2.add(c._2))
+    val init = ElGamalCiphertext(dlogGroup.groupIdentity, dlogGroup.groupIdentity)
+    val C = ciphertexts.foldLeft(init) {
+      (acc, c) => acc * c
     }
 
     val e = new BigInteger(
-      cs.hash256 {
-        pubKey.getEncoded(true) ++
-          C._1.getEncoded(true) ++
-          C._2.getEncoded(true) ++
-          proof.A1.getEncoded(true) ++
-          proof.A2.getEncoded(true)
-      }).mod(cs.orderOfBasePoint)
+      hashFunction.hash {
+        pubKey.bytes ++
+          C.bytes ++
+          proof.A1.bytes ++
+          proof.A2.bytes
+      }).mod(dlogGroup.groupOrder)
 
-    val C1eA1 = C._1.multiply(e).add(proof.A1)
-    val gz = cs.basePoint.multiply(proof.z)
+    val C1eA1 = (C.c1.pow(e).get * proof.A1).get
+    val gz = dlogGroup.groupGenerator.pow(proof.z).get
     val check1 = C1eA1.equals(gz)
 
-    val C2ge = C._2.subtract(cs.basePoint).multiply(e).add(proof.A2)
-    val hz = pubKey.multiply(proof.z)
+    val C2ge = ((C.c2 / dlogGroup.groupGenerator).get.pow(e).get * proof.A2).get
+    val hz = pubKey.pow(proof.z).get
     val check2 = C2ge.equals(hz)
 
     check1 && check2
-  }
+  }.getOrElse(false)
 }
