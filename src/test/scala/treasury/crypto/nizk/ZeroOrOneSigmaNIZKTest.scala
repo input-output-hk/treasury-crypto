@@ -1,63 +1,69 @@
 package treasury.crypto.nizk
 
-import java.math.BigInteger
-
 import org.scalatest.FunSuite
-import treasury.crypto.core.{Cryptosystem, One, Zero}
+import treasury.crypto.core.encryption.elgamal.LiftedElGamalEnc
+import treasury.crypto.core.encryption.encryption
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory.AvailableHashes
 import treasury.crypto.nizk.unitvectornizk.ZeroOrOneSigmaNIZK
 
 class ZeroOrOneSigmaNIZKTest extends FunSuite {
-  private val cs = new Cryptosystem
-  private val (privKey, pubKey) = cs.createKeyPair
+
+  implicit val dlogGroup = DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256k1).get
+  implicit val hashFunction = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
+
+  private val (privKey, pubKey) = encryption.createKeyPair.get
 
   test("encrypt one") {
-    val r = cs.getRand
-    val c = cs.encrypt(pubKey, r, One)
+    val r = dlogGroup.createRandomNumber
+    val c = LiftedElGamalEnc.encrypt(pubKey, r, 1).get
 
-    val proof = ZeroOrOneSigmaNIZK.produceNIZK(cs, pubKey, One, c, r)
-    val verified = ZeroOrOneSigmaNIZK.verifyNIZK(cs, pubKey, c, proof)
+    val proof = ZeroOrOneSigmaNIZK.produceNIZK(pubKey, 1, c, r).get
+    val verified = ZeroOrOneSigmaNIZK.verifyNIZK(pubKey, c, proof)
 
     assert(verified)
   }
 
   test("encrypt zero") {
-    val r = cs.getRand
-    val c = cs.encrypt(pubKey, r, Zero)
+    val r = dlogGroup.createRandomNumber
+    val c = LiftedElGamalEnc.encrypt(pubKey, r, 0).get
 
-    val proof = ZeroOrOneSigmaNIZK.produceNIZK(cs, pubKey, Zero, c, r)
-    val verified = ZeroOrOneSigmaNIZK.verifyNIZK(cs, pubKey, c, proof)
+    val proof = ZeroOrOneSigmaNIZK.produceNIZK(pubKey, 0, c, r).get
+    val verified = ZeroOrOneSigmaNIZK.verifyNIZK(pubKey, c, proof)
 
     assert(verified)
   }
 
   test("encrypt two") {
-    val m = BigInteger.valueOf(2)
-    val r = cs.getRand
-    val c = cs.encrypt(pubKey, r, m)
+    val m = BigInt(2)
+    val r = dlogGroup.createRandomNumber
+    val c = LiftedElGamalEnc.encrypt(pubKey, r, m).get
 
-    val proof = ZeroOrOneSigmaNIZK.produceNIZK(cs, pubKey, m, c, r)
-    val verified = ZeroOrOneSigmaNIZK.verifyNIZK(cs, pubKey, c, proof)
+    val proof = ZeroOrOneSigmaNIZK.produceNIZK(pubKey, m, c, r).get
+    val verified = ZeroOrOneSigmaNIZK.verifyNIZK(pubKey, c, proof)
 
     assert(verified == false)
   }
 
   test("encrypt -1") {
-    val m = BigInteger.valueOf(-1)
-    val r = cs.getRand
-    val c = cs.encrypt(pubKey, r, m)
+    val m = BigInt(-1)
+    val r = dlogGroup.createRandomNumber
+    val c = LiftedElGamalEnc.encrypt(pubKey, r, m).get
 
-    val proof = ZeroOrOneSigmaNIZK.produceNIZK(cs, pubKey, m, c, r)
-    val verified = ZeroOrOneSigmaNIZK.verifyNIZK(cs, pubKey, c, proof)
+    val proof = ZeroOrOneSigmaNIZK.produceNIZK(pubKey, m, c, r).get
+    val verified = ZeroOrOneSigmaNIZK.verifyNIZK(pubKey, c, proof)
 
     assert(verified == false)
   }
 
   test("inconsistent ciphertext") {
-    val r = cs.getRand
-    val c = cs.encrypt(pubKey, r, Zero)
+    val r = dlogGroup.createRandomNumber
+    val c = LiftedElGamalEnc.encrypt(pubKey, r, 0).get
 
-    val proof = ZeroOrOneSigmaNIZK.produceNIZK(cs, pubKey, One, c, r)
-    val verified = ZeroOrOneSigmaNIZK.verifyNIZK(cs, pubKey, c, proof)
+    val proof = ZeroOrOneSigmaNIZK.produceNIZK(pubKey, 1, c, r).get
+    val verified = ZeroOrOneSigmaNIZK.verifyNIZK(pubKey, c, proof)
 
     assert(verified == false)
   }
