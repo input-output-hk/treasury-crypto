@@ -18,9 +18,9 @@ object LagrangeInterpolation {
         val I = BigInteger.valueOf(x.toLong)
 
         val J_I = J.subtract(I).mod(cs.orderOfBasePoint)
-        val JdivJ_I = J.multiply(J_I.modInverse(cs.orderOfBasePoint)).mod(cs.orderOfBasePoint)
+        val JdivJ_I = J.multiply(J_I.modInverse(cs.orderOfBasePoint).bigInteger).mod(cs.orderOfBasePoint)
 
-        coeff = coeff.multiply(JdivJ_I).mod(cs.orderOfBasePoint)
+        coeff = coeff.multiply(JdivJ_I.bigInteger).mod(cs.orderOfBasePoint.bigInteger)
       }
     }
     coeff
@@ -34,14 +34,14 @@ object LagrangeInterpolation {
       val L_i = getLagrangeCoeff(cs, shares(i).receiverID + 1, shares)
       val p_i = new BigInteger(shares(i).S.decryptedMessage)
 
-      restoredSecret = restoredSecret.add(L_i.multiply(p_i)).mod(cs.orderOfBasePoint)
+      restoredSecret = restoredSecret.add(L_i.multiply(p_i)).mod(cs.orderOfBasePoint.bigInteger)
     }
     restoredSecret
   }
 
   def testInterpolation(cs: Cryptosystem, degree: Int): Boolean = {
     val secret = new BigInteger(cs.orderOfBasePoint.bitLength(), new SecureRandom()).mod(cs.orderOfBasePoint)
-    val poly = new Polynomial(cs, secret, degree)
+    val poly = new Polynomial(cs, secret.bigInteger, degree)
 
     val sharesNum = degree * 2 // ratio specific for voting protocol, as assumed t = n / 2, i.e. degree = sharesNum / 2
     var shares = for(x <- 0 until sharesNum) yield {OpenedShare(x, HybridPlaintext(cs.infinityPoint, poly.evaluate(x+1).toByteArray))}

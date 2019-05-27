@@ -1,6 +1,7 @@
 package treasury.crypto.keygen.datastructures.round5_1
 
 import com.google.common.primitives.{Bytes, Ints}
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
 import treasury.crypto.core.{Cryptosystem, HasSize}
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
 import treasury.crypto.keygen.IntAccumulator
@@ -15,7 +16,7 @@ case class R5_1Data(
   extends HasSize with BytesSerializable {
 
   override type M = R5_1Data
-  override type DECODER = Cryptosystem
+  override type DECODER = DiscreteLogGroup
   override val serializer: Serializer[M, DECODER] = R5_1DataSerializer
 
   def size: Int = bytes.length
@@ -38,7 +39,7 @@ case class R5_1Data(
   }
 }
 
-object R5_1DataSerializer extends Serializer[R5_1Data, Cryptosystem] {
+object R5_1DataSerializer extends Serializer[R5_1Data, DiscreteLogGroup] {
 
   override def toBytes(obj: R5_1Data): Array[Byte] = {
 
@@ -51,8 +52,7 @@ object R5_1DataSerializer extends Serializer[R5_1Data, Cryptosystem] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[R5_1Data] = Try {
-    val cs = csOpt.get
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[DiscreteLogGroup]): Try[R5_1Data] = Try {
     val offset = IntAccumulator(0)
 
     val issuerID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -63,7 +63,7 @@ object R5_1DataSerializer extends Serializer[R5_1Data, Cryptosystem] {
       val violatorID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
       val violatorsShareBytesLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
       val violatorsShareBytes = bytes.slice(offset.value, offset.plus(violatorsShareBytesLen))
-      (new Integer(violatorID), OpenedShareSerializer.parseBytes(violatorsShareBytes, Option(cs)).get)
+      (new Integer(violatorID), OpenedShareSerializer.parseBytes(violatorsShareBytes, csOpt).get)
     }
 
     R5_1Data(issuerID, violatorsShares.toArray)

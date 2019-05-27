@@ -1,6 +1,7 @@
 package treasury.crypto.keygen.datastructures.round4
 
 import com.google.common.primitives.{Bytes, Ints}
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
 import treasury.crypto.core.{Cryptosystem, HasSize}
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
 import treasury.crypto.keygen.IntAccumulator
@@ -15,7 +16,7 @@ case class R4Data(
   extends HasSize with BytesSerializable {
 
   override type M = R4Data
-  override type DECODER = Cryptosystem
+  override type DECODER = DiscreteLogGroup
   override val serializer: Serializer[M, DECODER] = R4DataSerializer
 
   def size: Int = bytes.length
@@ -37,7 +38,7 @@ case class R4Data(
   }
 }
 
-object R4DataSerializer extends Serializer[R4Data, Cryptosystem] {
+object R4DataSerializer extends Serializer[R4Data, DiscreteLogGroup] {
 
   override def toBytes(obj: R4Data): Array[Byte] = {
 
@@ -50,7 +51,7 @@ object R4DataSerializer extends Serializer[R4Data, Cryptosystem] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[R4Data] = Try {
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[DiscreteLogGroup]): Try[R4Data] = Try {
     val cs = csOpt.get
     val offset = IntAccumulator(0)
 

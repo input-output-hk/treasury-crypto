@@ -8,7 +8,7 @@ import org.bouncycastle.crypto.prng.drbg.HashSP800DRBG
 import org.bouncycastle.math.ec.ECPoint
 import org.scalameter._
 import treasury.crypto.core.encryption.elgamal.ElGamalCiphertext
-import treasury.crypto.core.primitives.dlog.GroupElement
+import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
 
 import scala.util.Try
@@ -76,46 +76,45 @@ package object core {
 //    }
 //  }
 //
-//  case class HybridPlaintext(decryptedKey: Point, decryptedMessage: Array[Byte])
-//    extends BytesSerializable {
-//
-//    override type M = HybridPlaintext
-//    override type DECODER = Cryptosystem
-//    override val serializer: Serializer[M, DECODER] = HybridPlaintextSerializer
-//
-//    def size: Int = bytes.length
-//  }
-//
-//  object HybridPlaintextSerializer extends Serializer[HybridPlaintext, Cryptosystem] {
-//
-//    override def toBytes(obj: HybridPlaintext): Array[Byte] =
-//    {
-//      val decryptedKeyBytes = obj.decryptedKey.getEncoded(true)
-//
-//      Bytes.concat(
-//        Ints.toByteArray(decryptedKeyBytes.length),
-//        decryptedKeyBytes,
-//        Ints.toByteArray(obj.decryptedMessage.length),
-//        obj.decryptedMessage
-//      )
-//    }
-//
-//    override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[HybridPlaintext] = Try {
-//      val cs = csOpt.get
-//      val offset = IntAccumulator(0)
-//
-//      val decryptedKeyBytesLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
-//      val decryptedKeyBytes = bytes.slice(offset.value, offset.plus(decryptedKeyBytesLen))
-//
-//      val decryptedMessageLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
-//      val decryptedMessage = bytes.slice(offset.value, offset.plus(decryptedMessageLen))
-//
-//      HybridPlaintext(
-//        cs.decodePoint(decryptedKeyBytes),
-//        decryptedMessage
-//      )
-//    }
-//  }
+  case class HybridPlaintext(decryptedKey: GroupElement, decryptedMessage: Array[Byte])
+    extends BytesSerializable {
+
+    override type M = HybridPlaintext
+    override type DECODER = DiscreteLogGroup
+    override val serializer: Serializer[M, DECODER] = HybridPlaintextSerializer
+
+    def size: Int = bytes.length
+  }
+
+  object HybridPlaintextSerializer extends Serializer[HybridPlaintext, DiscreteLogGroup] {
+
+    override def toBytes(obj: HybridPlaintext): Array[Byte] =
+    {
+      val decryptedKeyBytes = obj.decryptedKey.bytes
+
+      Bytes.concat(
+        Ints.toByteArray(decryptedKeyBytes.length),
+        decryptedKeyBytes,
+        Ints.toByteArray(obj.decryptedMessage.length),
+        obj.decryptedMessage
+      )
+    }
+
+    override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[HybridPlaintext] = Try {
+      val group = decoder.get
+
+      val decryptedKeyBytesLen = Ints.fromByteArray(bytes.slice(0, 4))
+      val decryptedKeyBytes = bytes.slice(4, 4 + decryptedKeyBytesLen)
+
+      val decryptedMessageLen = Ints.fromByteArray(bytes.slice(4 + decryptedKeyBytesLen, 8 + decryptedKeyBytesLen))
+      val decryptedMessage = bytes.slice(8 + decryptedKeyBytesLen, 8 + decryptedKeyBytesLen + decryptedMessageLen)
+
+      HybridPlaintext(
+        group.reconstructGroupElement(decryptedKeyBytes).get,
+        decryptedMessage
+      )
+    }
+  }
 //
 //  object CiphertextSerizlizer extends Serializer[Ciphertext, Cryptosystem] {
 //

@@ -3,7 +3,10 @@ package treasury.crypto.keygen
 import java.math.BigInteger
 
 import org.bouncycastle.math.ec.ECPoint
-import treasury.crypto.core._
+import treasury.crypto.Identifier
+import treasury.crypto.core.{Cryptosystem, KeyPair}
+import treasury.crypto.core.encryption.encryption.{PrivKey, PubKey}
+import treasury.crypto.core.primitives.dlog.GroupElement
 import treasury.crypto.keygen.datastructures.round1.{R1Data, SecretShare}
 import treasury.crypto.keygen.datastructures.round2.{ComplaintR2, R2Data, ShareProof}
 import treasury.crypto.keygen.datastructures.round3.R3Data
@@ -18,13 +21,13 @@ import scala.util.Try
 
 // Distributed Key Generation, based on Elliptic Curves
 //
-class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which should be used for protocol running
-                  h:                Point,            // CRS parameter
-                  transportKeyPair: KeyPair,          // key pair for shares encryption/decryption
-                  secretKey:        PrivKey,          // secret key (own private key), which will be used for generation of the shared public key
-                  membersPubKeys:   Seq[PubKey],      // public keys of all protocol members, including own public key from transportKeyPair
-                  memberIdentifier: Identifier[Int],  // generator of members identifiers, based on the list of members public keys (membersPubKeys)
-                  roundsData:       RoundsData        // data of all protocol members for all rounds, which has been already executed
+class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should be used for protocol running
+                  h:                GroupElement, // CRS parameter
+                  transportKeyPair: KeyPair, // key pair for shares encryption/decryption
+                  secretKey:        PrivKey, // secret key (own private key), which will be used for generation of the shared public key
+                  membersPubKeys:   Seq[PubKey], // public keys of all protocol members, including own public key from transportKeyPair
+                  memberIdentifier: Identifier[Int], // generator of members identifiers, based on the list of members public keys (membersPubKeys)
+                  roundsData:       RoundsData // data of all protocol members for all rounds, which has been already executed
                  )
 {
   private val CRS_commitments = new ArrayBuffer[CRS_commitment]() // CRS commitments of other participants
@@ -42,7 +45,7 @@ class DistrKeyGen(cs:               Cryptosystem,     // cryptosystem, which sho
   private val infinityPoint = cs.infinityPoint
 
   private val ownPrivateKey = transportKeyPair._1
-  private val ownPublicKey  = transportKeyPair._2.normalize()
+  private val ownPublicKey  = transportKeyPair._2
   private val allMembersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
           val ownID: Integer = memberIdentifier.getId(ownPublicKey).get
 

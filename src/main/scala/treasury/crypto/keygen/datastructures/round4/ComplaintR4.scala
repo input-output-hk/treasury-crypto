@@ -1,6 +1,7 @@
 package treasury.crypto.keygen.datastructures.round4
 
 import com.google.common.primitives.{Bytes, Ints}
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
 import treasury.crypto.core.{Cryptosystem, HasSize}
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
 import treasury.crypto.keygen.IntAccumulator
@@ -15,13 +16,13 @@ case class ComplaintR4(
   extends HasSize with BytesSerializable {
 
   override type M = ComplaintR4
-  override type DECODER = Cryptosystem
+  override type DECODER = DiscreteLogGroup
   override val serializer: Serializer[M, DECODER] = ComplaintR4Serializer
 
   def size: Int = bytes.length
 }
 
-object ComplaintR4Serializer extends Serializer[ComplaintR4, Cryptosystem] {
+object ComplaintR4Serializer extends Serializer[ComplaintR4, DiscreteLogGroup] {
 
   override def toBytes(obj: ComplaintR4): Array[Byte] = {
 
@@ -34,8 +35,7 @@ object ComplaintR4Serializer extends Serializer[ComplaintR4, Cryptosystem] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[ComplaintR4] = Try {
-    val cs = csOpt.get
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[DiscreteLogGroup]): Try[ComplaintR4] = Try {
     val offset = IntAccumulator(0)
 
     val violatorID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -48,7 +48,7 @@ object ComplaintR4Serializer extends Serializer[ComplaintR4, Cryptosystem] {
 
     ComplaintR4(
       violatorID,
-      OpenedShareSerializer.parseBytes(share_a_Bytes, Option(cs)).get,
-      OpenedShareSerializer.parseBytes(share_b_Bytes, Option(cs)).get)
+      OpenedShareSerializer.parseBytes(share_a_Bytes, csOpt).get,
+      OpenedShareSerializer.parseBytes(share_b_Bytes, csOpt).get)
   }
 }

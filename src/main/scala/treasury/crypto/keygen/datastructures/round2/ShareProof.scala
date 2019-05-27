@@ -3,6 +3,9 @@ package treasury.crypto.keygen.datastructures.round2
 import com.google.common.primitives.{Bytes, Ints}
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
 import treasury.crypto.core._
+import treasury.crypto.core.encryption.hybrid.{HybridCiphertext, HybridCiphertextSerializer}
+import treasury.crypto.core.primitives.blockcipher.BlockCipher
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
 import treasury.crypto.keygen.IntAccumulator
 import treasury.crypto.nizk.{ElgamalDecrNIZKProof, ElgamalDecrNIZKProofSerializer}
 
@@ -16,13 +19,13 @@ case class ShareProof(
   extends HasSize with BytesSerializable {
 
   override type M = ShareProof
-  override type DECODER = Cryptosystem
+  override type DECODER = (DiscreteLogGroup, BlockCipher)
   override val serializer: Serializer[M, DECODER] = ShareProofSerializer
 
   def size: Int = bytes.length
 }
 
-object ShareProofSerializer extends Serializer[ShareProof, Cryptosystem] {
+object ShareProofSerializer extends Serializer[ShareProof, (DiscreteLogGroup, BlockCipher)] {
 
   override def toBytes(obj: ShareProof): Array[Byte] = {
     Bytes.concat(
@@ -35,7 +38,7 @@ object ShareProofSerializer extends Serializer[ShareProof, Cryptosystem] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[ShareProof] = Try {
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[(DiscreteLogGroup, BlockCipher)]): Try[ShareProof] = Try {
     val cs = csOpt.get
     val offset = IntAccumulator(0)
 
@@ -50,8 +53,8 @@ object ShareProofSerializer extends Serializer[ShareProof, Cryptosystem] {
 
     ShareProof(
       HybridCiphertextSerializer.parseBytes(encryptedShareBytes, Option(cs)).get,
-      HybridPlaintextSerializer.parseBytes(decryptedShareBytes, Option(cs)).get,
-      ElgamalDecrNIZKProofSerializer.parseBytes(NIZKProofBytes, Option(cs)).get
+      HybridPlaintextSerializer.parseBytes(decryptedShareBytes, Option(cs._1)).get,
+      ElgamalDecrNIZKProofSerializer.parseBytes(NIZKProofBytes, Option(cs._1)).get
     )
   }
 }

@@ -1,8 +1,11 @@
 package treasury.crypto.keygen.datastructures.round2
 
 import com.google.common.primitives.{Bytes, Ints}
+import treasury.crypto.core.encryption.encryption.PubKey
+import treasury.crypto.core.primitives.blockcipher.BlockCipher
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
-import treasury.crypto.core.{Cryptosystem, HasSize, PubKey}
+import treasury.crypto.core.{Cryptosystem, HasSize}
 import treasury.crypto.keygen.IntAccumulator
 
 import scala.util.Try
@@ -16,17 +19,17 @@ case class ComplaintR2(
   extends HasSize  with BytesSerializable {
 
   override type M = ComplaintR2
-  override type DECODER = Cryptosystem
+  override type DECODER = (DiscreteLogGroup, BlockCipher)
   override val serializer: Serializer[M, DECODER] = ComplaintR2Serializer
 
   def size: Int = bytes.length
 }
 
-object ComplaintR2Serializer extends Serializer[ComplaintR2, Cryptosystem] {
+object ComplaintR2Serializer extends Serializer[ComplaintR2, (DiscreteLogGroup, BlockCipher)] {
 
   override def toBytes(obj: ComplaintR2): Array[Byte] = {
 
-    val issuerPublicKeyBytes = obj.issuerPublicKey.getEncoded(true)
+    val issuerPublicKeyBytes = obj.issuerPublicKey.bytes
 
     Bytes.concat(
       Ints.toByteArray(obj.violatorID),
@@ -39,7 +42,7 @@ object ComplaintR2Serializer extends Serializer[ComplaintR2, Cryptosystem] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[ComplaintR2] = Try {
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[(DiscreteLogGroup, BlockCipher)]): Try[ComplaintR2] = Try {
     val cs = csOpt.get
     val offset = IntAccumulator(0)
 
@@ -56,7 +59,7 @@ object ComplaintR2Serializer extends Serializer[ComplaintR2, Cryptosystem] {
 
     ComplaintR2(
       violatorID,
-      cs.decodePoint(issuerPublicKeyBytes),
+      cs._1.reconstructGroupElement(issuerPublicKeyBytes).get,
       ShareProofSerializer.parseBytes(shareProof_a_Bytes, Option(cs)).get,
       ShareProofSerializer.parseBytes(shareProof_b_Bytes, Option(cs)).get
     )

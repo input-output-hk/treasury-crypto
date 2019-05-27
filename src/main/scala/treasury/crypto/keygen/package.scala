@@ -81,7 +81,7 @@ package object keygen {
 
     for(i <- r3Data.indices)
       if(indexesToPatch(i))
-        r3DataPatched(i).commitments(0) = cs.infinityPoint.getEncoded(true)
+        r3DataPatched(i).commitments(0) = cs.infinityPoint.bytes
 
     r3DataPatched
   }

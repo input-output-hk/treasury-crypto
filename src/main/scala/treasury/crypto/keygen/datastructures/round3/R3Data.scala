@@ -50,7 +50,6 @@ object R3DataSerializer extends Serializer[R3Data, Cryptosystem] {
   }
 
   override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[R3Data] = Try {
-    val cs = csOpt.get
     val offset = IntAccumulator(0)
 
     val issuerID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))

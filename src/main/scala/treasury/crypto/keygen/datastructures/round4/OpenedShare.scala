@@ -2,6 +2,7 @@ package treasury.crypto.keygen.datastructures.round4
 
 import com.google.common.primitives.{Bytes, Ints}
 import treasury.crypto.core._
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
 import treasury.crypto.keygen.IntAccumulator
 
@@ -11,13 +12,13 @@ case class OpenedShare(receiverID: Integer, S: HybridPlaintext)
   extends HasSize with BytesSerializable {
 
   override type M = OpenedShare
-  override type DECODER = Cryptosystem
+  override type DECODER = DiscreteLogGroup
   override val serializer: Serializer[M, DECODER] = OpenedShareSerializer
 
   def size: Int = bytes.length
 }
 
-object OpenedShareSerializer extends Serializer[OpenedShare, Cryptosystem] {
+object OpenedShareSerializer extends Serializer[OpenedShare, DiscreteLogGroup] {
 
   override def toBytes(obj: OpenedShare): Array[Byte] = {
 
@@ -30,7 +31,7 @@ object OpenedShareSerializer extends Serializer[OpenedShare, Cryptosystem] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[OpenedShare] = Try {
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[DiscreteLogGroup]): Try[OpenedShare] = Try {
     val cs = csOpt.get
     val offset = IntAccumulator(0)
 
