@@ -15,14 +15,14 @@ class Polynomial(cs: Cryptosystem, a_0: BigInteger, degree: Int) {
     if (i == 0)
       polynomial(0) = a_0
     else
-      polynomial(i) = drng.getRand
+      polynomial(i) = drng.getRand.bigInteger
   }
 
   // Computing the polynomial value for specified x argument
   def evaluate(x: BigInteger): BigInteger = {
     var res = polynomial(0)
     for(i <- 1 until polynomial.length)
-      res = polynomial(i).multiply(x.pow(i)).add(res).mod(cs.orderOfBasePoint)
+      res = polynomial(i).multiply(x.pow(i)).add(res).mod(cs.orderOfBasePoint.bigInteger)
     res
   }
 
