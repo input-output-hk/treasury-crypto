@@ -1,32 +1,58 @@
 package treasury.crypto
 
-import org.scalatest.FunSuite
-import treasury.crypto.core.Cryptosystem
+import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.{FunSuite, Matchers}
+import treasury.crypto.core.encryption.encryption
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory.AvailableHashes
 import treasury.crypto.decryption.{DecryptedRandomnessShareSerializer, RandomnessGenManager}
 
-class RandomnessGenManagerTest extends FunSuite {
+class RandomnessGenManagerTest extends FunSuite with TableDrivenPropertyChecks with Matchers {
 
-  val cs = new Cryptosystem
-  val (priv, pub) = cs.createKeyPair
+  val dlogGroups =
+    Table(
+      "group",
+      AvailableGroups.values.toSeq.map(g => DiscreteLogGroupFactory.constructDlogGroup(g).get):_*
+    )
+  val hashes =
+    Table(
+      "hash",
+      AvailableHashes.values.toSeq.map(h => CryptographicHashFactory.constructHash(h).get):_*
+    )
 
   test("randomness generation") {
-    val randomness = RandomnessGenManager.getRand(cs, priv.toByteArray)
-    val share = RandomnessGenManager.encryptRandomnessShare(cs, pub, randomness)
-    val decryptedShare = RandomnessGenManager.decryptRandomnessShare(cs, priv, share)
+    forAll(dlogGroups) { implicit group =>
+      forAll(hashes) { implicit hash =>
+        val (priv, pub) = encryption.createKeyPair.get
 
-    assert(decryptedShare.randomness == randomness)
-    assert(RandomnessGenManager.validateDecryptedRandomnessShare(cs, pub, share, decryptedShare))
+        val randomness = RandomnessGenManager.getRand(priv.toByteArray)
+        val share = RandomnessGenManager.encryptRandomnessShare(pub, randomness)
+        val decryptedShare = RandomnessGenManager.decryptRandomnessShare(priv, share)
+
+        assert(decryptedShare.randomness == randomness)
+        assert(RandomnessGenManager.validateDecryptedRandomnessShare(pub, share, decryptedShare))
+      }
+    }
   }
 
+
   test("randomness serialization") {
-    val randomness = RandomnessGenManager.getRand(cs, priv.toByteArray)
-    val share = RandomnessGenManager.encryptRandomnessShare(cs, pub, randomness)
-    val decryptedShare = RandomnessGenManager.decryptRandomnessShare(cs, priv, share)
+    forAll(dlogGroups) { implicit group =>
+      forAll(hashes) { implicit hash =>
+        val (priv, pub) = encryption.createKeyPair.get
 
-    val bytes = decryptedShare.bytes
-    val decrypted = DecryptedRandomnessShareSerializer.parseBytes(bytes, Option(cs)).get
+        val randomness = RandomnessGenManager.getRand(priv.toByteArray)
+        val share = RandomnessGenManager.encryptRandomnessShare(pub, randomness)
+        val decryptedShare = RandomnessGenManager.decryptRandomnessShare(priv, share)
 
-    assert(decrypted.randomness == randomness)
-    assert(RandomnessGenManager.validateDecryptedRandomnessShare(cs, pub, share, decrypted))
+        val bytes = decryptedShare.bytes
+        val decrypted = DecryptedRandomnessShareSerializer.parseBytes(bytes, Option(group)).get
+
+        assert(decrypted.randomness == randomness)
+        assert(RandomnessGenManager.validateDecryptedRandomnessShare(pub, share, decrypted))
+      }
+    }
   }
 }

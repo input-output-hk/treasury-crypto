@@ -4,6 +4,10 @@ import java.math.BigInteger
 
 import com.google.common.primitives.{Bytes, Ints}
 import treasury.crypto.core._
+import treasury.crypto.core.encryption.elgamal.ElGamalEnc
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
+import treasury.crypto.core.primitives.hash.CryptographicHash
+import treasury.crypto.core.primitives.numbergenerator.SP800DRNG
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
 import treasury.crypto.nizk.{ElgamalDecrNIZK, ElgamalDecrNIZKProof, ElgamalDecrNIZKProofSerializer}
 
@@ -25,10 +29,12 @@ object RandomnessGenManager {
     * @param seed a seed to initialize random generator
     * @return
     */
-  def getRand(cs: Cryptosystem, seed: Array[Byte]): Point = {
+  def getRand(seed: Array[Byte])
+             (implicit dlogGroup: DiscreteLogGroup): Point = {
     val bytes = seed ++ SALT.toByteArray
-    val rand = DRNG(bytes, cs).getRand
-    cs.basePoint.multiply(rand)
+    val randBytes = new SP800DRNG(bytes).nextBytes(32)
+    val rand = new BigInteger(randBytes).mod(dlogGroup.groupOrder)
+    dlogGroup.groupGenerator.pow(rand).get
   }
 
   /**
@@ -39,8 +45,9 @@ object RandomnessGenManager {
     * @param msg randomness
     * @return
     */
-  def encryptRandomnessShare(cs: Cryptosystem, pubKey: PubKey, msg: Point): Ciphertext = {
-    cs.encryptPoint(pubKey: PubKey, cs.getRand, msg)
+  def encryptRandomnessShare(pubKey: PubKey, msg: Point)
+                            (implicit dlogGroup: DiscreteLogGroup): Ciphertext = {
+    ElGamalEnc.encrypt(pubKey, msg).get._1
   }
 
   /**
@@ -51,9 +58,10 @@ object RandomnessGenManager {
     * @param ciphertext encrypted share
     * @return
     */
-  def decryptRandomnessShare(cs: Cryptosystem, privKey: PrivKey, ciphertext: Ciphertext): DecryptedRandomnessShare = {
-    val decryptedRandomness = cs.decryptPoint(privKey, ciphertext)
-    val proof = ElgamalDecrNIZK.produceNIZK(cs, ciphertext, privKey)
+  def decryptRandomnessShare(privKey: PrivKey, ciphertext: Ciphertext)
+                            (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): DecryptedRandomnessShare = {
+    val decryptedRandomness = ElGamalEnc.decrypt(privKey, ciphertext).get
+    val proof = ElgamalDecrNIZK.produceNIZK(ciphertext, privKey).get
     DecryptedRandomnessShare(decryptedRandomness, proof)
   }
 
@@ -66,32 +74,33 @@ object RandomnessGenManager {
     * @param decryptedShare decrypted randomness with zero-knowledge proof
     * @return
     */
-  def validateDecryptedRandomnessShare(cs: Cryptosystem, pubKey: PubKey, ciphertext: Ciphertext, decryptedShare: DecryptedRandomnessShare): Boolean = {
-    ElgamalDecrNIZK.verifyNIZK(cs, pubKey, ciphertext, decryptedShare.randomness, decryptedShare.proof)
+  def validateDecryptedRandomnessShare(pubKey: PubKey, ciphertext: Ciphertext, decryptedShare: DecryptedRandomnessShare)
+                                      (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Boolean = {
+    ElgamalDecrNIZK.verifyNIZK(pubKey, ciphertext, decryptedShare.randomness, decryptedShare.proof)
   }
 }
 
 case class DecryptedRandomnessShare(randomness: Point, proof: ElgamalDecrNIZKProof) extends BytesSerializable {
 
   override type M = DecryptedRandomnessShare
-  override type DECODER = Cryptosystem
+  override type DECODER = DiscreteLogGroup
   override val serializer = DecryptedRandomnessShareSerializer
 
   def size: Int = bytes.length
 }
 
-object DecryptedRandomnessShareSerializer extends Serializer[DecryptedRandomnessShare, Cryptosystem] {
+object DecryptedRandomnessShareSerializer extends Serializer[DecryptedRandomnessShare, DiscreteLogGroup] {
 
   override def toBytes(obj: DecryptedRandomnessShare): Array[Byte] = {
-    val randomnessBytes = obj.randomness.getEncoded(true)
+    val randomnessBytes = obj.randomness.bytes
     Bytes.concat(Ints.toByteArray(randomnessBytes.length), randomnessBytes, obj.proof.bytes)
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[DecryptedRandomnessShare] = Try {
-    val cs = csOpt.get
+  override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[DecryptedRandomnessShare] = Try {
+    val group = decoder.get
     val randomnessBytesLen = Ints.fromByteArray(bytes.slice(0, 4))
-    val randomness = cs.decodePoint(bytes.slice(4, 4 + randomnessBytesLen))
-    val proof = ElgamalDecrNIZKProofSerializer.parseBytes(bytes.drop(4 + randomnessBytesLen), Option(cs)).get
+    val randomness = group.reconstructGroupElement(bytes.slice(4, 4 + randomnessBytesLen)).get
+    val proof = ElgamalDecrNIZKProofSerializer.parseBytes(bytes.drop(4 + randomnessBytesLen), decoder).get
     DecryptedRandomnessShare(randomness, proof)
   }
 }
