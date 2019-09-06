@@ -6,7 +6,6 @@ import treasury.crypto.core._
 import treasury.crypto.core.encryption.hybrid.{HybridCiphertext, HybridCiphertextSerializer}
 import treasury.crypto.core.primitives.blockcipher.BlockCipher
 import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
-import treasury.crypto.keygen.IntAccumulator
 import treasury.crypto.nizk.{ElgamalDecrNIZKProof, ElgamalDecrNIZKProofSerializer}
 
 import scala.util.Try
@@ -39,6 +38,10 @@ object ShareProofSerializer extends Serializer[ShareProof, (DiscreteLogGroup, Bl
   }
 
   override def parseBytes(bytes: Array[Byte], csOpt: Option[(DiscreteLogGroup, BlockCipher)]): Try[ShareProof] = Try {
+    case class IntAccumulator(var value: Int = 0){
+      def plus(i: Int): Int = {value += i; value}
+    }
+
     val cs = csOpt.get
     val offset = IntAccumulator(0)
 

@@ -6,7 +6,6 @@ import treasury.crypto.core.primitives.blockcipher.BlockCipher
 import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
 import treasury.crypto.core.{Cryptosystem, HasSize}
-import treasury.crypto.keygen.IntAccumulator
 
 import scala.util.Try
 
@@ -33,16 +32,13 @@ object SecretShareSerializer extends Serializer[SecretShare, (DiscreteLogGroup, 
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[(DiscreteLogGroup, BlockCipher)]): Try[SecretShare] = Try {
-    val cs = csOpt.get
-    val offset = IntAccumulator(0)
+  override def parseBytes(bytes: Array[Byte], decoder: Option[(DiscreteLogGroup, BlockCipher)]): Try[SecretShare] = Try {
+    val receiverID = Ints.fromByteArray(bytes.slice(0, 4))
 
-    val receiverID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
+    val S_bytes_len = Ints.fromByteArray(bytes.slice(4, 8))
+    val S_bytes = bytes.slice(8, 8 + S_bytes_len)
 
-    val S_bytes_len = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
-    val S_bytes = bytes.slice(offset.value, offset.plus(S_bytes_len))
-
-    val S = HybridCiphertextSerializer.parseBytes(S_bytes, Option(cs))
+    val S = HybridCiphertextSerializer.parseBytes(S_bytes, decoder)
 
     SecretShare(receiverID, S.get)
   }

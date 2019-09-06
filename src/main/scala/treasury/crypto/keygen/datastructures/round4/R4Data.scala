@@ -4,7 +4,6 @@ import com.google.common.primitives.{Bytes, Ints}
 import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
 import treasury.crypto.core.{Cryptosystem, HasSize}
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
-import treasury.crypto.keygen.IntAccumulator
 import treasury.crypto.keygen.datastructures.round2.R2Data
 
 import scala.util.Try
@@ -52,6 +51,10 @@ object R4DataSerializer extends Serializer[R4Data, DiscreteLogGroup] {
   }
 
   override def parseBytes(bytes: Array[Byte], csOpt: Option[DiscreteLogGroup]): Try[R4Data] = Try {
+    case class IntAccumulator(var value: Int = 0){
+      def plus(i: Int): Int = {value += i; value}
+    }
+
     val cs = csOpt.get
     val offset = IntAccumulator(0)
 

@@ -40,7 +40,7 @@ object LagrangeInterpolation {
   }
 
   def testInterpolation(cs: Cryptosystem, degree: Int): Boolean = {
-    val secret = new BigInteger(cs.orderOfBasePoint.bitLength(), new SecureRandom()).mod(cs.orderOfBasePoint)
+    val secret = new BigInteger(cs.orderOfBasePoint.bitLength, new SecureRandom()).mod(cs.orderOfBasePoint)
     val poly = new Polynomial(cs, secret.bigInteger, degree)
 
     val sharesNum = degree * 2 // ratio specific for voting protocol, as assumed t = n / 2, i.e. degree = sharesNum / 2

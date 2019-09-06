@@ -5,7 +5,6 @@ import treasury.crypto.core.primitives.blockcipher.BlockCipher
 import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
 import treasury.crypto.core.{Cryptosystem, HasSize}
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
-import treasury.crypto.keygen.IntAccumulator
 
 import scala.util.Try
 
@@ -52,6 +51,10 @@ object R2DataSerializer extends Serializer[R2Data, (DiscreteLogGroup, BlockCiphe
   }
 
   override def parseBytes(bytes: Array[Byte], csOpt: Option[(DiscreteLogGroup, BlockCipher)]): Try[R2Data] = Try {
+    case class IntAccumulator(var value: Int = 0){
+      def plus(i: Int): Int = {value += i; value}
+    }
+
     val cs = csOpt.get
     val offset = IntAccumulator(0)
 

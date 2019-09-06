@@ -4,9 +4,10 @@ import java.math.BigInteger
 
 import org.bouncycastle.math.ec.ECPoint
 import treasury.crypto.Identifier
-import treasury.crypto.core.{Cryptosystem, KeyPair}
+import treasury.crypto.core.{Cryptosystem, KeyPair, Point}
 import treasury.crypto.core.encryption.encryption.{PrivKey, PubKey}
-import treasury.crypto.core.primitives.dlog.GroupElement
+import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, GroupElement}
+import treasury.crypto.core.primitives.hash.CryptographicHash
 import treasury.crypto.keygen.datastructures.round1.{R1Data, SecretShare}
 import treasury.crypto.keygen.datastructures.round2.{ComplaintR2, R2Data, ShareProof}
 import treasury.crypto.keygen.datastructures.round3.R3Data
@@ -29,6 +30,7 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
                   memberIdentifier: Identifier[Int], // generator of members identifiers, based on the list of members public keys (membersPubKeys)
                   roundsData:       RoundsData // data of all protocol members for all rounds, which has been already executed
                  )
+                 (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash)
 {
   private val CRS_commitments = new ArrayBuffer[CRS_commitment]() // CRS commitments of other participants
   private val commitments     = new ArrayBuffer[Commitment]()     // Commitments of other participants
@@ -39,7 +41,7 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
 
   private val n = membersPubKeys.size           // Total number of protocol participants
           val t = (n.toFloat / 2).ceil.toInt    // Threshold number of participants
-  private val A = new Array[ECPoint](t)         // Own commitments
+  private val A = new Array[GroupElement](t)         // Own commitments
 
   private val g = cs.basePoint
   private val infinityPoint = cs.infinityPoint
@@ -92,7 +94,7 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
     val poly_b = new Polynomial(cs, secretKey, t)
 
     for(i <- A.indices)
-      A(i) = g.multiply(poly_a(i)).normalize()
+      A(i) = g.pow(poly_a(i)).get
 
     val E   = new ArrayBuffer[Array[Byte]]()
     val S_a = new ArrayBuffer[SecretShare]()
@@ -100,7 +102,7 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
 
     // CRS commitments for each coefficient of both polynomials
     for(i <- A.indices)
-      E += A(i).add(h.multiply(poly_b(i))).normalize().getEncoded(true)
+      E += A(i).multiply(h.pow(poly_b(i))).get.bytes
 
     for(i <- membersPubKeys.indices)
     {
@@ -180,8 +182,8 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
             CRS_commitments += CRS_commitment(r1Data(i).issuerID, r1Data(i).E.map(x => cs.decodePoint(x)))
           }
           else {
-            val proof_a = ElgamalDecrNIZK.produceNIZK(cs, secretShare_a.S.encryptedKey, ownPrivateKey)
-            val proof_b = ElgamalDecrNIZK.produceNIZK(cs, secretShare_b.S.encryptedKey, ownPrivateKey)
+            val proof_a = ElgamalDecrNIZK.produceNIZK(secretShare_a.S.encryptedSymmetricKey, ownPrivateKey).get
+            val proof_b = ElgamalDecrNIZK.produceNIZK(secretShare_b.S.encryptedSymmetricKey, ownPrivateKey).get
 
             complaints += ComplaintR2(
               r1Data(i).issuerID,
@@ -239,9 +241,8 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
     def checkComplaint(complaint: ComplaintR2): Boolean = {
       def checkProof(pubKey: PubKey, proof: ShareProof): Boolean = {
         ElgamalDecrNIZK.verifyNIZK(
-          cs,
           pubKey,
-          proof.encryptedShare.encryptedKey,
+          proof.encryptedShare.encryptedSymmetricKey,
           proof.decryptedShare.decryptedKey,
           proof.NIZKProof)
       }

@@ -2,7 +2,6 @@ package treasury.crypto
 
 import java.math.BigInteger
 
-import org.bouncycastle.math.ec.ECPoint
 import treasury.crypto.core._
 import treasury.crypto.keygen.datastructures.round1.{R1Data, SecretShare}
 import treasury.crypto.keygen.datastructures.round2.R2Data
@@ -20,8 +19,8 @@ package object keygen {
     def plus(i: Int): Int = {value += i; value}
   }
 
-  case class CRS_commitment (issuerID: Integer, crs_commitment: Array[ECPoint])
-  case class Commitment     (issuerID: Integer, commitment: Array[ECPoint])
+  case class CRS_commitment (issuerID: Integer, crs_commitment: Array[Point])
+  case class Commitment     (issuerID: Integer, commitment: Array[Point])
   case class Share          (issuerID: Integer, share_a: OpenedShare, share_b: OpenedShare)
   case class ShareEncrypted (issuerID: Integer, share_a: SecretShare, share_b: SecretShare)
 

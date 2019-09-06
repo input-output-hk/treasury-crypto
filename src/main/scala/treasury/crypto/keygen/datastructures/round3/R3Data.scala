@@ -3,7 +3,6 @@ package treasury.crypto.keygen.datastructures.round3
 import com.google.common.primitives.{Bytes, Ints}
 import treasury.crypto.core.{Cryptosystem, HasSize}
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
-import treasury.crypto.keygen.IntAccumulator
 
 import scala.util.Try
 
@@ -50,6 +49,10 @@ object R3DataSerializer extends Serializer[R3Data, Cryptosystem] {
   }
 
   override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[R3Data] = Try {
+    case class IntAccumulator(var value: Int = 0){
+      def plus(i: Int): Int = {value += i; value}
+    }
+
     val offset = IntAccumulator(0)
 
     val issuerID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
