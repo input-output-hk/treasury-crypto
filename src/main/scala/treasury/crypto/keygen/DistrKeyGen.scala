@@ -6,6 +6,7 @@ import org.bouncycastle.math.ec.ECPoint
 import treasury.crypto.Identifier
 import treasury.crypto.core.{Cryptosystem, KeyPair, Point}
 import treasury.crypto.core.encryption.encryption.{PrivKey, PubKey}
+import treasury.crypto.core.primitives.blockcipher.BlockCipher
 import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import treasury.crypto.core.primitives.hash.CryptographicHash
 import treasury.crypto.keygen.datastructures.round1.{R1Data, SecretShare}
@@ -254,7 +255,7 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
           Array.fill(32)(1.toByte),             // for this verification no matter what secret seed is used
           Some(proof.decryptedShare.decryptedKey))
 
-        ciphertext.encryptedMessage.sameElements(proof.encryptedShare.encryptedMessage)
+        ciphertext.encryptedMessage.equals(proof.encryptedShare.encryptedMessage)
       }
 
       val publicKey = complaint.issuerPublicKey
@@ -292,7 +293,7 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
              memberIdentifier,
              cs,
              h,
-             violatorsCRSCommitment.get.crs_commitment.map(_.getEncoded(true)))) {
+             violatorsCRSCommitment.get.crs_commitment.map(_.bytes))) {
 
           CRS_commitments -= violatorsCRSCommitment.get
           secretShares -= violatorsSecretShare.get
@@ -308,7 +309,7 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
     }
 
     // Commitments of poly_a coefficients
-    val r3Data = R3Data(ownID, A.map(_.getEncoded(true)))
+    val r3Data = R3Data(ownID, A.map(_.bytes))
 
     roundsPassed += 1
     roundsDataCache.r3Data = Seq(r3Data) // round output is always cached
@@ -326,17 +327,17 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
   def checkCommitment(issuerID: Integer, commitment: Array[Array[Byte]]): Boolean = {
 
     val A = commitment.map(cs.decodePoint)
-    var A_sum: ECPoint = infinityPoint
+    var A_sum: Point = infinityPoint
     val share = shares.find(_.issuerID == issuerID)
     if(share.isDefined) {
       val X = BigInteger.valueOf(share.get.share_a.receiverID.toLong + 1)
 
       for(i <- A.indices) {
-        A_sum = A_sum.add(A(i).multiply(X.pow(i)))
+        A_sum = A_sum.multiply(A(i).pow(X.pow(i)).get).get
       }
 
       val share_a = new BigInteger(share.get.share_a.S.decryptedMessage)
-      val g_sa = g.multiply(share_a)
+      val g_sa = g.pow(share_a)
 
       g_sa.equals(A_sum)
     }
@@ -437,10 +438,10 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
 
     def checkComplaint(violatorsCommitment: Commitment, complaint: ComplaintR4): Boolean = {
       val violatorsCRSCommitment = CRS_commitments.find(_.issuerID == complaint.violatorID).get
-      val CRS_Ok = checkOnCRS(cs, h, complaint.share_a, complaint.share_b, violatorsCRSCommitment.crs_commitment.map(_.getEncoded(true)))
+      val CRS_Ok = checkOnCRS(cs, h, complaint.share_a, complaint.share_b, violatorsCRSCommitment.crs_commitment.map(_.bytes))
 
       val share = Share(complaint.violatorID, complaint.share_a, complaint.share_b)
-      val Commitment_Ok = checkCommitmentR3(cs, share, violatorsCommitment.commitment.map(_.getEncoded(true)))
+      val Commitment_Ok = checkCommitmentR3(cs, share, violatorsCommitment.commitment.map(_.bytes))
 
       CRS_Ok && !Commitment_Ok
     }
@@ -574,25 +575,25 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
         }
 
         val violatorsPublicKeys = for(i <- violatorsSecretKeys.indices) yield {
-          g.multiply(new BigInteger(violatorsSecretKeys(i).secretKey))
+          g.pow(new BigInteger(violatorsSecretKeys(i).secretKey)).get
         }
 
         var honestPublicKeysSum = A(0) // own public key
         for(i <- commitments.indices) {
-          honestPublicKeysSum = honestPublicKeysSum.add(commitments(i).commitment(0))
+          honestPublicKeysSum = honestPublicKeysSum.multiply(commitments(i).commitment(0)).get
         }
 
-        var violatorsPublicKeysSum: ECPoint = cs.infinityPoint
+        var violatorsPublicKeysSum: Point = cs.infinityPoint
         for(i <- violatorsPublicKeys.indices) {
-          violatorsPublicKeysSum = violatorsPublicKeysSum.add(violatorsPublicKeys(i))
+          violatorsPublicKeysSum = violatorsPublicKeysSum.multiply(violatorsPublicKeys(i)).get
         }
 
-        val sharedPublicKey = honestPublicKeysSum.add(violatorsPublicKeysSum)
+        val sharedPublicKey = honestPublicKeysSum.multiply(violatorsPublicKeysSum).get
 
-        R5_2Data(ownID, sharedPublicKey.getEncoded(true), violatorsSecretKeys.sortBy(_.ownerID).toArray)
+        R5_2Data(ownID, sharedPublicKey.bytes, violatorsSecretKeys.sortBy(_.ownerID).toArray)
 
       } else {
-        R5_2Data(ownID, cs.infinityPoint.getEncoded(true), Array[SecretKey]())
+        R5_2Data(ownID, cs.infinityPoint.bytes, Array[SecretKey]())
       }
     }
 
@@ -677,30 +678,31 @@ object DistrKeyGen {
                          h: Point,
                          share_a: OpenedShare,
                          share_b: OpenedShare,
-                         E: Array[Array[Byte]]): Boolean = {
+                         E: Array[Array[Byte]])
+                        (implicit dlogGroup: DiscreteLogGroup): Boolean = {
 
-    var E_sum: ECPoint = cs.infinityPoint
+    var E_sum: Point = cs.infinityPoint
 
     for(i <- E.indices) {
-      E_sum = E_sum.add(cs.decodePoint(E(i)).multiply(BigInteger.valueOf(share_a.receiverID.toLong + 1).pow(i)))
+      E_sum = E_sum.multiply(cs.decodePoint(E(i)).pow(BigInteger.valueOf(share_a.receiverID.toLong + 1).pow(i)).get).get
     }
-    val CRS_Shares = cs.basePoint.multiply(new BigInteger(share_a.S.decryptedMessage)).add(h.multiply(new BigInteger(share_b.S.decryptedMessage)))
+    val CRS_Shares = cs.basePoint.pow(new BigInteger(share_a.S.decryptedMessage)).get.multiply(h.pow(new BigInteger(share_b.S.decryptedMessage)).get).get
 
     CRS_Shares.equals(E_sum)
   }
 
   private def checkComplaintR2(complaint:         ComplaintR2,
-                       secretShare:       ShareEncrypted,
-                       memberIdentifier:  Identifier[Int],
-                       cs:                Cryptosystem,
-                       h:                 Point,
-                       E:                 Array[Array[Byte]]): Boolean = {
+                               secretShare:       ShareEncrypted,
+                               memberIdentifier:  Identifier[Int],
+                               cs:                Cryptosystem,
+                               h:                 Point,
+                               E:                 Array[Array[Byte]])
+                              (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Boolean = {
 
     def checkProof(pubKey: PubKey, proof: ShareProof): Boolean = {
       ElgamalDecrNIZK.verifyNIZK(
-        cs,
         pubKey,
-        proof.encryptedShare.encryptedKey,
+        proof.encryptedShare.encryptedSymmetricKey,
         proof.decryptedShare.decryptedKey,
         proof.NIZKProof)
     }
@@ -712,7 +714,7 @@ object DistrKeyGen {
         Array.fill(32)(1.toByte),             // for this verification no matter what secret seed is used
         Some(proof.decryptedShare.decryptedKey))
 
-      val shareDecryptedCorrectly = ciphertext.encryptedMessage.sameElements(proof.encryptedShare.encryptedMessage)
+      val shareDecryptedCorrectly = ciphertext.encryptedMessage.equals(proof.encryptedShare.encryptedMessage)
 
       val receiverID = memberIdentifier.getId(complaint.issuerPublicKey)
 
@@ -744,20 +746,21 @@ object DistrKeyGen {
   }
 
   private def checkCommitmentR3(cs: Cryptosystem,
-                        share: Share,
-                        commitment: Array[Array[Byte]]): Boolean = {
+                                share: Share,
+                                commitment: Array[Array[Byte]])
+                               (implicit dlogGroup: DiscreteLogGroup): Boolean = {
 
     val A = commitment.map(cs.decodePoint)
     val X = BigInteger.valueOf(share.share_a.receiverID.toLong + 1)
 
-    var A_sum: ECPoint = cs.infinityPoint
+    var A_sum: Point = cs.infinityPoint
 
     for(i <- A.indices) {
-      A_sum = A_sum.add(A(i).multiply(X.pow(i)))
+      A_sum = A_sum.multiply(A(i).pow(X.pow(i)).get).get
     }
 
     val share_a = new BigInteger(share.share_a.S.decryptedMessage)
-    val g_sa = cs.basePoint.multiply(share_a)
+    val g_sa = cs.basePoint.pow(share_a).get
 
     g_sa.equals(A_sum)
   }
@@ -783,7 +786,7 @@ object DistrKeyGen {
     )
 
     // Check if an encrypted opened share is the same as secret share
-    secretShare.S.encryptedMessage.sameElements(
+    secretShare.S.encryptedMessage.equals(
       shareCiphertext.encryptedMessage
     )
   }
@@ -886,7 +889,8 @@ object DistrKeyGen {
                                            numberOfMembers: Int,
                                            r5_1Data: Seq[R5_1Data],
                                            disqualifiedMembersOnR1: Seq[Int],
-                                           disqualifiedMembersOnR3: Seq[Int]): Seq[(PubKey, PrivKey)] = {
+                                           disqualifiedMembersOnR3: Seq[Int])
+                                          (implicit dlogGroup: DiscreteLogGroup): Seq[(PubKey, PrivKey)] = {
 
     val r5_1DataFiltered = r5_1Data.filter(
       r5 =>
@@ -922,7 +926,7 @@ object DistrKeyGen {
       val violatorsSecretKeys = disqualifiedR3MembersShares.map(
         share => LagrangeInterpolation.restoreSecret(cs, share.violatorShares, t)
       )
-      val violatorsPublicKeys = violatorsSecretKeys.map(cs.basePoint.multiply(_))
+      val violatorsPublicKeys = violatorsSecretKeys.map(cs.basePoint.pow(_).get)
 
       violatorsPublicKeys zip violatorsSecretKeys
     } else {
@@ -943,7 +947,8 @@ object DistrKeyGen {
   def getSharedPublicKey (cs:                       Cryptosystem,
                           membersPubKeys:           Seq[PubKey],
                           memberIdentifier:         Identifier[Int],
-                          roundsData:               RoundsData): Try[SharedPublicKey] = Try {
+                          roundsData:               RoundsData)
+                         (implicit dlogGroup: DiscreteLogGroup): Try[SharedPublicKey] = Try {
 
     val disqualifiedMembersOnR1 =
       getDisqualifiedOnR1CommitteeMembersIDs(cs, membersPubKeys, memberIdentifier, roundsData.r1Data, roundsData.r2Data)
@@ -971,19 +976,19 @@ object DistrKeyGen {
         map(r3 => Commitment(r3.issuerID, r3.commitments.map(cs.decodePoint)))
 
     val honestPublicKeysSum = validCommitments.foldLeft(cs.infinityPoint){
-      (acc, c) => acc.add(c.commitment.head)
+      (acc, c) => acc.multiply(c.commitment.head).get
     }
 
     val violatorsPublicKeysSum = recoveredViolatorsKeys.foldLeft(cs.infinityPoint){
-      (acc, keys) => acc.add(keys._1)
+      (acc, keys) => acc.multiply(keys._1).get
     }
 
-    val sharedPublicKey = honestPublicKeysSum.add(violatorsPublicKeysSum)
+    val sharedPublicKey = honestPublicKeysSum.multiply(violatorsPublicKeysSum).get
     require(
       !sharedPublicKey.equals(cs.infinityPoint),
       "Shared public key is undefined")
 
-    sharedPublicKey.getEncoded(true)
+    sharedPublicKey.bytes
   }
 
   /**
@@ -1059,7 +1064,7 @@ object DistrKeyGen {
     val recoveredPrivKey = LagrangeInterpolation.restoreSecret(cs, openedShares, recoveryThreshold)
 
     if (pubKeyOfRecoveredPrivKey.isDefined) {
-      val recoveredPubKey = cs.basePoint.multiply(recoveredPrivKey)
+      val recoveredPubKey = cs.basePoint.pow(recoveredPrivKey).get
       require(recoveredPubKey == pubKeyOfRecoveredPrivKey.get, "Recovered key doesn't conform to the given pub key")
     }
 

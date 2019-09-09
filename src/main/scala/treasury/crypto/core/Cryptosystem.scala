@@ -100,8 +100,9 @@ class Cryptosystem {
     }
   }
 
-  def hybridDecrypt(privKey: PrivKey, ciphertext: HybridCiphertext): Array[Byte] = {
-    HybridEncryption.decrypt(privKey, ciphertext).get._2
+  def hybridDecrypt(privKey: PrivKey, ciphertext: HybridCiphertext): HybridPlaintext = {
+    val decrypted = HybridEncryption.decrypt(privKey, ciphertext).get
+    HybridPlaintext(decrypted._1, decrypted._2)
   }
 
   // Pseudorandom number generation in Zp field (p = orderOfBasePoint)
