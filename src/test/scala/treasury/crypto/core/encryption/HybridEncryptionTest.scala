@@ -29,7 +29,7 @@ class HybridEncryptionTest extends FunSuite with TableDrivenPropertyChecks {
         val (privKey, pubKey) = encryption.createKeyPair.get
 
         val ciphertext = HybridEncryption.encrypt(pubKey, message).get
-        val decryptedMessage = HybridEncryption.decrypt(privKey, ciphertext).get
+        val decryptedMessage = HybridEncryption.decrypt(privKey, ciphertext).get._2
 
         require(message.sameElements(decryptedMessage))
       }
@@ -44,9 +44,25 @@ class HybridEncryptionTest extends FunSuite with TableDrivenPropertyChecks {
         val seed = "SuperSecretSeed".getBytes
 
         val ciphertext = HybridEncryption.encrypt(pubKey, message, seed).get
-        val decryptedMessage = HybridEncryption.decrypt(privKey, ciphertext).get
+        val decryptedMessage = HybridEncryption.decrypt(privKey, ciphertext).get._2
 
         require(message.sameElements(decryptedMessage))
+      }
+    }
+  }
+
+  test("HybridEncryption should correctly encrypt and decrypt message if group element as secret seed is provided") {
+    forAll(dlogGroups) { implicit group =>
+      forAll(blockCiphers) { implicit blockCipher =>
+        val message = "Message".getBytes
+        val (privKey, pubKey) = encryption.createKeyPair.get
+        val seedAsGroupElement = group.createRandomGroupElement.get
+
+        val ciphertext = HybridEncryption.encrypt(pubKey, message, seedAsGroupElement).get
+        val decryptedMessage = HybridEncryption.decrypt(privKey, ciphertext).get
+
+        require(seedAsGroupElement == decryptedMessage._1)
+        require(message.sameElements(decryptedMessage._2))
       }
     }
   }
@@ -60,7 +76,7 @@ class HybridEncryptionTest extends FunSuite with TableDrivenPropertyChecks {
         val ciphertext = HybridEncryption.encrypt(pubKey, message).get
         val bytes = ciphertext.bytes
         val reconstructedCiphertext = HybridCiphertextSerializer.parseBytes(bytes, Option(group, blockCipher)).get
-        val decryptedMessage = HybridEncryption.decrypt(privKey, reconstructedCiphertext).get
+        val decryptedMessage = HybridEncryption.decrypt(privKey, reconstructedCiphertext).get._2
 
         require(message.sameElements(decryptedMessage))
       }

@@ -101,7 +101,7 @@ class Cryptosystem {
   }
 
   def hybridDecrypt(privKey: PrivKey, ciphertext: HybridCiphertext): Array[Byte] = {
-    HybridEncryption.decrypt(privKey, ciphertext).get
+    HybridEncryption.decrypt(privKey, ciphertext).get._2
   }
 
   // Pseudorandom number generation in Zp field (p = orderOfBasePoint)
