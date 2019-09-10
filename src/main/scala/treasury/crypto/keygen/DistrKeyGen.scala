@@ -924,7 +924,7 @@ object DistrKeyGen {
 
     if (sufficientNumOfShares){
       val violatorsSecretKeys = disqualifiedR3MembersShares.map(
-        share => LagrangeInterpolation.restoreSecret(cs, share.violatorShares, t)
+        share => BigInt(LagrangeInterpolation.restoreSecret(cs, share.violatorShares, t))
       )
       val violatorsPublicKeys = violatorsSecretKeys.map(cs.basePoint.pow(_).get)
 
@@ -1057,7 +1057,8 @@ object DistrKeyGen {
   def recoverPrivateKeyByOpenedShares(cs: Cryptosystem,
                                       numberOfMembers: Int,
                                       openedShares: Seq[OpenedShare],
-                                      pubKeyOfRecoveredPrivKey: Option[PubKey] = None): Try[PrivKey] = Try {
+                                      pubKeyOfRecoveredPrivKey: Option[PubKey] = None)
+                                     (implicit dlogGroup: DiscreteLogGroup): Try[PrivKey] = Try {
     val recoveryThreshold = (numberOfMembers.toFloat / 2).ceil.toInt
     require(openedShares.size >= recoveryThreshold, "Not enough opened shares to recover a key")
 
@@ -1119,7 +1120,8 @@ object DistrKeyGen {
                   membersPubKeys:   Seq[PubKey],
                   cs:               Cryptosystem,
                   h:                Point,
-                  r1DataSeq:        Seq[R1Data]): Try[Unit] = Try {
+                  r1DataSeq:        Seq[R1Data])
+                 (implicit dlogGroup: DiscreteLogGroup, hash: CryptographicHash): Try[Unit] = Try {
 
     val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
     require(membersIDs.contains(r2Data.issuerID), "Illegal issuer's ID")
@@ -1213,7 +1215,8 @@ object DistrKeyGen {
                   h:                Point,
                   r1DataSeq:        Seq[R1Data],
                   r2DataSeq:        Seq[R2Data],
-                  r3DataSeq:        Seq[R3Data]): Try[Unit] = Try {
+                  r3DataSeq:        Seq[R3Data])
+                 (implicit dlogGroup: DiscreteLogGroup): Try[Unit] = Try {
 
     val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
     require(membersIDs.contains(r4Data.issuerID), "Illegal issuer's ID")

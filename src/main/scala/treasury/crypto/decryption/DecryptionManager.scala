@@ -1,6 +1,8 @@
 package treasury.crypto.decryption
 
 import treasury.crypto.core._
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
+import treasury.crypto.core.primitives.hash.CryptographicHash
 import treasury.crypto.keygen.datastructures.C1Share
 import treasury.crypto.nizk.ElgamalDecrNIZK
 import treasury.crypto.voting.Tally
@@ -15,7 +17,8 @@ import scala.util.Try
 */
 class DecryptionManager(cs:               Cryptosystem,
                         ballots:          Seq[Ballot],
-                        recoveryThreshold: Integer = 0) {
+                        recoveryThreshold: Integer = 0)
+                       (implicit dlogGroup: DiscreteLogGroup, hash: CryptographicHash) {
 
   lazy val votersBallots = ballots.collect { case b: VoterBallot => b }
   assert(votersBallots.forall(_.uvDelegations.length == votersBallots.head.uvDelegations.length))
@@ -41,10 +44,10 @@ class DecryptionManager(cs:               Cryptosystem,
     for (i <- vectorForValidation.indices) {
       val ciphertext = vectorForValidation(i)
       val C1sk = c1Share.decryptedC1(i)._1
-      val plaintext = ciphertext._2.subtract(C1sk)
+      val plaintext = ciphertext.c2.divide(C1sk).get
       val proof = c1Share.decryptedC1(i)._2
 
-      require(ElgamalDecrNIZK.verifyNIZK(cs, issuerPubKey, ciphertext, plaintext, proof), "Invalid proof")
+      require(ElgamalDecrNIZK.verifyNIZK(issuerPubKey, ciphertext, plaintext, proof), "Invalid proof")
     }
   }
 
@@ -93,8 +96,8 @@ class DecryptionManager(cs:               Cryptosystem,
     */
   def decryptC1ForDelegations(issuerId: Integer, proposalId: Int, secretKey: PrivKey): C1Share = {
     val shares = delegationsSum.map { unit =>
-      val decryptedC1 = unit._1.multiply(secretKey).normalize
-      val proof = ElgamalDecrNIZK.produceNIZK(cs, unit, secretKey)
+      val decryptedC1 = unit.c1.pow(secretKey).get
+      val proof = ElgamalDecrNIZK.produceNIZK(unit, secretKey).get
       (decryptedC1, proof)
     }
 
@@ -117,8 +120,8 @@ class DecryptionManager(cs:               Cryptosystem,
     val choicesSum = Tally.computeChoicesSum(cs, votersBallots, expertsBallots, delegations)
 
     val shares = choicesSum.map { unit =>
-      val decryptedC1 = unit._1.multiply(secretKey).normalize
-      val proof = ElgamalDecrNIZK.produceNIZK(cs, unit, secretKey)
+      val decryptedC1 = unit.c1.pow(secretKey).get
+      val proof = ElgamalDecrNIZK.produceNIZK(unit, secretKey).get
       (decryptedC1, proof)
     }
 
@@ -134,7 +137,7 @@ class DecryptionManager(cs:               Cryptosystem,
     *         each vector itself is a seq of Points, thus there will be Seq[ Seq[Point] ]
     */
   def decryptVector(privKeys: Seq[PrivKey], vector: Seq[Point]): Seq[Seq[Point]] = {
-    privKeys.map(key => vector.map(_.multiply(key)))
+    privKeys.map(key => vector.map(_.pow(key).get))
   }
 
   /**
@@ -146,7 +149,7 @@ class DecryptionManager(cs:               Cryptosystem,
     * @return a list of decrypted C1s for delegations, for each private key
     */
   def recoverDelegationsC1(privKeys: Seq[PrivKey]): Seq[Seq[Point]] = {
-    decryptVector(privKeys, delegationsSum.map(_._1))
+    decryptVector(privKeys, delegationsSum.map(_.c1))
   }
 
   /**
@@ -160,7 +163,7 @@ class DecryptionManager(cs:               Cryptosystem,
     */
   def recoverChoicesC1(privKeys: Seq[PrivKey], delegations: Seq[Element]): Seq[Seq[Point]] = {
     val choicesSum = Tally.computeChoicesSum(cs, votersBallots, expertsBallots, delegations)
-    decryptVector(privKeys, choicesSum.map(_._1))
+    decryptVector(privKeys, choicesSum.map(_.c1))
   }
 
   def computeDelegations(delegationsC1: Seq[Seq[Point]]): Seq[Element] = {

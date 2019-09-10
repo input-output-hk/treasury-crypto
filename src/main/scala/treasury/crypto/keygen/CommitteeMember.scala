@@ -2,7 +2,10 @@ package treasury.crypto.keygen
 
 import java.math.BigInteger
 
+import treasury.crypto.CommitteeIdentifier
 import treasury.crypto.core._
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
+import treasury.crypto.core.primitives.hash.CryptographicHash
 import treasury.crypto.decryption.DecryptionManager
 import treasury.crypto.keygen.datastructures.C1Share
 import treasury.crypto.keygen.datastructures.round1.{R1Data, SecretShare}
@@ -22,7 +25,8 @@ class CommitteeMember(val cs: Cryptosystem,
                       val h: Point,
                       val transportKeyPair: KeyPair,
                       val committeeMembersPubKeys: Seq[PubKey],
-                      roundsData: RoundsData = RoundsData()) {
+                      roundsData: RoundsData = RoundsData())
+                     (implicit dlogGroup: DiscreteLogGroup, hash: CryptographicHash) {
 
 //  // SimpleIdentifier is useful for debugging purposes, but in real it's better to not rely on an order stability of the externally provided public keys
 //  val memberIdentifier = SimpleIdentifier(committeeMembersPubKeys)
@@ -37,7 +41,7 @@ class CommitteeMember(val cs: Cryptosystem,
   private val dkg = new DistrKeyGen(cs, h, transportKeyPair, secretKey, committeeMembersPubKeys, memberIdentifier, roundsData)
 
   val ownId: Integer = dkg.ownID
-  var dkgViolatorsSKs: Array[BigInteger] = Array[BigInteger]()
+  var dkgViolatorsSKs: Array[BigInt] = Array[BigInt]()
   var dkgViolatorsIds: Set[Integer] = Set()
   var decryptionViolatorsIds: Set[Int] = Set()
   var delegations: Option[Seq[Element]] = None
@@ -92,7 +96,7 @@ class CommitteeMember(val cs: Cryptosystem,
 
     val data = dkg.doRound5_2(r5_1Data).get
 
-    dkgViolatorsSKs = data.violatorsSecretKeys.map(sk => new BigInteger(sk.secretKey))
+    dkgViolatorsSKs = data.violatorsSecretKeys.map(sk => BigInt(sk.secretKey))
     dkgViolatorsIds = data.violatorsSecretKeys.map(_.ownerID).toSet
 
     data
@@ -115,15 +119,15 @@ class CommitteeMember(val cs: Cryptosystem,
 
   def recoverDelegationsC1(skShares: Seq[KeyShares]): Seq[Seq[Point]] = {
     val decryptionViolatorsSKs = reconstructSecretKeys(skShares)
-    decryptor.get.decryptVector(decryptionViolatorsSKs, decryptor.get.delegationsSum.map(_._1))
+    decryptor.get.decryptVector(decryptionViolatorsSKs, decryptor.get.delegationsSum.map(_.c1))
   }
 
   def recoverChoicesC1(skShares: Seq[KeyShares], choicesSum: Seq[Ciphertext]): Seq[Seq[Point]] = {
     val decryptionViolatorsSKs = reconstructSecretKeys(skShares)
-    decryptor.get.decryptVector(decryptionViolatorsSKs, choicesSum.map(_._1))
+    decryptor.get.decryptVector(decryptionViolatorsSKs, choicesSum.map(_.c1))
   }
 
-  def reconstructSecretKeys(skShares: Seq[KeyShares]): Array[BigInteger] = {
+  def reconstructSecretKeys(skShares: Seq[KeyShares]): Array[BigInt] = {
     val decryptionViolatorsShares = skShares.map(
       member =>
         member.keyShares.map(
@@ -132,7 +136,7 @@ class CommitteeMember(val cs: Cryptosystem,
         )
     ).map(_.sortBy(_._1).map(_._2)).transpose
 
-    decryptionViolatorsShares.map(LagrangeInterpolation.restoreSecret(cs, _, dkg.t)).toArray
+    decryptionViolatorsShares.map(LagrangeInterpolation.restoreSecret(cs, _, dkg.t)).map(BigInt(_)).toArray
   }
 
   def decryptTallyR1(ballots: Seq[Ballot]): C1Share =
@@ -164,7 +168,7 @@ class CommitteeMember(val cs: Cryptosystem,
     val d = decryptor.get
 
     val delegationsC1 = c1ForDelegations.map(_.decryptedC1.map(_._1))
-    val dkgViolatorsC1 = d.decryptVector(dkgViolatorsSKs, d.delegationsSum.map(_._1))
+    val dkgViolatorsC1 = d.decryptVector(dkgViolatorsSKs, d.delegationsSum.map(_.c1))
     val decryptionViolatorsC1 = recoverDelegationsC1(skSharesIn)
     delegations = Some(d.computeDelegations(delegationsC1 ++ dkgViolatorsC1 ++ decryptionViolatorsC1))
 
@@ -191,7 +195,7 @@ class CommitteeMember(val cs: Cryptosystem,
     val d = decryptor.get
 
     val choicesSum = d.computeChoicesSum(delegations.get)
-    val dkgViolatorsC1 = d.decryptVector(dkgViolatorsSKs, choicesSum.map(_._1))
+    val dkgViolatorsC1 = d.decryptVector(dkgViolatorsSKs, choicesSum.map(_.c1))
     val decryptionViolatorsC1 = recoverChoicesC1(choicesSkSharesIn, choicesSum) ++ recoverChoicesC1(delegSkSharesIn, choicesSum)
 
     val allChoicesC1 = dkgViolatorsC1 ++ decryptionViolatorsC1 ++ c1ForChoices.map(_.decryptedC1.map(_._1))

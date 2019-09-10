@@ -36,7 +36,7 @@ object LiftedElGamalEnc {
   }
 
   /* Solve discrete logarithm for m*G. Assuming that the exponent space is not big */
-  private def discreteLog(point: GroupElement)(implicit dlogGroup: DiscreteLogGroup): Try[BigInt] = Try {
+  def discreteLog(point: GroupElement)(implicit dlogGroup: DiscreteLogGroup): Try[BigInt] = Try {
     var P = dlogGroup.groupGenerator
 
     if (point.equals(dlogGroup.groupIdentity))

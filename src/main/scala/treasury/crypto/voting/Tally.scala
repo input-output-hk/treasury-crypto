@@ -3,13 +3,15 @@ package treasury.crypto.voting
 import java.math.BigInteger
 
 import treasury.crypto.core._
+import treasury.crypto.core.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroup
 import treasury.crypto.voting.ballots.{Ballot, ExpertBallot, VoterBallot}
 
 import scala.util.Try
 
 object Tally {
 
-  case class Result(yes: BigInteger, no: BigInteger, abstain: BigInteger)
+  case class Result(yes: BigInt, no: BigInt, abstain: BigInt)
 
   /**
     * Unit-wise summation of the weighted regular voters delegations
@@ -21,7 +23,7 @@ object Tally {
     */
   def computeDelegationsSum(cs: Cryptosystem, votersBallots: Seq[VoterBallot]): Seq[Ciphertext] = {
     votersBallots.map(_.uvDelegations).transpose.map(
-      _.zip(votersBallots).foldLeft((cs.infinityPoint, cs.infinityPoint)) {
+      _.zip(votersBallots).foldLeft(ElGamalCiphertext(cs.infinityPoint, cs.infinityPoint)) {
         (sum, next) =>
           val (delegated, ballot) = next
           cs.add(cs.multiply(delegated, ballot.stake), sum)
@@ -47,7 +49,7 @@ object Tally {
     // Unit-wise summation of the weighted experts votes
     //
     val expertsChoicesSum = expertsBallots.map(_.uvChoice).transpose.map(
-      _.zip(expertsBallots).foldLeft((cs.infinityPoint, cs.infinityPoint)) {
+      _.zip(expertsBallots).foldLeft(ElGamalCiphertext(cs.infinityPoint, cs.infinityPoint)) {
         (sum, next) =>
           val (delegated, ballot) = next
           cs.add(cs.multiply(delegated, delegations(ballot.expertId)), sum)
@@ -57,7 +59,7 @@ object Tally {
     // Unit-wise summation of the weighted regular voters votes
     //
     val regularChoicesSum = votersBallots.map(_.uvChoice).transpose.map(
-      _.zip(votersBallots).foldLeft((cs.infinityPoint, cs.infinityPoint)) {
+      _.zip(votersBallots).foldLeft(ElGamalCiphertext(cs.infinityPoint, cs.infinityPoint)) {
         (sum, next) =>
           val (delegated, ballot) = next
           cs.add(cs.multiply(delegated, ballot.stake), sum)
@@ -86,7 +88,8 @@ object Tally {
   def countVotes(cs: Cryptosystem,
                  ballots: Seq[Ballot],
                  choicesC1: Seq[Seq[Point]],
-                 delegations: Seq[Element]): Try[Result] = Try {
+                 delegations: Seq[Element])
+                (implicit dlogGroup: DiscreteLogGroup): Try[Result] = Try {
 
     val votersBallots = ballots.collect { case b: VoterBallot => b }
     if (votersBallots.size > 0) {
@@ -118,13 +121,14 @@ object Tally {
     * @param encryptedVector A vector of encrypted integers.
     * @return
     */
-  def decryptVectorOnC1(cs: Cryptosystem, c1Vectors: Seq[Seq[Point]], encryptedVector: Seq[Ciphertext]): Seq[BigInteger] = {
+  def decryptVectorOnC1(cs: Cryptosystem, c1Vectors: Seq[Seq[Point]], encryptedVector: Seq[Ciphertext])
+                       (implicit dlogGroup: DiscreteLogGroup): Seq[BigInt] = {
 
     require(c1Vectors.forall(_.length == c1Vectors.head.length))
     require(encryptedVector.length == c1Vectors.head.length)
 
-    val c1Sum = c1Vectors.transpose.map(_.foldLeft(cs.infinityPoint){(sum, c1) => sum.add(c1)})
+    val c1Sum = c1Vectors.transpose.map(_.foldLeft(cs.infinityPoint){(sum, c1) => sum.multiply(c1).get})
 
-    encryptedVector.zip(c1Sum).map{case (unit, c1) => cs.discreteLog(unit._2.subtract(c1))}
+    encryptedVector.zip(c1Sum).map{case (unit, c1) => LiftedElGamalEnc.discreteLog(unit.c2.divide(c1).get).get}
   }
 }
