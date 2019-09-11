@@ -2,21 +2,26 @@ package treasury.crypto.nizk
 
 import java.math.BigInteger
 
-import treasury.crypto.core
 import treasury.crypto.core._
-import treasury.crypto.nizk.shvzk.{SHVZKGen, SHVZKVerifier}
+import treasury.crypto.core.encryption.elgamal.LiftedElGamalEnc
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory.AvailableHashes
 import treasury.crypto.nizk.unitvectornizk.MultRelationNIZK
 
 class MultRelationNIZKPerformance {
 
-  val cs = new Cryptosystem
-  val (privKey, pubKey) = cs.createKeyPair
+  implicit val group = DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256r1).get
+  implicit val hash = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
+
+  val (privKey, pubKey) = encryption.encryption.createKeyPair.get
 
   def createUnitVector(size: Int, choice: Int): (Seq[Ciphertext], Seq[Randomness]) = {
     assert(size > choice)
     val t = for (i <- 0 until size) yield {
-      val rand = cs.getRand
-      val ciphertext = cs.encrypt(pubKey, rand, if(choice == i) One else Zero)
+      val rand = group.createRandomNumber
+      val ciphertext = LiftedElGamalEnc.encrypt(pubKey, rand, if(choice == i) 1 else 0).get
       (ciphertext, rand)
     }
     (t.map(_._1), t.map(_._2))
@@ -26,16 +31,16 @@ class MultRelationNIZKPerformance {
     for (size <- unitVectorSize) {
       println("Running test for unit vector of size " + size + " ...")
       val (uv, rand) = TimeUtils.time("\tUV creation: ", createUnitVector(size, 3))
-      val value = cs.encrypt(pubKey, cs.getRand, BigInteger.valueOf(5))
-      val unitVector = for(i <- 0 until size) yield if(i == 3) core.One else core.Zero
+      val value = LiftedElGamalEnc.encrypt(pubKey, BigInteger.valueOf(5)).get._1
+      val unitVector = for(i <- 0 until size) yield if(i == 3) BigInt(1) else BigInt(0)
       val uv2 = TimeUtils.time("\tUV with value creation: ",
-        MultRelationNIZK.produceEncryptedUnitVectorWithValue(cs, pubKey, value, unitVector))
+        MultRelationNIZK.produceEncryptedUnitVectorWithValue(pubKey, value, unitVector))
       val proof = TimeUtils.time(
         "\tMultiplicative relation NIZK creation: ",
-         MultRelationNIZK.produceNIZK(cs, pubKey, value, unitVector, rand, uv2.map(_._2)))
+         MultRelationNIZK.produceNIZK(pubKey, value, unitVector, rand, uv2.map(_._2)).get)
       val verified = TimeUtils.time(
         "\tMultiplicative relation verification",
-        MultRelationNIZK.verifyNIZK(cs, pubKey, value, uv, uv2.map(_._1), proof))
+        MultRelationNIZK.verifyNIZK(pubKey, value, uv, uv2.map(_._1), proof))
       println("\tVerified: " + verified)
       println("\tProof size: " + proof.size + " bytes")
     }
@@ -45,18 +50,18 @@ class MultRelationNIZKPerformance {
     for (size <- unitVectorSize) {
       println("Running test for unit vector of size " + size + " ...")
       val (uv, rand) = TimeUtils.time("\tUV creation: ", createUnitVector(size, 3))
-      val value = cs.encrypt(pubKey, cs.getRand, BigInteger.valueOf(5))
-      val unitVector = for(i <- 0 until size) yield if(i == 3) core.One else core.Zero
+      val value = LiftedElGamalEnc.encrypt(pubKey, BigInteger.valueOf(5)).get._1
+      val unitVector = for(i <- 0 until size) yield if(i == 3) BigInt(1) else BigInt(0)
       val uv2 = TimeUtils.time("\tUV with value creation: ",
-        MultRelationNIZK.produceEncryptedUnitVectorWithValue(cs, pubKey, value, unitVector))
+        MultRelationNIZK.produceEncryptedUnitVectorWithValue(pubKey, value, unitVector))
 
-      val proof = MultRelationNIZK.produceNIZK(cs, pubKey, value, unitVector, rand, uv2.map(_._2))
+      val proof = MultRelationNIZK.produceNIZK(pubKey, value, unitVector, rand, uv2.map(_._2)).get
       TimeUtils.accurate_time("\tMultiplicative relation NIZK creation: ",
-        MultRelationNIZK.produceNIZK(cs, pubKey, value, unitVector, rand, uv2.map(_._2)))
+        MultRelationNIZK.produceNIZK(pubKey, value, unitVector, rand, uv2.map(_._2)).get)
 
       TimeUtils.accurate_time(
         "\tMultiplicative relation NIZK verification",
-        MultRelationNIZK.verifyNIZK(cs, pubKey, value, uv, uv2.map(_._1), proof))
+        MultRelationNIZK.verifyNIZK(pubKey, value, uv, uv2.map(_._1), proof))
 
       println("\tNIZK Proof size: " + proof.size + " bytes")
     }

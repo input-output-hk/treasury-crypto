@@ -4,8 +4,15 @@ import treasury.crypto.common.VotingSimulator
 import treasury.crypto.core.{Cryptosystem, TimeUtils}
 import treasury.crypto.keygen._
 import treasury.crypto.core._
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory.AvailableHashes
 
 class TallyPerformance {
+
+  implicit val group = DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256r1).get
+  implicit val hash = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
 
   def run(commiteeMembersNum: Int, violatorsPercentage: Int): Unit =
   {
@@ -21,7 +28,7 @@ class TallyPerformance {
     println("------------------------")
 
     val cs = new Cryptosystem
-    val crs_h = cs.basePoint.multiply(cs.getRand)
+    val crs_h = cs.basePoint.pow(cs.getRand).get
 
     // Generating keypairs for every commitee member
     val keyPairs = for(id <- 1 to commiteeMembersNum) yield cs.createKeyPair

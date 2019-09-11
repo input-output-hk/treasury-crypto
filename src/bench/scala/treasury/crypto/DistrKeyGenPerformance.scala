@@ -1,9 +1,16 @@
 package treasury.crypto
 
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory
+import treasury.crypto.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory
+import treasury.crypto.core.primitives.hash.CryptographicHashFactory.AvailableHashes
 import treasury.crypto.core.{Cryptosystem, SizeUtils, TimeUtils}
 import treasury.crypto.keygen._
 
 class DistrKeyGenPerformance {
+
+  implicit val group = DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256r1).get
+  implicit val hash = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
 
   def Run(commiteeMembersNum: Int, violatorsPercentage: Int): Unit = {
 //    println("--------------------------------------------------------------------------------------")
@@ -17,7 +24,7 @@ class DistrKeyGenPerformance {
     println("------------------------")
 
     val cs = new Cryptosystem
-    val crs_h = cs.basePoint.multiply(cs.getRand)
+    val crs_h = cs.basePoint.pow(cs.getRand).get
 
     val keyPairs = for(id <- 1 to commiteeMembersNum) yield cs.createKeyPair
     val committeeMembersPubKeys = keyPairs.map(_._2)
@@ -84,7 +91,7 @@ class DistrKeyGenPerformance {
 
     // Calculating the individual public keys (pk_i = g^sk_i for each committee)
     var individualPublicKeys = for(i <- committeeMembers.indices) yield
-      (committeeMembers(i).ownId, cs.basePoint.multiply(committeeMembers(i).secretKey))
+      (committeeMembers(i).ownId, cs.basePoint.pow(committeeMembers(i).secretKey).get)
 
     val sharedPublicKeys = r5_2Data.map(_.sharedPublicKey).map(cs.decodePoint)
 
@@ -92,7 +99,7 @@ class DistrKeyGenPerformance {
     assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys(0))))
 
     // Using individual public keys to calculate the shared public key without any secret key reconstruction
-    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(cs.infinityPoint){(publicKeysSum, publicKey) => publicKeysSum.add(publicKey)}
+    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(cs.infinityPoint){(publicKeysSum, publicKey) => publicKeysSum.multiply(publicKey).get}
 
     // Verify, that shared public key is equal to the original public key
     assert(publicKeysSum.equals(sharedPublicKeys(0)))
