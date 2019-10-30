@@ -8,7 +8,10 @@ import treasury.crypto.voting.{Expert, RegularVoter, Tally}
 class ProtocolTest extends FunSuite {
 
   def doTest(cs: Cryptosystem, elections: Elections): Boolean = {
-    val crs_h = cs.basePoint.multiply(cs.getRand)
+    import cs.group
+    import cs.hash
+
+    val crs_h = cs.basePoint.pow(cs.getRand).get
 
     // Generating keypairs for every commitee member
     val keyPairs = Array.fill(10)(cs.createKeyPair)

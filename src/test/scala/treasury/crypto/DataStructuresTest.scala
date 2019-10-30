@@ -17,7 +17,10 @@ class DataStructuresTest extends FunSuite {
   test("DKG round data serialization") {
 
     val cs = new Cryptosystem
-    val crs_h = cs.basePoint.multiply(cs.getRand)
+    import cs.group
+    import cs.hash
+
+    val crs_h = cs.basePoint.pow(cs.getRand).get
 
     val keyPairs = for(id <- 1 to 10) yield cs.createKeyPair
     val committeeMembersPubKeys = keyPairs.map(_._2)
@@ -34,14 +37,14 @@ class DataStructuresTest extends FunSuite {
 //    val r1Data1Restored = R1DataSerializer.parseBytes(r1Data1.bytes, cs).get
 //    assert(r1Data1.equals(r1Data1Restored))
 
-    val r1DataRestored = r1Data.map(d => R1DataSerializer.parseBytes(d.bytes, Option(cs)).get).toArray
+    val r1DataRestored = r1Data.map(d => R1DataSerializer.parseBytes(d.bytes, Option(cs.group, cs.blockCipher)).get).toArray
     assert(r1DataRestored.sameElements(r1Data))
 
     val r2Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR2(r1DataRestored)
     }
 
-    val r2DataRestored = r2Data.map(d => R2DataSerializer.parseBytes(d.bytes, Option(cs)).get).toArray
+    val r2DataRestored = r2Data.map(d => R2DataSerializer.parseBytes(d.bytes, Option(cs.group, cs.blockCipher)).get).toArray
     assert(r2DataRestored.sameElements(r2Data))
 
     val r3Data = for (i <- committeeMembersPubKeys.indices) yield {
@@ -55,14 +58,14 @@ class DataStructuresTest extends FunSuite {
       committeeMembers(i).setKeyR4(r3Data)
     }
 
-    val r4DataRestored = r4Data.map(d => R4DataSerializer.parseBytes(d.bytes, Option(cs)).get).toArray
+    val r4DataRestored = r4Data.map(d => R4DataSerializer.parseBytes(d.bytes, Option(cs.group)).get).toArray
     assert(r4DataRestored.sameElements(r4Data))
 
     val r5_1Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR5_1(r4Data)
     }
 
-    val r5_1DataRestored = r5_1Data.map(d => R5_1DataSerializer.parseBytes(d.bytes, Option(cs)).get).toArray
+    val r5_1DataRestored = r5_1Data.map(d => R5_1DataSerializer.parseBytes(d.bytes, Option(cs.group)).get).toArray
     assert(r5_1DataRestored.sameElements(r5_1Data))
 
     val r5_2Data = for (i <- committeeMembersPubKeys.indices) yield {
@@ -76,9 +79,9 @@ class DataStructuresTest extends FunSuite {
     val sharedPublicKeys = r5_2Data.map(_._2.sharedPublicKey).map(cs.decodePoint)
 
     var individualPublicKeys = for(i <- committeeMembers.indices) yield {
-      (committeeMembers(i).ownId, cs.basePoint.multiply(committeeMembers(i).secretKey))
+      (committeeMembers(i).ownId, cs.basePoint.pow(committeeMembers(i).secretKey).get)
     }
-    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(cs.infinityPoint){(publicKeysSum, publicKey) => publicKeysSum.add(publicKey)}
+    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(cs.infinityPoint){(publicKeysSum, publicKey) => publicKeysSum.multiply(publicKey).get}
 
     assert(publicKeysSum.equals(sharedPublicKeys(0)))
 
@@ -98,8 +101,8 @@ class DataStructuresTest extends FunSuite {
     }
 
     val decryptionShares = decryptionSharesBytes.map { case (deleg, choices) =>
-      ((deleg._1, C1ShareSerializer.parseBytes(deleg._2, Option(simulator.cs)).get),
-        (choices._1, C1ShareSerializer.parseBytes(choices._2, Option(simulator.cs)).get))
+      ((deleg._1, C1ShareSerializer.parseBytes(deleg._2, Option(simulator.cs.group)).get),
+        (choices._1, C1ShareSerializer.parseBytes(choices._2, Option(simulator.cs.group)).get))
     }
 
     val verified = simulator.verifyDecryptionShares(ballots, decryptionShares)

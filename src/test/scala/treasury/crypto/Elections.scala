@@ -16,6 +16,9 @@ case class ElectionsScenario1(cs: Cryptosystem) extends Elections {
   private val votersNum = 2
   private val expertsNum = 2
 
+  import cs.group
+  import cs.hash
+
   def run(sharedPubKey: PubKey): Seq[Ballot] = {
     val votersBallots =
       for (voterId <- expertsNum until (expertsNum + votersNum)) yield {
@@ -41,6 +44,9 @@ case class ElectionsScenario1(cs: Cryptosystem) extends Elections {
 
 case class ElectionsScenario2(cs: Cryptosystem) extends Elections
 {
+  import cs.group
+  import cs.hash
+
   private val MULTIPLIER = 2
 
   private val proposalID = 1

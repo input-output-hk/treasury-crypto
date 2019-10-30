@@ -7,6 +7,9 @@ import treasury.crypto.voting.{Expert, RegularVoter, Voter}
 class VoterTest extends FunSuite {
 
   val cs = new Cryptosystem
+  import cs.group
+  import cs.hash
+
   val (privKey, pubKey) = cs.createKeyPair
 
   test("test zero knowledge proof for Voter ballot") {
