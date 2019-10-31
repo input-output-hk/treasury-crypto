@@ -136,7 +136,7 @@ class CommitteeMember(val cs: Cryptosystem,
         )
     ).map(_.sortBy(_._1).map(_._2)).transpose
 
-    decryptionViolatorsShares.map(LagrangeInterpolation.restoreSecret(cs, _, dkg.t)).map(BigInt(_)).toArray
+    decryptionViolatorsShares.map(LagrangeInterpolation.restoreSecret(cs, _, dkg.t)).toArray
   }
 
   def decryptTallyR1(ballots: Seq[Ballot]): C1Share =

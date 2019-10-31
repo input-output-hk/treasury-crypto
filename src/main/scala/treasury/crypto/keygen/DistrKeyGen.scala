@@ -924,7 +924,7 @@ object DistrKeyGen {
 
     if (sufficientNumOfShares){
       val violatorsSecretKeys = disqualifiedR3MembersShares.map(
-        share => BigInt(LagrangeInterpolation.restoreSecret(cs, share.violatorShares, t))
+        share => LagrangeInterpolation.restoreSecret(cs, share.violatorShares, t)
       )
       val violatorsPublicKeys = violatorsSecretKeys.map(cs.basePoint.pow(_).get)
 

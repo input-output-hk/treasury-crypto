@@ -38,7 +38,7 @@ package object core {
 
     def getRand: Randomness = {
       drng.generate(randBytes, null, false)
-      new BigInteger(randBytes).mod(cs.orderOfBasePoint)
+      BigInt(randBytes).mod(cs.orderOfBasePoint)
     }
   }
 

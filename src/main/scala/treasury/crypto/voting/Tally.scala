@@ -1,7 +1,5 @@
 package treasury.crypto.voting
 
-import java.math.BigInteger
-
 import treasury.crypto.core._
 import treasury.crypto.core.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
 import treasury.crypto.core.primitives.dlog.DiscreteLogGroup

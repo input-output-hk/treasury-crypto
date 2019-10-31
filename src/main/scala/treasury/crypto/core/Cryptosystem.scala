@@ -55,7 +55,7 @@ class Cryptosystem {
   *  A plaintext is represented as BigInteger.
   * */
   def encrypt(pubKey: PubKey, rand: Randomness, msg: BigInteger): Ciphertext = {
-    LiftedElGamalEnc.encrypt(pubKey, BigInt(msg)).get._1
+    LiftedElGamalEnc.encrypt(pubKey, rand, BigInt(msg)).get
   }
 
   /* Implements Elliptic Curve version of Lifted ElGamal decryption.
