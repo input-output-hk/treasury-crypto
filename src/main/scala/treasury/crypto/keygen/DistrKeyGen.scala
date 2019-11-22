@@ -786,8 +786,8 @@ object DistrKeyGen {
     )
 
     // Check if an encrypted opened share is the same as secret share
-    secretShare.S.encryptedMessage.equals(
-      shareCiphertext.encryptedMessage
+    secretShare.S.encryptedMessage.bytes.sameElements(
+      shareCiphertext.encryptedMessage.bytes
     )
   }
 
