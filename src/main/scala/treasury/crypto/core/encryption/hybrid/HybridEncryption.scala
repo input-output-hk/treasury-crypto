@@ -3,7 +3,9 @@ package treasury.crypto.core.encryption.hybrid
 import treasury.crypto.core.encryption.elgamal.ElGamalEnc
 import treasury.crypto.core.encryption.encryption.{PrivKey, PubKey}
 import treasury.crypto.core.primitives.blockcipher.BlockCipher
+import treasury.crypto.core.primitives.blockcipher.bouncycastle.AES128_GSM_Bc.keySize
 import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, GroupElement}
+import treasury.crypto.core.primitives.numbergenerator.SP800DRNG
 
 import scala.util.Try
 
@@ -59,7 +61,10 @@ object HybridEncryption {
 
     val symmetricKey = blockCipher.generateKey(secretSeedAsGroupElement.bytes)
     val encryptedMessage = blockCipher.encrypt(symmetricKey, msg).get
-    val encryptedGroupElement = ElGamalEnc.encrypt(pubKey, secretSeedAsGroupElement).get._1
+
+    // to make output of ElGamalEnc.encrypt deterministic, we produce the randomness based on symmetric key. TODO: is it secure?
+    val randomness = new SP800DRNG(symmetricKey.bytes).nextBytes(128)
+    val encryptedGroupElement = ElGamalEnc.encrypt(pubKey, BigInt(randomness), secretSeedAsGroupElement).get
 
     HybridCiphertext(encryptedGroupElement, encryptedMessage)
   }

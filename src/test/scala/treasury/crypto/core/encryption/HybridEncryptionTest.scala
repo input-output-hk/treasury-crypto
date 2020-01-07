@@ -82,4 +82,25 @@ class HybridEncryptionTest extends FunSuite with TableDrivenPropertyChecks {
       }
     }
   }
+
+  test("HybridCiphertext should produce the same ciphertext (by byte-to-byte comparison) provided with the same secret seed") {
+    forAll(dlogGroups) { implicit group =>
+      forAll(blockCiphers) { implicit blockCipher =>
+        val message = "Message".getBytes
+        val (privKey, pubKey) = encryption.createKeyPair.get
+        val seedAsGroupElement = group.createRandomGroupElement.get
+        val secretSeed = group.createRandomNumber.toByteArray
+
+        val ciphertext1 = HybridEncryption.encrypt(pubKey, message, seedAsGroupElement).get
+        val ciphertext2 = HybridEncryption.encrypt(pubKey, message, seedAsGroupElement).get
+
+        require(ciphertext1.bytes.sameElements(ciphertext2.bytes))
+
+        val ciphertext3 = HybridEncryption.encrypt(pubKey, message, secretSeed).get
+        val ciphertext4 = HybridEncryption.encrypt(pubKey, message, secretSeed).get
+
+        require(ciphertext3.bytes.sameElements(ciphertext4.bytes))
+      }
+    }
+  }
 }
