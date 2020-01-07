@@ -7,6 +7,7 @@ import treasury.crypto.core.encryption.encryption._
 import treasury.crypto.core.encryption.elgamal.ElGamalCiphertext
 import treasury.crypto.core.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import treasury.crypto.core.primitives.hash.CryptographicHash
+import treasury.crypto.core.primitives.numbergenerator.SP800DRNG
 import treasury.crypto.core.serialization.{BytesSerializable, Serializer}
 
 import scala.util.Try
@@ -20,7 +21,9 @@ object ElgamalDecrNIZK {
   def produceNIZK(ciphertext: ElGamalCiphertext, privKey: PrivKey)
                  (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Try[ElgamalDecrNIZKProof] = Try {
 
-    val w = dlogGroup.createRandomNumber
+    //val w = dlogGroup.createRandomNumber
+    val randomness = new SP800DRNG(privKey.toByteArray).nextBytes(128) // TODO: we need deterministic proofs (for DKG stuff). Is it secure to do it this way?
+    val w = BigInt(randomness)
     val A1 = dlogGroup.groupGenerator.pow(w).get
     val A2 = ciphertext.c1.pow(w).get
     val D = ciphertext.c1.pow(privKey).get
