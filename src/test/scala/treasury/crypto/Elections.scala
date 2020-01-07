@@ -36,9 +36,9 @@ case class ElectionsScenario1(cs: Cryptosystem) extends Elections {
   }
 
   def verify(tallyRes: Result): Boolean = {
-    tallyRes.yes.equals(BigInteger.valueOf(6))&&
-    tallyRes.no.equals(Zero) &&
-    tallyRes.abstain.equals(Zero)
+    tallyRes.yes == 6 &&
+    tallyRes.no == 0 &&
+    tallyRes.abstain == 0
   }
 }
 
@@ -78,8 +78,8 @@ case class ElectionsScenario2(cs: Cryptosystem) extends Elections
   }
 
   def verify(tallyRes: Result): Boolean = {
-    tallyRes.yes.equals(BigInteger.valueOf(15 * MULTIPLIER)) &&
-    tallyRes.no.equals(BigInteger.valueOf(40 * MULTIPLIER)) &&
-    tallyRes.abstain.equals(BigInteger.valueOf(15 * MULTIPLIER))
+    tallyRes.yes == 15 * MULTIPLIER &&
+    tallyRes.no == 40 * MULTIPLIER &&
+    tallyRes.abstain == 15 * MULTIPLIER
   }
 }
