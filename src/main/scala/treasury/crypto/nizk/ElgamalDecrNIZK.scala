@@ -22,7 +22,12 @@ object ElgamalDecrNIZK {
                  (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Try[ElgamalDecrNIZKProof] = Try {
 
     //val w = dlogGroup.createRandomNumber
-    val randomness = new SP800DRNG(privKey.toByteArray).nextBytes(128) // TODO: we need deterministic proofs (for DKG stuff). Is it secure to do it this way?
+    // TODO: we need deterministic proofs (for DKG stuff). Is it secure to do it this way?
+    // TODO: Seems like yes if the algorithm is not used twice with the same input params. If it does
+    // TODO: then it will leak relevance between two proofs because the they would be the same. But this should be fine and maybe even useful.
+    // TODO: Actually determinism is not really needed, but some DKG unit tests rely on this property.
+    val randomness = new SP800DRNG(privKey.toByteArray ++ ciphertext.bytes).nextBytes(128)
+
     val w = BigInt(randomness)
     val A1 = dlogGroup.groupGenerator.pow(w).get
     val A2 = ciphertext.c1.pow(w).get

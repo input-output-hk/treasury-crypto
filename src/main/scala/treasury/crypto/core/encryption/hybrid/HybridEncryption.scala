@@ -62,8 +62,11 @@ object HybridEncryption {
     val symmetricKey = blockCipher.generateKey(secretSeedAsGroupElement.bytes)
     val encryptedMessage = blockCipher.encrypt(symmetricKey, msg).get
 
-    // to make output of ElGamalEnc.encrypt deterministic, we produce the randomness based on symmetric key. TODO: is it secure?
-    val randomness = new SP800DRNG(symmetricKey.bytes).nextBytes(128)
+    // to make output of ElGamalEnc.encrypt deterministic, we produce the randomness based on symmetric key and msg.
+    // TODO: is it secure? - Seems like yes if the algorithm is not used twice with the same input params. If it does
+    // TODO: then it will leak relevance between two encryptions because the ciphertexts would be the same.
+    // TODO: Actually determinism is not really needed, but some DKG unit tests rely on this property. Better to refactor this.
+    val randomness = new SP800DRNG(symmetricKey.bytes ++ msg).nextBytes(128)
     val encryptedGroupElement = ElGamalEnc.encrypt(pubKey, BigInt(randomness), secretSeedAsGroupElement).get
 
     HybridCiphertext(encryptedGroupElement, encryptedMessage)
