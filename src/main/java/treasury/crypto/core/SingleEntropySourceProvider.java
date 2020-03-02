@@ -3,8 +3,8 @@ package treasury.crypto.core;
 import org.bouncycastle.crypto.prng.EntropySource;
 import org.bouncycastle.crypto.prng.EntropySourceProvider;
 
-// Fragment taken from here:
-// http://book2s.com/java/src/package/org/cryptoworkshop/ximix/common/util/challenge/seededchallenger.html
+// Fragment is taken from here:
+// https://www.cryptoworkshop.com/ximix/coverage/org.cryptoworkshop.ximix.common.util.challenge/SeededChallenger.java.html
 
 class SingleEntropySourceProvider implements
         EntropySourceProvider {
