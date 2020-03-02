@@ -18,7 +18,7 @@ case class ExpertBallot(
 ) extends Ballot {
 
   override type M = Ballot
-  override val serializer = BallotCompanion
+  override val serializer = BallotSerializer
 
   override val ballotTypeId: Byte = ExpertBallot.BallotTypeId
 
@@ -29,7 +29,7 @@ object ExpertBallot {
   val BallotTypeId = 2.toByte
 }
 
-object ExpertBallotCompanion extends Serializer[ExpertBallot, DiscreteLogGroup] {
+object ExpertBallotSerializer extends Serializer[ExpertBallot, DiscreteLogGroup] {
   override def toBytes(b: ExpertBallot): Array[Byte] = {
     val uvBytes = b.unitVector.foldLeft(Array[Byte]()) { (acc, b) =>
       val bytes = b.bytes

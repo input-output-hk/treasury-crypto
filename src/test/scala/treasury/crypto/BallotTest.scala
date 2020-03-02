@@ -7,7 +7,7 @@ import treasury.crypto.core.primitives.hash.CryptographicHashFactory
 import treasury.crypto.core.primitives.hash.CryptographicHashFactory.AvailableHashes
 import treasury.crypto.core.{Cryptosystem, One, VoteCases}
 import treasury.crypto.voting._
-import treasury.crypto.voting.ballots.{BallotCompanion, ExpertBallot, VoterBallot}
+import treasury.crypto.voting.ballots.{BallotSerializer, ExpertBallot, VoterBallot}
 
 class BallotTest extends FunSuite {
 
@@ -21,7 +21,7 @@ class BallotTest extends FunSuite {
     val numberOfExperts = 6
     val voter = new RegularVoter(cs, numberOfExperts, pubKey, One)
     val ballotBytes = voter.produceVote(0, VoteCases.Abstain).bytes
-    val ballot = BallotCompanion.parseBytes(ballotBytes, Option(cs.group)).get.asInstanceOf[VoterBallot]
+    val ballot = BallotSerializer.parseBytes(ballotBytes, Option(cs.group)).get.asInstanceOf[VoterBallot]
 
     assert(voter.verifyBallot(ballot))
     assert(ballot.proposalId == 0)
@@ -34,7 +34,7 @@ class BallotTest extends FunSuite {
     val numberOfExperts = 0
     val voter = new RegularVoter(cs, numberOfExperts, pubKey, One)
     val ballotBytes = voter.produceVote(0, VoteCases.Abstain).bytes
-    val ballot = BallotCompanion.parseBytes(ballotBytes, Option(cs.group)).get.asInstanceOf[VoterBallot]
+    val ballot = BallotSerializer.parseBytes(ballotBytes, Option(cs.group)).get.asInstanceOf[VoterBallot]
 
     assert(voter.verifyBallot(ballot))
     assert(ballot.proposalId == 0)
@@ -47,7 +47,7 @@ class BallotTest extends FunSuite {
     val id = 5
     val voter = new Expert(cs, id, pubKey)
     val ballotBytes = voter.produceVote(0, VoteCases.Abstain).bytes
-    val ballot = BallotCompanion.parseBytes(ballotBytes, Option(cs.group)).get.asInstanceOf[ExpertBallot]
+    val ballot = BallotSerializer.parseBytes(ballotBytes, Option(cs.group)).get.asInstanceOf[ExpertBallot]
 
     assert(voter.verifyBallot(ballot))
     assert(ballot.proposalId == 0)

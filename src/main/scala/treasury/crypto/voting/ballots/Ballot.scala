@@ -24,17 +24,17 @@ trait Ballot extends BytesSerializable {
   def unitVector: Array[Ciphertext]
 }
 
-object BallotCompanion extends Serializer[Ballot, DiscreteLogGroup] {
+object BallotSerializer extends Serializer[Ballot, DiscreteLogGroup] {
   override def toBytes(b: Ballot): Array[Byte] = b match {
-    case v: VoterBallot => Bytes.concat(Array(v.ballotTypeId), VoterBallotCompanion.toBytes(v))
-    case e: ExpertBallot => Bytes.concat(Array(e.ballotTypeId), ExpertBallotCompanion.toBytes(e))
+    case v: VoterBallot => Bytes.concat(Array(v.ballotTypeId), VoterBallotSerializer.toBytes(v))
+    case e: ExpertBallot => Bytes.concat(Array(e.ballotTypeId), ExpertBallotSerializer.toBytes(e))
   }
 
   override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[Ballot] = Try {
     val ballotTypeId = bytes(0)
     ballotTypeId match {
-      case id if id == VoterBallot.BallotTypeId => VoterBallotCompanion.parseBytes(bytes.drop(1), decoder).get
-      case id if id == ExpertBallot.BallotTypeId => ExpertBallotCompanion.parseBytes(bytes.drop(1), decoder).get
+      case VoterBallot.BallotTypeId => VoterBallotSerializer.parseBytes(bytes.drop(1), decoder).get
+      case ExpertBallot.BallotTypeId => ExpertBallotSerializer.parseBytes(bytes.drop(1), decoder).get
     }
   }
 }
