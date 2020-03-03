@@ -1,13 +1,14 @@
 package io.iohk
 
 import io.iohk.common.VotingSimulator
-import io.iohk.core.{Cryptosystem, TimeUtils}
-import io.iohk.keygen._
+import io.iohk.core.TimeUtils
+import io.iohk.protocol.keygen._
 import io.iohk.core._
-import io.iohk.core.primitives.dlog.DiscreteLogGroupFactory
-import io.iohk.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
-import io.iohk.core.primitives.hash.CryptographicHashFactory
-import io.iohk.core.primitives.hash.CryptographicHashFactory.AvailableHashes
+import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory
+import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
+import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
+import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
+import io.iohk.protocol.Cryptosystem
 
 class TallyPerformance {
 

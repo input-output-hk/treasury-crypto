@@ -3,8 +3,8 @@ package io.iohk
 import java.math.BigInteger
 
 import com.google.common.primitives.{Bytes, Ints}
-import io.iohk.core.encryption.elgamal.ElGamalCiphertext
-import io.iohk.core.primitives.dlog.{DiscreteLogGroup, GroupElement}
+import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
+import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import org.scalameter._
 
@@ -12,11 +12,11 @@ import scala.util.Try
 
 package object core {
 
-  type PrivKey = core.encryption.PrivKey
-  type PubKey = core.encryption.PubKey
+  type PrivKey = io.iohk.core.crypto.encryption.PrivKey
+  type PubKey = io.iohk.core.crypto.encryption.PubKey
   type KeyPair = (PrivKey, PubKey)
   type Ciphertext = ElGamalCiphertext
-  type Randomness = core.encryption.Randomness
+  type Randomness = io.iohk.core.crypto.encryption.Randomness
   type Point = GroupElement
   type Element = BigInt
 

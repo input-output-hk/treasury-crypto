@@ -2,7 +2,7 @@ package io.iohk
 
 import io.iohk.common.VotingSimulator
 import io.iohk.core.TimeUtils
-import io.iohk.voting.VotingOptions
+import io.iohk.protocol.voting.VotingOptions
 
 /* Benchmarking ballot creation */
 class BallotCreationPerformance {

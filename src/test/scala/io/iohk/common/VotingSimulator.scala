@@ -3,11 +3,12 @@ package io.iohk.common
 import java.math.BigInteger
 
 import io.iohk.core._
-import io.iohk.decryption.DecryptionManager
-import io.iohk.keygen.datastructures.C1Share
-import io.iohk.voting.Tally.Result
-import io.iohk.voting._
-import io.iohk.voting.ballots.{Ballot, ExpertBallot, VoterBallot}
+import io.iohk.protocol.Cryptosystem
+import io.iohk.protocol.decryption.DecryptionManager
+import io.iohk.protocol.keygen.datastructures.C1Share
+import io.iohk.protocol.voting.Tally.Result
+import io.iohk.protocol.voting._
+import io.iohk.protocol.voting.ballots.{Ballot, ExpertBallot, VoterBallot}
 
 import scala.util.Try
 

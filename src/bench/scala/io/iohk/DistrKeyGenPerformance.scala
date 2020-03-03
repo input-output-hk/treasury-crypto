@@ -1,11 +1,12 @@
 package io.iohk
 
-import io.iohk.core.primitives.dlog.DiscreteLogGroupFactory
-import io.iohk.core.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
-import io.iohk.core.primitives.hash.CryptographicHashFactory
-import io.iohk.core.primitives.hash.CryptographicHashFactory.AvailableHashes
-import io.iohk.core.{Cryptosystem, SizeUtils, TimeUtils}
-import io.iohk.keygen._
+import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory
+import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
+import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
+import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
+import io.iohk.core.{SizeUtils, TimeUtils}
+import io.iohk.protocol.Cryptosystem
+import io.iohk.protocol.keygen._
 
 class DistrKeyGenPerformance {
 
