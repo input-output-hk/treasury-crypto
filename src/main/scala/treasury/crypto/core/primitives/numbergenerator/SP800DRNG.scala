@@ -13,14 +13,15 @@ class SP800DRNG(seed: Array[Byte]) extends DeterministicRandomNumberGenerator(se
 
   override def nextBytes(length: Int): Array[Byte] = {
     val bytes = new Array[Byte](length)
-    drng.generate(bytes, null, false)
+    val len = drng.generate(bytes, null, false)
+    require(len == length * 8)
     bytes
   }
 }
 
 object SP800DRNG {
 
-  // The implementation is based on: http://book2s.com/java/src/package/org/cryptoworkshop/ximix/common/util/challenge/seededchallenger.html
+  // The implementation is based on: https://www.cryptoworkshop.com/ximix/coverage/org.cryptoworkshop.ximix.common.util.challenge/SeededChallenger.java.html
   private class SingleEntropySourceProvider (val data: Array[Byte]) extends EntropySourceProvider {
 
     override def get(bitsRequired: Int): EntropySource =

@@ -31,16 +31,16 @@ package object core {
   val One:  BigInteger = BigInteger.ONE
 
   // Generates deterministic sequence of elements in Zp field (p = orderOfBasePoint), which depends on seed
-  case class DRNG (seed: Array[Byte], cs: Cryptosystem) {
-
-    private val drng = new HashSP800DRBG(new SHA256Digest(), 256, new SingleEntropySourceProvider(cs.hash256(seed)).get(256), null, null)
-    private val randBytes = new Array[Byte]((cs.orderOfBasePoint.bitLength.toFloat / 8).ceil.toInt)
-
-    def getRand: Randomness = {
-      drng.generate(randBytes, null, false)
-      BigInt(randBytes).mod(cs.orderOfBasePoint)
-    }
-  }
+//  case class DRNG (seed: Array[Byte], cs: Cryptosystem) {
+//
+//    private val drng = new HashSP800DRBG(new SHA256Digest(), 256, new SingleEntropySourceProvider(cs.hash256(seed)).get(256), null, null)
+//    private val randBytes = new Array[Byte]((cs.orderOfBasePoint.bitLength.toFloat / 8).ceil.toInt)
+//
+//    def getRand: Randomness = {
+//      drng.generate(randBytes, null, false)
+//      BigInt(randBytes).mod(cs.orderOfBasePoint)
+//    }
+//  }
 
 //  case class HybridCiphertext(encryptedKey: Ciphertext, encryptedMessage: Array[Byte])
 //    extends BytesSerializable {
