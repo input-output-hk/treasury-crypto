@@ -159,10 +159,6 @@ package object core {
 //    }
 //  }
 
-  object VoteCases extends Enumeration {
-    val Yes, No, Abstain = Value
-  }
-
   object TimeUtils {
     def time[R](block: => R): R = {
       val t0 = System.nanoTime()

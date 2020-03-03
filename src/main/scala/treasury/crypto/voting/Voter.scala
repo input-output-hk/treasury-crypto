@@ -39,12 +39,12 @@ class RegularVoter(val cs: Cryptosystem,
                    val stake: BigInteger)
                   (implicit dlogGroup: DiscreteLogGroup, hash: CryptographicHash) extends Voter {
 
-  def produceVote(proposalID: Integer, choice: VoteCases.Value, withProof: Boolean = true): VoterBallot = {
+  def produceVote(proposalID: Integer, choice: VotingOptions.Value, withProof: Boolean = true): VoterBallot = {
 
     val nonZeroPos = choice match {
-      case VoteCases.Yes      => 0
-      case VoteCases.No       => 1
-      case VoteCases.Abstain  => 2
+      case VotingOptions.Yes      => 0
+      case VotingOptions.No       => 1
+      case VotingOptions.Abstain  => 2
     }
 
     val (uvDelegVector, uvDelegRand) = produceUnitVector(expertsNum, -1)
@@ -77,12 +77,12 @@ case class Expert(cs: Cryptosystem,
                   publicKey: PubKey)
                  (implicit dlogGroup: DiscreteLogGroup, hash: CryptographicHash) extends Voter {
 
-  def produceVote(proposalID: Integer, choice: VoteCases.Value, withProof: Boolean = true): ExpertBallot = {
+  def produceVote(proposalID: Integer, choice: VotingOptions.Value, withProof: Boolean = true): ExpertBallot = {
 
     val nonZeroPos = choice match {
-      case VoteCases.Yes      => 0
-      case VoteCases.No       => 1
-      case VoteCases.Abstain  => 2
+      case VotingOptions.Yes      => 0
+      case VotingOptions.No       => 1
+      case VotingOptions.Abstain  => 2
     }
 
     val (uvChoiceVector, uvChoiceRand) = produceUnitVector(Voter.VOTER_CHOISES_NUM, nonZeroPos)

@@ -1,15 +1,13 @@
 package treasury.crypto
 
 import org.scalatest.FunSuite
-import treasury.crypto.core.{Cryptosystem, PubKey, VoteCases, Zero}
+import treasury.crypto.core.Cryptosystem
 import treasury.crypto.keygen._
-import treasury.crypto.voting.{Expert, RegularVoter, Tally}
 
 class ProtocolTest extends FunSuite {
 
   def doTest(cs: Cryptosystem, elections: Elections): Boolean = {
-    import cs.group
-    import cs.hash
+    import cs.{group, hash}
 
     val crs_h = cs.basePoint.pow(cs.getRand).get
 

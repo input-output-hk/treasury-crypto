@@ -1,7 +1,8 @@
 package treasury.crypto
 
 import treasury.crypto.common.VotingSimulator
-import treasury.crypto.core.{TimeUtils, VoteCases}
+import treasury.crypto.core.TimeUtils
+import treasury.crypto.voting.VotingOptions
 
 /* Benchmarking ballot creation */
 class BallotCreationPerformance {
@@ -14,9 +15,9 @@ class BallotCreationPerformance {
 
       println("Running test for " + experts + " experts ...")
 
-      TimeUtils.accurate_time("\tVoter ballot creation: ", simulator.createVoterBallot(1, 1, 1, VoteCases.Yes))
+      TimeUtils.accurate_time("\tVoter ballot creation: ", simulator.createVoterBallot(1, 1, 1, VotingOptions.Yes))
 
-      val ballot = simulator.createVoterBallot(1, 1, 1, VoteCases.Yes)
+      val ballot = simulator.createVoterBallot(1, 1, 1, VotingOptions.Yes)
       val ballotSize = ballot.unitVector.foldLeft(0) {
         (acc, c) => acc + c.bytes.size
       }
@@ -24,9 +25,9 @@ class BallotCreationPerformance {
       println("\tVoter ballot size: " + ballotSize + " bytes")
       println("\tVoter ballot proof size: " + ballot.proof.size + " bytes")
 
-      TimeUtils.accurate_time("\tExpert ballot creation: ", simulator.createExpertBallot(1, 1, VoteCases.Yes))
+      TimeUtils.accurate_time("\tExpert ballot creation: ", simulator.createExpertBallot(1, 1, VotingOptions.Yes))
 
-      val exballot = simulator.createExpertBallot(1, 1, VoteCases.Yes)
+      val exballot = simulator.createExpertBallot(1, 1, VotingOptions.Yes)
       val exballotSize = exballot.unitVector.foldLeft(0) {
         (acc, c) => acc + c.bytes.size
       }

@@ -1,14 +1,13 @@
 package treasury.crypto
 
 import org.scalatest.FunSuite
-import treasury.crypto.core.{Cryptosystem, One, VoteCases}
-import treasury.crypto.voting.{Expert, RegularVoter, Voter}
+import treasury.crypto.core.{Cryptosystem, One}
+import treasury.crypto.voting.{Expert, RegularVoter, Voter, VotingOptions}
 
 class VoterTest extends FunSuite {
 
   val cs = new Cryptosystem
-  import cs.group
-  import cs.hash
+  import cs.{group, hash}
 
   val (privKey, pubKey) = cs.createKeyPair
 
@@ -17,7 +16,7 @@ class VoterTest extends FunSuite {
     val numberOfExperts = 6
 
     val voter = new RegularVoter(cs, numberOfExperts, pubKey, One)
-    val ballot = voter.produceVote(0, VoteCases.Abstain)
+    val ballot = voter.produceVote(0, VotingOptions.Abstain)
 
     assert(voter.verifyBallot(ballot))
     assert(ballot.unitVector.size == numberOfExperts + Voter.VOTER_CHOISES_NUM)
@@ -27,7 +26,7 @@ class VoterTest extends FunSuite {
     val voterId = 6
 
     val voter = new Expert(cs, voterId, pubKey)
-    val ballot = voter.produceVote(0, VoteCases.Abstain)
+    val ballot = voter.produceVote(0, VotingOptions.Abstain)
 
     assert(voter.verifyBallot(ballot))
     assert(ballot.unitVector.size == Voter.VOTER_CHOISES_NUM)

@@ -1,10 +1,10 @@
 package treasury.crypto
 import java.math.BigInteger
 
-import treasury.crypto.core.{Cryptosystem, PubKey, VoteCases, Zero}
+import treasury.crypto.core.{Cryptosystem, PubKey}
 import treasury.crypto.voting.Tally.Result
 import treasury.crypto.voting.ballots.Ballot
-import treasury.crypto.voting.{Expert, RegularVoter}
+import treasury.crypto.voting.{Expert, RegularVoter, VotingOptions}
 
 trait Elections {
   def run(sharedPubKey: PubKey): Seq[Ballot]
@@ -16,8 +16,7 @@ case class ElectionsScenario1(cs: Cryptosystem) extends Elections {
   private val votersNum = 2
   private val expertsNum = 2
 
-  import cs.group
-  import cs.hash
+  import cs.{group, hash}
 
   def run(sharedPubKey: PubKey): Seq[Ballot] = {
     val votersBallots =
@@ -29,7 +28,7 @@ case class ElectionsScenario1(cs: Cryptosystem) extends Elections {
     val expertsBallots =
       for (expertId <- 0 until expertsNum) yield {
         Expert(cs, expertId, sharedPubKey)
-          .produceVote(proposalID, VoteCases.Yes)
+          .produceVote(proposalID, VotingOptions.Yes)
       }
 
     votersBallots ++ expertsBallots
@@ -44,8 +43,7 @@ case class ElectionsScenario1(cs: Cryptosystem) extends Elections {
 
 case class ElectionsScenario2(cs: Cryptosystem) extends Elections
 {
-  import cs.group
-  import cs.hash
+  import cs.{group, hash}
 
   private val MULTIPLIER = 2
 
@@ -59,7 +57,7 @@ case class ElectionsScenario2(cs: Cryptosystem) extends Elections
     val votersBallots =
       for (voterId <- expertsNum until (expertsNum + votersNum)) yield {
         new RegularVoter(cs, expertsNum, sharedPubKey, BigInteger.valueOf(3))
-          .produceVote(proposalID, if (voterId % 2 == 1) VoteCases.Yes else VoteCases.Abstain)
+          .produceVote(proposalID, if (voterId % 2 == 1) VotingOptions.Yes else VotingOptions.Abstain)
       }
 
     val votersDelegatedBallots =
@@ -71,7 +69,7 @@ case class ElectionsScenario2(cs: Cryptosystem) extends Elections
     val expertsBallots =
       for (expertId <- 0 until expertsNum) yield {
         Expert(cs, expertId, sharedPubKey)
-          .produceVote(proposalID, VoteCases.No)
+          .produceVote(proposalID, VotingOptions.No)
       }
 
     votersBallots ++ votersDelegatedBallots ++ expertsBallots

@@ -5,13 +5,10 @@ import java.math.BigInteger
 import treasury.crypto.core._
 import treasury.crypto.decryption.DecryptionManager
 import treasury.crypto.keygen.datastructures.C1Share
-import treasury.crypto.nizk.ElgamalDecrNIZK
-import treasury.crypto.voting.Tally.decryptVectorOnC1
 import treasury.crypto.voting._
 import treasury.crypto.voting.ballots.{Ballot, ExpertBallot, VoterBallot}
 
 import scala.util.Try
-import scala.xml.dtd.ValidationException
 
 
 class VotingSimulator(
@@ -24,8 +21,7 @@ class VotingSimulator(
 ) {
 
   val cs = new Cryptosystem
-  import cs.group
-  import cs.hash
+  import cs.{group, hash}
 
   protected lazy val committeeMembers = Array.fill(numberOfCommitteeMembers)(cs.createKeyPair)
   protected val sharedPublicKey = sharedPubKey.getOrElse(
@@ -35,7 +31,7 @@ class VotingSimulator(
     voterId: Int,
     projectId: Int,
     delegation: Int,
-    choice: VoteCases.Value
+    choice: VotingOptions.Value
   ): VoterBallot = {
 
     val voter = new RegularVoter(cs, numberOfExperts, sharedPublicKey, BigInteger.valueOf(stakePerVoter))
@@ -45,7 +41,7 @@ class VotingSimulator(
       voter.produceVote(projectId, choice, withProofs)
   }
 
-  def createExpertBallot(expertId: Int, projectId: Int, choice: VoteCases.Value): ExpertBallot = {
+  def createExpertBallot(expertId: Int, projectId: Int, choice: VotingOptions.Value): ExpertBallot = {
     new Expert(cs, expertId, sharedPublicKey).produceVote(projectId, choice, withProofs)
   }
 
@@ -53,13 +49,13 @@ class VotingSimulator(
     require((yes + no + abstain) == numberOfExperts)
 
     val yesBallots = for (expertId <- (0 until yes).par) yield {
-      createExpertBallot(expertId, 0, VoteCases.Yes)
+      createExpertBallot(expertId, 0, VotingOptions.Yes)
     }
     val noBallots = for (expertId <- (yes until no).par) yield {
-      createExpertBallot(expertId, 0, VoteCases.No)
+      createExpertBallot(expertId, 0, VotingOptions.No)
     }
     val abstainBallots = for (expertId <- (no until abstain).par) yield {
-      createExpertBallot(expertId, 0, VoteCases.Abstain)
+      createExpertBallot(expertId, 0, VotingOptions.Abstain)
     }
 
     yesBallots.seq ++ noBallots.seq ++ abstainBallots.seq
@@ -70,16 +66,16 @@ class VotingSimulator(
     require(deleg._1 >= 0 && deleg._1 < numberOfExperts)
 
     val delegBallots = for (voterId <- (0 until deleg._2).par) yield {
-      createVoterBallot(voterId, 0, deleg._1, VoteCases.Yes)
+      createVoterBallot(voterId, 0, deleg._1, VotingOptions.Yes)
     }
     val yesBallots = for (voterId <- (0 until yes).par) yield {
-      createVoterBallot(voterId, 0, -1, VoteCases.Yes)
+      createVoterBallot(voterId, 0, -1, VotingOptions.Yes)
     }
     val noBallots = for (voterId <- (yes until no).par) yield {
-      createVoterBallot(voterId, 0, -1, VoteCases.No)
+      createVoterBallot(voterId, 0, -1, VotingOptions.No)
     }
     val abstainBallots = for (voterId <- (no until abstain).par) yield {
-      createVoterBallot(voterId, 0, -1, VoteCases.Abstain)
+      createVoterBallot(voterId, 0, -1, VotingOptions.Abstain)
     }
 
     delegBallots.seq ++ yesBallots.seq ++ noBallots.seq ++ abstainBallots.seq
