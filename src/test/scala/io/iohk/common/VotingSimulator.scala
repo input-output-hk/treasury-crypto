@@ -1,7 +1,5 @@
 package io.iohk.common
 
-import java.math.BigInteger
-
 import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.protocol.Cryptosystem
 import io.iohk.protocol.decryption.DecryptionManager
@@ -36,7 +34,7 @@ class VotingSimulator(
     choice: VotingOptions.Value
   ): VoterBallot = {
 
-    val voter = new RegularVoter(cs, numberOfExperts, sharedPublicKey, BigInteger.valueOf(stakePerVoter))
+    val voter = new RegularVoter(cs, numberOfExperts, sharedPublicKey, stakePerVoter)
     if (delegation >= 0 && delegation < numberOfExperts)
       voter.produceDelegatedVote(projectId, delegation, withProofs)
     else

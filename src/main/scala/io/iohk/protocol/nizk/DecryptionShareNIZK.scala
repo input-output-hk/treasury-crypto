@@ -1,7 +1,5 @@
 package io.iohk.protocol.nizk
 
-import java.math.BigInteger
-
 import io.iohk.core.crypto.encryption.{PrivKey, PubKey}
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHash
@@ -22,7 +20,7 @@ object DecryptionShareNIZK {
     val A2 = dlogGroup.exponentiate(share, w).get
     val D = dlogGroup.exponentiate(share, privKey).get
 
-    val e = new BigInteger(
+    val e = BigInt(
       hashFunction.hash {
         share.bytes ++
           D.bytes ++
@@ -38,7 +36,7 @@ object DecryptionShareNIZK {
   def verifyNIZK(pubKey: PubKey, share: GroupElement, decryptedShare: GroupElement, proof: DecryptionShareNIZKProof)
                 (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Boolean = {
 
-    val e = new BigInteger(
+    val e = BigInt(
       hashFunction.hash {
         share.bytes ++
         decryptedShare.bytes ++

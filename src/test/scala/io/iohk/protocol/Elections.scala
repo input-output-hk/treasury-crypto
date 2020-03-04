@@ -1,7 +1,5 @@
 package io.iohk.protocol
 
-import java.math.BigInteger
-
 import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.protocol.voting.Tally.Result
 import io.iohk.protocol.voting.ballots.Ballot
@@ -22,7 +20,7 @@ case class ElectionsScenario1(cs: Cryptosystem) extends Elections {
   def run(sharedPubKey: PubKey): Seq[Ballot] = {
     val votersBallots =
       for (voterId <- expertsNum until (expertsNum + votersNum)) yield {
-        new RegularVoter(cs, expertsNum, sharedPubKey, BigInteger.valueOf(3))
+        new RegularVoter(cs, expertsNum, sharedPubKey, 3)
           .produceDelegatedVote(proposalID, 1)
       }
 
@@ -58,13 +56,13 @@ case class ElectionsScenario2(cs: Cryptosystem) extends Elections
   {
     val votersBallots =
       for (voterId <- expertsNum until (expertsNum + votersNum)) yield {
-        new RegularVoter(cs, expertsNum, sharedPubKey, BigInteger.valueOf(3))
+        new RegularVoter(cs, expertsNum, sharedPubKey, 3)
           .produceVote(proposalID, if (voterId % 2 == 1) VotingOptions.Yes else VotingOptions.Abstain)
       }
 
     val votersDelegatedBallots =
       for (voterId <- (expertsNum + votersNum) until (expertsNum + votersNum + votersDelegatedNum)) yield {
-        new RegularVoter(cs, expertsNum, sharedPubKey, BigInteger.valueOf(2))
+        new RegularVoter(cs, expertsNum, sharedPubKey, 2)
           .produceDelegatedVote(proposalID, 0)
       }
 

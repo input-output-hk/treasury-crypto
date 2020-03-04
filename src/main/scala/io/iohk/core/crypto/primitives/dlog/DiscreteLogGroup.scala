@@ -3,13 +3,9 @@ package io.iohk.core.crypto.primitives.dlog
 import java.math.BigInteger
 import java.security.SecureRandom
 
-import org.bouncycastle.crypto.digests.{SHA256Digest, SHA3Digest}
-import org.bouncycastle.crypto.prng.drbg.HashSP800DRBG
-import org.bouncycastle.util.BigIntegers
-import io.iohk.core.SingleEntropySourceProvider
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
-import io.iohk.core.crypto.primitives.hash.bouncycastle.SHA3_256_HashBc
+import org.bouncycastle.util.BigIntegers
 
 import scala.util.Try
 

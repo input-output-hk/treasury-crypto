@@ -1,7 +1,5 @@
 package io.iohk.protocol.nizk
 
-import java.math.BigInteger
-
 import com.google.common.primitives.Bytes
 import io.iohk.core.crypto.encryption._
 import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
@@ -33,7 +31,7 @@ object ElgamalDecrNIZK {
     val A2 = ciphertext.c1.pow(w).get
     val D = ciphertext.c1.pow(privKey).get
 
-    val e = new BigInteger(
+    val e = BigInt(
       hashFunction.hash {
         ciphertext.bytes ++
         D.bytes ++
@@ -50,7 +48,7 @@ object ElgamalDecrNIZK {
                 (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Boolean = Try {
 
     val D = ciphertext.c2.divide(plaintext).get
-    val e = new BigInteger(
+    val e = BigInt(
       hashFunction.hash {
         ciphertext.bytes ++
         D.bytes ++

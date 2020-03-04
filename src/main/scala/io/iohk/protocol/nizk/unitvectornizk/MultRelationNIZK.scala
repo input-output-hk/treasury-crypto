@@ -1,13 +1,9 @@
 package io.iohk.protocol.nizk.unitvectornizk
 
-import java.math.BigInteger
-
 import com.google.common.primitives.Bytes
-import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertextSerializer
-import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalCiphertextSerializer, LiftedElGamalEnc}
 import io.iohk.core.crypto.encryption.{PubKey, Randomness}
-import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
+import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.crypto.primitives.hash.CryptographicHash
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.protocol.nizk.unitvectornizk.MultRelationNIZK.MultRelationNIZKProof
@@ -54,7 +50,7 @@ object MultRelationNIZK {
     val X = LiftedElGamalEnc.encrypt(pubKey, y, x).get
     val Z = encryptedValue.pow(x).get * LiftedElGamalEnc.encrypt(pubKey, z, 0).get
 
-    val challenge = new BigInteger(
+    val challenge = BigInt(
       hashFunction.hash {
         pubKey.bytes ++
         encryptedValue.bytes ++
@@ -91,7 +87,7 @@ object MultRelationNIZK {
                 (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Boolean = Try {
     require(encryptedUnitVector.size == encryptedUnitVectorWithValue.size)
 
-    val challenge = new BigInteger(
+    val challenge = BigInt(
       hashFunction.hash {
         pubKey.bytes ++
         encryptedValue.bytes ++

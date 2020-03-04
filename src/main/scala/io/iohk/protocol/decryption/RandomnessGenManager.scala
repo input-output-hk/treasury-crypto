@@ -1,13 +1,11 @@
 package io.iohk.protocol.decryption
 
-import java.math.BigInteger
-
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalEnc}
 import io.iohk.core.crypto.encryption.{PrivKey, PubKey}
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHash
-import io.iohk.core.crypto.primitives.numbergenerator.SP800DRNG
+import io.iohk.core.crypto.primitives.numbergenerator.FieldElementSP800DRNG
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.protocol.nizk.{ElgamalDecrNIZK, ElgamalDecrNIZKProof, ElgamalDecrNIZKProofSerializer}
 
@@ -19,7 +17,7 @@ import scala.util.Try
 */
 object RandomnessGenManager {
 
-  private val SALT = new BigInteger("7ab67c1ee9376f9ab130", 16)
+  private val SALT = BigInt("7ab67c1ee9376f9ab130", 16)
 
   /**
     * Generates randomness as a point on the curve. Note that an additional SALT is used to initialize
@@ -32,8 +30,7 @@ object RandomnessGenManager {
   def getRand(seed: Array[Byte])
              (implicit dlogGroup: DiscreteLogGroup): GroupElement = {
     val bytes = seed ++ SALT.toByteArray
-    val randBytes = new SP800DRNG(bytes).nextBytes(32)
-    val rand = new BigInteger(randBytes).mod(dlogGroup.groupOrder)
+    val rand = new FieldElementSP800DRNG(bytes, dlogGroup.groupOrder).nextRand
     dlogGroup.groupGenerator.pow(rand).get
   }
 

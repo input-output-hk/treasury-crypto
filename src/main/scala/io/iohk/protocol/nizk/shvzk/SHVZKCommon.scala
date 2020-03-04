@@ -1,7 +1,5 @@
 package io.iohk.protocol.nizk.shvzk
 
-import java.math.BigInteger
-
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
 import io.iohk.core.crypto.encryption.{PubKey, Randomness}
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
@@ -18,7 +16,7 @@ class SHVZKCommon(pubKey: PubKey, unitVector: Seq[ElGamalCiphertext])
   protected val uvSize = scala.math.pow(2, log).toInt
 
   /* Use hash of the statement as Common Reference String for both prover and verifier */
-  protected val crs = new BigInteger({
+  protected val crs = BigInt({
     val bytes: Array[Byte] = unitVector.foldLeft(Array[Byte]()) {
       (acc, c) => acc ++ c.c1.bytes ++ c.c2.bytes
     }

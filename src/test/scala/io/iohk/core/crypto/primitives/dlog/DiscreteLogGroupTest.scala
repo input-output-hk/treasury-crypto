@@ -1,7 +1,5 @@
 package io.iohk.core.crypto.primitives.dlog
 
-import java.math.BigInteger
-
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
 import org.scalatest.FunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -159,7 +157,7 @@ class DiscreteLogGroupTest extends FunSuite with TableDrivenPropertyChecks {
     forAll(dlogGroups) { case (groupType, group) =>
       val params = GroupParameters.getGroupParameters(groupType)
       require(group.groupGenerator.toString.toLowerCase == params.generator.toLowerCase)
-      require(group.groupOrder == BigInt(new BigInteger(params.order, 16)))
+      require(group.groupOrder == BigInt(params.order, 16))
     }
   }
 

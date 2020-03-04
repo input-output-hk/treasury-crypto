@@ -1,10 +1,8 @@
 package io.iohk.core.crypto.primitives.dlog
 
-import java.math.BigInteger
-
+import io.iohk.core.crypto.primitives.dlog.GroupParameters.EllipticCurveParameters
 import org.scalatest.FunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
-import io.iohk.core.crypto.primitives.dlog.GroupParameters.EllipticCurveParameters
 
 class ECGroupElementTest extends FunSuite with TableDrivenPropertyChecks {
 
@@ -34,8 +32,8 @@ class ECGroupElementTest extends FunSuite with TableDrivenPropertyChecks {
       val params = GroupParameters.getGroupParameters(groupType).asInstanceOf[EllipticCurveParameters]
       val groupGenerator = group.groupGenerator.asInstanceOf[ECGroupElement]
 
-      require(groupGenerator.getX == BigInt(new BigInteger(params.generatorX, 16)))
-      require(groupGenerator.getY == BigInt(new BigInteger(params.generatorY, 16)))
+      require(groupGenerator.getX == BigInt(params.generatorX, 16))
+      require(groupGenerator.getY == BigInt(params.generatorY, 16))
     }
   }
 }

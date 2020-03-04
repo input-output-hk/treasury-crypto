@@ -1,7 +1,5 @@
 package io.iohk.protocol.nizk.unitvectornizk
 
-import java.math.BigInteger
-
 import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
 import io.iohk.core.crypto.encryption.{PubKey, Randomness}
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
@@ -33,7 +31,7 @@ object UVSumNIZK {
     val A1 = dlogGroup.groupGenerator.pow(w).get
     val A2 = pubKey.pow(w).get
 
-    val e = new BigInteger(
+    val e = BigInt(
       hashFunction.hash {
         pubKey.bytes ++
         C.bytes ++
@@ -54,7 +52,7 @@ object UVSumNIZK {
       (acc, c) => acc * c
     }
 
-    val e = new BigInteger(
+    val e = BigInt(
       hashFunction.hash {
         pubKey.bytes ++
           C.bytes ++

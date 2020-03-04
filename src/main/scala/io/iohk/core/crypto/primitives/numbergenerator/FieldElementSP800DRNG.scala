@@ -6,7 +6,7 @@ package io.iohk.core.crypto.primitives.numbergenerator
 class FieldElementSP800DRNG(seed: Array[Byte], p: BigInt) {
 
   private val drng = new SP800DRNG(seed)
-  private val byteSize = p.bitLength / 8 + 1;
+  private val byteSize = math.ceil(p.bitLength.toDouble / 8).toInt
   require(p > 0)
 
   def nextRand: BigInt = {

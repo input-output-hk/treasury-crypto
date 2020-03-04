@@ -1,7 +1,5 @@
 package io.iohk.protocol.nizk.unitvectornizk
 
-import java.math.BigInteger
-
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
 import io.iohk.core.crypto.encryption.{PubKey, Randomness}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
@@ -24,7 +22,7 @@ object ZeroOrOneBZNIZK {
     val B = LiftedElGamalEnc.encrypt(pubKey, gamma, beta).get
     val A = LiftedElGamalEnc.encrypt(pubKey, delta, plaintext * beta).get
 
-    val e = new BigInteger(hashFunction.hash {
+    val e = BigInt(hashFunction.hash {
       pubKey.bytes ++
       ciphertext.bytes ++
       B.bytes ++
@@ -40,7 +38,7 @@ object ZeroOrOneBZNIZK {
 
   def verifyNIZK(pubKey: PubKey, ciphertext: ElGamalCiphertext, proof: ZeroOrOneBZNIZKProof)
                 (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Boolean = Try {
-    val e = new BigInteger(hashFunction.hash {
+    val e = BigInt(hashFunction.hash {
       pubKey.bytes ++
       ciphertext.bytes ++
       proof.B.bytes ++
