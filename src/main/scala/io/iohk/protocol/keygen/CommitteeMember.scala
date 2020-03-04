@@ -3,9 +3,9 @@ package io.iohk.protocol.keygen
 import java.math.BigInteger
 
 import io.iohk.core._
+import io.iohk.core.crypto.encryption.hybrid.HybridPlaintext
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.crypto.primitives.hash.CryptographicHash
-import io.iohk.protocol.{CommitteeIdentifier, Cryptosystem}
 import io.iohk.protocol.decryption.DecryptionManager
 import io.iohk.protocol.keygen.datastructures.C1Share
 import io.iohk.protocol.keygen.datastructures.round1.{R1Data, SecretShare}
@@ -17,6 +17,7 @@ import io.iohk.protocol.keygen.datastructures.round5_2.R5_2Data
 import io.iohk.protocol.voting.Tally
 import io.iohk.protocol.voting.Tally.Result
 import io.iohk.protocol.voting.ballots.Ballot
+import io.iohk.protocol.{CommitteeIdentifier, Cryptosystem}
 
 
 class CommitteeMember(val cs: Cryptosystem,

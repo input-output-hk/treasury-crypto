@@ -2,6 +2,7 @@ package io.iohk.protocol.keygen.datastructures.round4
 
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core._
+import io.iohk.core.crypto.encryption.hybrid.{HybridPlaintext, HybridPlaintextSerializer}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 

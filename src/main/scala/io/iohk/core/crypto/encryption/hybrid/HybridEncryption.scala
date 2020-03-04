@@ -78,11 +78,11 @@ object HybridEncryption {
   * Returns both secretSeedAsGroupElement (used to derive symmetric key) and the decrypted message itself
   */
   def decrypt(privKey: PrivKey, ciphertext: HybridCiphertext)
-             (implicit dlogGroup: DiscreteLogGroup, blockCipher: BlockCipher): Try[(GroupElement, Array[Byte])] = {
+             (implicit dlogGroup: DiscreteLogGroup, blockCipher: BlockCipher): Try[HybridPlaintext] = {
 
     ElGamalEnc.decrypt(privKey, ciphertext.encryptedSymmetricKey).flatMap { secretSeedAsGroupElement =>
       val symmetricKey = blockCipher.generateKey(secretSeedAsGroupElement.bytes)
-      blockCipher.decrypt(symmetricKey, ciphertext.encryptedMessage).map((secretSeedAsGroupElement, _))
+      blockCipher.decrypt(symmetricKey, ciphertext.encryptedMessage).map(HybridPlaintext(secretSeedAsGroupElement, _))
     }
   }
 }

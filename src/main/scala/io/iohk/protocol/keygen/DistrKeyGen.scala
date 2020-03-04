@@ -2,6 +2,7 @@ package io.iohk.protocol.keygen
 
 import java.math.BigInteger
 
+import io.iohk.core.crypto.encryption.hybrid.HybridEncryption
 import io.iohk.core.crypto.encryption.{PrivKey, PubKey}
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHash
@@ -29,8 +30,9 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
                   memberIdentifier: Identifier[Int], // generator of members identifiers, based on the list of members public keys (membersPubKeys)
                   roundsData:       RoundsData // data of all protocol members for all rounds, which has been already executed
                  )
-                 (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash)
 {
+  import cs.{group, blockCipher, hash}
+
   private val CRS_commitments = new ArrayBuffer[CRS_commitment]() // CRS commitments of other participants
   private val commitments     = new ArrayBuffer[Commitment]()     // Commitments of other participants
   private val shares          = new ArrayBuffer[Share]()          // Shares(decrypted) of other participants
@@ -114,8 +116,8 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
 
         assert(x != 0) // avoid share for a_0 coefficient
 
-        S_a += SecretShare(recipientID, cs.hybridEncrypt(receiverPublicKey, poly_a.evaluate(x).toByteArray, ownPrivateKey.toByteArray))
-        S_b += SecretShare(recipientID, cs.hybridEncrypt(receiverPublicKey, poly_b.evaluate(x).toByteArray, ownPrivateKey.toByteArray))
+        S_a += SecretShare(recipientID, HybridEncryption.encrypt(receiverPublicKey, poly_a.evaluate(x).toByteArray, ownPrivateKey.toByteArray).get)
+        S_b += SecretShare(recipientID, HybridEncryption.encrypt(receiverPublicKey, poly_b.evaluate(x).toByteArray, ownPrivateKey.toByteArray).get)
       }
     }
     val r1Data = R1Data(ownID, E.toArray, S_a.sortBy(_.receiverID).toArray, S_b.sortBy(_.receiverID).toArray)
@@ -172,8 +174,8 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
           val secretShare_a = r1Data(i).S_a(j)
           val secretShare_b = r1Data(i).S_b(j)
 
-          val openedShare_a = OpenedShare(secretShare_a.receiverID, cs.hybridDecrypt(ownPrivateKey, secretShare_a.S))
-          val openedShare_b = OpenedShare(secretShare_b.receiverID, cs.hybridDecrypt(ownPrivateKey, secretShare_b.S))
+          val openedShare_a = OpenedShare(secretShare_a.receiverID, HybridEncryption.decrypt(ownPrivateKey, secretShare_a.S).get)
+          val openedShare_b = OpenedShare(secretShare_b.receiverID, HybridEncryption.decrypt(ownPrivateKey, secretShare_b.S).get)
 
           if(checkOnCRS(cs, h, openedShare_a, openedShare_b, r1Data(i).E)) {
             secretShares += ShareEncrypted(r1Data(i).issuerID, secretShare_a, secretShare_b)
@@ -247,11 +249,10 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
       }
 
       def checkEncryption(proof: ShareProof): Boolean = {
-        val ciphertext = cs.hybridEncrypt(
+        val ciphertext = HybridEncryption.encrypt(
           ownPublicKey,                         // for this verification no matter what public key is used
           proof.decryptedShare.decryptedMessage,
-          Array.fill(32)(1.toByte),             // for this verification no matter what secret seed is used
-          Some(proof.decryptedShare.decryptedKey))
+          proof.decryptedShare.decryptedKey).get
 
         ciphertext.encryptedMessage.equals(proof.encryptedShare.encryptedMessage)
       }
@@ -694,8 +695,8 @@ object DistrKeyGen {
                                memberIdentifier:  Identifier[Int],
                                cs:                Cryptosystem,
                                h:                 Point,
-                               E:                 Array[Array[Byte]])
-                              (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Boolean = {
+                               E:                 Array[Array[Byte]]): Boolean = {
+    import cs.{group, hash, blockCipher}
 
     def checkProof(pubKey: PubKey, proof: ShareProof): Boolean = {
       ElgamalDecrNIZK.verifyNIZK(
@@ -706,11 +707,10 @@ object DistrKeyGen {
     }
 
     def checkEncryption(proof: ShareProof): Boolean = {
-      val ciphertext = cs.hybridEncrypt(
+      val ciphertext = HybridEncryption.encrypt(
         cs.infinityPoint,                     // for this verification no matter what public key is used
         proof.decryptedShare.decryptedMessage,
-        Array.fill(32)(1.toByte),             // for this verification no matter what secret seed is used
-        Some(proof.decryptedShare.decryptedKey))
+        proof.decryptedShare.decryptedKey).get
 
       val shareDecryptedCorrectly = ciphertext.encryptedMessage.equals(proof.encryptedShare.encryptedMessage)
 
@@ -776,12 +776,13 @@ object DistrKeyGen {
                      secretShare: SecretShare,
                      cs:          Cryptosystem): Boolean = {
 
-    val shareCiphertext = cs.hybridEncrypt(
+    import cs.{group, hash, blockCipher}
+
+    val shareCiphertext = HybridEncryption.encrypt(
       cs.infinityPoint,                     // for this verification no matter what public key is used
       openedShare.S.decryptedMessage,
-      Array.fill(32)(1.toByte),             // for this verification no matter what secret seed is used
-      Some(openedShare.S.decryptedKey)
-    )
+      openedShare.S.decryptedKey
+    ).get
 
     // Check if an encrypted opened share is the same as secret share
     secretShare.S.encryptedMessage.bytes.sameElements(
@@ -1005,12 +1006,14 @@ object DistrKeyGen {
                                keys: (PrivKey, PubKey),
                                violatorPubKey: PubKey,
                                r1Data: Seq[R1Data]): Try[OpenedShare] = Try {
+    import cs.{group, hash, blockCipher}
+
     val (myPrivKey, myPubKey) = keys
     val myId = memberIdentifier.getId(myPubKey).get
     val violatorId = memberIdentifier.getId(violatorPubKey).get
 
     val shareForMeFromViolator = r1Data.find(_.issuerID == violatorId).get.S_a.find(_.receiverID == myId).get
-    OpenedShare(shareForMeFromViolator.receiverID, cs.hybridDecrypt(myPrivKey, shareForMeFromViolator.S))
+    OpenedShare(shareForMeFromViolator.receiverID, HybridEncryption.decrypt(myPrivKey, shareForMeFromViolator.S).get)
   }
 
   /**

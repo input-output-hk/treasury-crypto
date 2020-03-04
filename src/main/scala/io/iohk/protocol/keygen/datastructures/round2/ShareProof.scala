@@ -1,13 +1,11 @@
 package io.iohk.protocol.keygen.datastructures.round2
 
 import com.google.common.primitives.{Bytes, Ints}
-import io.iohk.core.crypto.encryption.hybrid.{HybridCiphertext, HybridCiphertextSerializer}
-import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
-import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.core._
-import io.iohk.core.crypto.encryption.hybrid.{HybridCiphertext, HybridCiphertextSerializer}
+import io.iohk.core.crypto.encryption.hybrid.{HybridCiphertext, HybridCiphertextSerializer, HybridPlaintext, HybridPlaintextSerializer}
 import io.iohk.core.crypto.primitives.blockcipher.BlockCipher
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
+import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.protocol.nizk.{ElgamalDecrNIZKProof, ElgamalDecrNIZKProofSerializer}
 
 import scala.util.Try

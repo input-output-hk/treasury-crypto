@@ -2,7 +2,7 @@ package io.iohk.protocol.keygen
 
 import java.security.SecureRandom
 
-import io.iohk.core.HybridPlaintext
+import io.iohk.core.crypto.encryption.hybrid.HybridPlaintext
 import io.iohk.protocol.Cryptosystem
 import io.iohk.protocol.keygen.datastructures.round4.OpenedShare
 

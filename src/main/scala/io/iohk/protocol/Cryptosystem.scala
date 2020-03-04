@@ -3,16 +3,16 @@ package io.iohk.protocol
 import java.math.BigInteger
 import java.security.SecureRandom
 
+import io.iohk.core._
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalEnc, LiftedElGamalEnc}
-import io.iohk.core.crypto.encryption.hybrid.{HybridCiphertext, HybridEncryption}
+import io.iohk.core.crypto.encryption.hybrid.{HybridCiphertext, HybridEncryption, HybridPlaintext}
 import io.iohk.core.crypto.primitives.blockcipher.BlockCipherFactory
 import io.iohk.core.crypto.primitives.blockcipher.BlockCipherFactory.AvailableBlockCiphers
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroupFactory, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
-import io.iohk.core._
 
 /* Holds common params for Elliptic Curve cryptosystem that are used throughout the library
 */
@@ -81,18 +81,17 @@ class Cryptosystem {
 //    cipher.doFinal(msg)
 //  }
 
-  def hybridEncrypt(pubKey: PubKey, msg: Array[Byte], secretSeed: Array[Byte], symmetricKey: Option[Point] = None): HybridCiphertext = {
-    symmetricKey.map { groupElement =>
-      HybridEncryption.encrypt(pubKey, msg, groupElement).get
-    }.getOrElse {
-      HybridEncryption.encrypt(pubKey, msg, secretSeed).get
-    }
-  }
-
-  def hybridDecrypt(privKey: PrivKey, ciphertext: HybridCiphertext): HybridPlaintext = {
-    val decrypted = HybridEncryption.decrypt(privKey, ciphertext).get
-    HybridPlaintext(decrypted._1, decrypted._2)
-  }
+//  def hybridEncrypt(pubKey: PubKey, msg: Array[Byte], secretSeed: Array[Byte], symmetricKey: Option[Point] = None): HybridCiphertext = {
+//    symmetricKey.map { groupElement =>
+//      HybridEncryption.encrypt(pubKey, msg, groupElement).get
+//    }.getOrElse {
+//      HybridEncryption.encrypt(pubKey, msg, secretSeed).get
+//    }
+//  }
+//
+//  def hybridDecrypt(privKey: PrivKey, ciphertext: HybridCiphertext): HybridPlaintext = {
+//    HybridEncryption.decrypt(privKey, ciphertext).get
+//  }
 
   // Pseudorandom number generation in Zp field (p = orderOfBasePoint)
   def getRand: Randomness = {
