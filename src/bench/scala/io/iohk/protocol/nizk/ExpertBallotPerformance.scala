@@ -1,12 +1,11 @@
 package io.iohk.protocol.nizk
 
-import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.core.crypto.encryption
+import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
-import io.iohk.core.One
 import io.iohk.core.utils.TimeUtils
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKVerifier}
 import io.iohk.protocol.nizk.unitvectornizk.{UVSumNIZK, ZeroOrOneBZNIZK, ZeroOrOneSigmaNIZK}
@@ -25,10 +24,10 @@ class ExpertBallotPerformance {
     }
 
     TimeUtils.accurate_time("BZ NIZK creation for expert ballot (3 ciphertexts): ", {
-      C.foreach(c => ZeroOrOneBZNIZK.produceNIZK(pubKey, One, c._1, c._2).get)
+      C.foreach(c => ZeroOrOneBZNIZK.produceNIZK(pubKey, 1, c._1, c._2).get)
       UVSumNIZK.produceNIZK(pubKey, C).get
     })
-    val proofBZ = C.map(c => ZeroOrOneBZNIZK.produceNIZK(pubKey, One, c._1, c._2).get)
+    val proofBZ = C.map(c => ZeroOrOneBZNIZK.produceNIZK(pubKey, 1, c._1, c._2).get)
     val sumNIZK = UVSumNIZK.produceNIZK(pubKey, C).get
     TimeUtils.accurate_time("BZ NIZK verification for expert ballot (3 ciphertexts): ", {
       proofBZ.zip(C.map(_._1)).foreach(x => ZeroOrOneBZNIZK.verifyNIZK(pubKey, x._2, x._1))
@@ -41,10 +40,10 @@ class ExpertBallotPerformance {
     println
 
     TimeUtils.accurate_time("SigmaOR NIZK creation for expert ballot (3 ciphertexts): ", {
-      C.foreach(c => ZeroOrOneSigmaNIZK.produceNIZK(pubKey, One, c._1, c._2).get)
+      C.foreach(c => ZeroOrOneSigmaNIZK.produceNIZK(pubKey, 1, c._1, c._2).get)
       UVSumNIZK.produceNIZK(pubKey, C).get
     })
-    val proofSigma = C.map(c => ZeroOrOneSigmaNIZK.produceNIZK(pubKey, One, c._1, c._2).get)
+    val proofSigma = C.map(c => ZeroOrOneSigmaNIZK.produceNIZK(pubKey, 1, c._1, c._2).get)
     TimeUtils.accurate_time("SigmaOR NIZK verification for expert ballot (3 ciphertexts): ", {
       proofSigma.zip(C.map(_._1)).foreach(x => ZeroOrOneSigmaNIZK.verifyNIZK(pubKey, x._2, x._1))
       UVSumNIZK.verifyNIZK(pubKey, C.map(_._1), sumNIZK)

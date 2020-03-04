@@ -1,8 +1,7 @@
 package io.iohk.protocol.keygen.datastructures
 
 import com.google.common.primitives.{Bytes, Ints, Shorts}
-import io.iohk.core.Point
-import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
+import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.core.utils.HasSize
 import io.iohk.protocol.nizk.{ElgamalDecrNIZKProof, ElgamalDecrNIZKProofSerializer}
@@ -15,7 +14,7 @@ import scala.util.Try
 case class C1Share(
     proposalId:   Int,
     issuerID:     Integer,
-    decryptedC1:  Seq[(Point, ElgamalDecrNIZKProof)]
+    decryptedC1:  Seq[(GroupElement, ElgamalDecrNIZKProof)]
 ) extends HasSize with BytesSerializable {
 
   override type M = C1Share

@@ -3,6 +3,8 @@ package io.iohk.protocol
 import java.math.BigInteger
 
 import io.iohk.core._
+import io.iohk.core.crypto.encryption.PubKey
+import io.iohk.core.crypto.primitives.dlog.GroupElement
 import io.iohk.core.utils.HasSize
 import io.iohk.protocol.keygen.datastructures.round1.{R1Data, SecretShare}
 import io.iohk.protocol.keygen.datastructures.round2.R2Data
@@ -20,8 +22,8 @@ package object keygen {
     def plus(i: Int): Int = {value += i; value}
   }
 
-  case class CRS_commitment (issuerID: Integer, crs_commitment: Array[Point])
-  case class Commitment     (issuerID: Integer, commitment: Array[Point])
+  case class CRS_commitment (issuerID: Integer, crs_commitment: Array[GroupElement])
+  case class Commitment     (issuerID: Integer, commitment: Array[GroupElement])
   case class Share          (issuerID: Integer, share_a: OpenedShare, share_b: OpenedShare)
   case class ShareEncrypted (issuerID: Integer, share_a: SecretShare, share_b: SecretShare)
 

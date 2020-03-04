@@ -3,11 +3,9 @@ package io.iohk.protocol.keygen
 import java.math.BigInteger
 
 import io.iohk.core.crypto.encryption.hybrid.HybridEncryption
-import io.iohk.core.crypto.encryption.{PrivKey, PubKey}
+import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHash
-import io.iohk.core.{KeyPair, Point}
-import io.iohk.protocol.{Cryptosystem, Identifier}
 import io.iohk.protocol.keygen.DistrKeyGen.{checkCommitmentR3, checkComplaintR2, checkOnCRS}
 import io.iohk.protocol.keygen.datastructures.round1.{R1Data, SecretShare}
 import io.iohk.protocol.keygen.datastructures.round2.{ComplaintR2, R2Data, ShareProof}
@@ -16,6 +14,7 @@ import io.iohk.protocol.keygen.datastructures.round4.{ComplaintR4, OpenedShare, 
 import io.iohk.protocol.keygen.datastructures.round5_1.R5_1Data
 import io.iohk.protocol.keygen.datastructures.round5_2.{R5_2Data, SecretKey}
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
+import io.iohk.protocol.{Cryptosystem, Identifier}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
@@ -31,7 +30,7 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
                   roundsData:       RoundsData // data of all protocol members for all rounds, which has been already executed
                  )
 {
-  import cs.{group, blockCipher, hash}
+  import cs.{blockCipher, group, hash}
 
   private val CRS_commitments = new ArrayBuffer[CRS_commitment]() // CRS commitments of other participants
   private val commitments     = new ArrayBuffer[Commitment]()     // Commitments of other participants
@@ -326,7 +325,7 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
   def checkCommitment(issuerID: Integer, commitment: Array[Array[Byte]]): Boolean = {
 
     val A = commitment.map(cs.decodePoint)
-    var A_sum: Point = infinityPoint
+    var A_sum: GroupElement = infinityPoint
     val share = shares.find(_.issuerID == issuerID)
     if(share.isDefined) {
       val X = BigInteger.valueOf(share.get.share_a.receiverID.toLong + 1)
@@ -582,7 +581,7 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
           honestPublicKeysSum = honestPublicKeysSum.multiply(commitments(i).commitment(0)).get
         }
 
-        var violatorsPublicKeysSum: Point = cs.infinityPoint
+        var violatorsPublicKeysSum: GroupElement = cs.infinityPoint
         for(i <- violatorsPublicKeys.indices) {
           violatorsPublicKeysSum = violatorsPublicKeysSum.multiply(violatorsPublicKeys(i)).get
         }
@@ -674,13 +673,13 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
 object DistrKeyGen {
 
   private def checkOnCRS(cs: Cryptosystem,
-                         h: Point,
+                         h: GroupElement,
                          share_a: OpenedShare,
                          share_b: OpenedShare,
                          E: Array[Array[Byte]])
                         (implicit dlogGroup: DiscreteLogGroup): Boolean = {
 
-    var E_sum: Point = cs.infinityPoint
+    var E_sum: GroupElement = cs.infinityPoint
 
     for(i <- E.indices) {
       E_sum = E_sum.multiply(cs.decodePoint(E(i)).pow(BigInteger.valueOf(share_a.receiverID.toLong + 1).pow(i)).get).get
@@ -694,9 +693,9 @@ object DistrKeyGen {
                                secretShare:       ShareEncrypted,
                                memberIdentifier:  Identifier[Int],
                                cs:                Cryptosystem,
-                               h:                 Point,
+                               h:                 GroupElement,
                                E:                 Array[Array[Byte]]): Boolean = {
-    import cs.{group, hash, blockCipher}
+    import cs.{blockCipher, group, hash}
 
     def checkProof(pubKey: PubKey, proof: ShareProof): Boolean = {
       ElgamalDecrNIZK.verifyNIZK(
@@ -751,7 +750,7 @@ object DistrKeyGen {
     val A = commitment.map(cs.decodePoint)
     val X = BigInteger.valueOf(share.share_a.receiverID.toLong + 1)
 
-    var A_sum: Point = cs.infinityPoint
+    var A_sum: GroupElement = cs.infinityPoint
 
     for(i <- A.indices) {
       A_sum = A_sum.multiply(A(i).pow(X.pow(i)).get).get
@@ -776,7 +775,7 @@ object DistrKeyGen {
                      secretShare: SecretShare,
                      cs:          Cryptosystem): Boolean = {
 
-    import cs.{group, hash, blockCipher}
+    import cs.{blockCipher, group}
 
     val shareCiphertext = HybridEncryption.encrypt(
       cs.infinityPoint,                     // for this verification no matter what public key is used
@@ -1006,7 +1005,7 @@ object DistrKeyGen {
                                keys: (PrivKey, PubKey),
                                violatorPubKey: PubKey,
                                r1Data: Seq[R1Data]): Try[OpenedShare] = Try {
-    import cs.{group, hash, blockCipher}
+    import cs.{blockCipher, group}
 
     val (myPrivKey, myPubKey) = keys
     val myId = memberIdentifier.getId(myPubKey).get
@@ -1120,7 +1119,7 @@ object DistrKeyGen {
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey],
                   cs:               Cryptosystem,
-                  h:                Point,
+                  h:                GroupElement,
                   r1DataSeq:        Seq[R1Data])
                  (implicit dlogGroup: DiscreteLogGroup, hash: CryptographicHash): Try[Unit] = Try {
 
@@ -1213,7 +1212,7 @@ object DistrKeyGen {
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey],
                   cs:               Cryptosystem,
-                  h:                Point,
+                  h:                GroupElement,
                   r1DataSeq:        Seq[R1Data],
                   r2DataSeq:        Seq[R2Data],
                   r3DataSeq:        Seq[R3Data])

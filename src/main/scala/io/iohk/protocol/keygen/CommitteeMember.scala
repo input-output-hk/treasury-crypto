@@ -3,8 +3,10 @@ package io.iohk.protocol.keygen
 import java.math.BigInteger
 
 import io.iohk.core._
+import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
 import io.iohk.core.crypto.encryption.hybrid.HybridPlaintext
-import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
+import io.iohk.core.crypto.encryption.{KeyPair, PubKey}
+import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHash
 import io.iohk.protocol.decryption.DecryptionManager
 import io.iohk.protocol.keygen.datastructures.C1Share
@@ -21,7 +23,7 @@ import io.iohk.protocol.{CommitteeIdentifier, Cryptosystem}
 
 
 class CommitteeMember(val cs: Cryptosystem,
-                      val h: Point,
+                      val h: GroupElement,
                       val transportKeyPair: KeyPair,
                       val committeeMembersPubKeys: Seq[PubKey],
                       roundsData: RoundsData = RoundsData())
@@ -43,7 +45,7 @@ class CommitteeMember(val cs: Cryptosystem,
   var dkgViolatorsSKs: Array[BigInt] = Array[BigInt]()
   var dkgViolatorsIds: Set[Integer] = Set()
   var decryptionViolatorsIds: Set[Int] = Set()
-  var delegations: Option[Seq[Element]] = None
+  var delegations: Option[Seq[BigInt]] = None
 
   def setKeyR1(): R1Data = {
     dkg.doRound1() match {
@@ -116,12 +118,12 @@ class CommitteeMember(val cs: Cryptosystem,
     KeyShares(ownId, absenteesIds.map(x => SKShare(x, dkg.getShare(x).getOrElse(new BigInteger("")))))
   }
 
-  def recoverDelegationsC1(skShares: Seq[KeyShares]): Seq[Seq[Point]] = {
+  def recoverDelegationsC1(skShares: Seq[KeyShares]): Seq[Seq[GroupElement]] = {
     val decryptionViolatorsSKs = reconstructSecretKeys(skShares)
     decryptor.get.decryptVector(decryptionViolatorsSKs, decryptor.get.delegationsSum.map(_.c1))
   }
 
-  def recoverChoicesC1(skShares: Seq[KeyShares], choicesSum: Seq[Ciphertext]): Seq[Seq[Point]] = {
+  def recoverChoicesC1(skShares: Seq[KeyShares], choicesSum: Seq[ElGamalCiphertext]): Seq[Seq[GroupElement]] = {
     val decryptionViolatorsSKs = reconstructSecretKeys(skShares)
     decryptor.get.decryptVector(decryptionViolatorsSKs, choicesSum.map(_.c1))
   }

@@ -2,9 +2,9 @@ package io.iohk.protocol.nizk
 
 import java.math.BigInteger
 
-import io.iohk.core._
 import io.iohk.core.crypto.encryption
-import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
+import io.iohk.core.crypto.encryption.Randomness
+import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
@@ -19,7 +19,7 @@ class MultRelationNIZKPerformance {
 
   val (privKey, pubKey) = encryption.createKeyPair.get
 
-  def createUnitVector(size: Int, choice: Int): (Seq[Ciphertext], Seq[Randomness]) = {
+  def createUnitVector(size: Int, choice: Int): (Seq[ElGamalCiphertext], Seq[Randomness]) = {
     assert(size > choice)
     val t = for (i <- 0 until size) yield {
       val rand = group.createRandomNumber

@@ -2,10 +2,10 @@ package io.iohk.protocol
 
 import java.math.BigInteger
 
-import io.iohk.core.PubKey
-import io.iohk.protocol.voting.{Expert, RegularVoter, VotingOptions}
+import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.protocol.voting.Tally.Result
 import io.iohk.protocol.voting.ballots.Ballot
+import io.iohk.protocol.voting.{Expert, RegularVoter, VotingOptions}
 
 trait Elections {
   def run(sharedPubKey: PubKey): Seq[Ballot]

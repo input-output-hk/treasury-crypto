@@ -2,7 +2,7 @@ package io.iohk.common
 
 import java.math.BigInteger
 
-import io.iohk.core._
+import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.protocol.Cryptosystem
 import io.iohk.protocol.decryption.DecryptionManager
 import io.iohk.protocol.keygen.datastructures.C1Share

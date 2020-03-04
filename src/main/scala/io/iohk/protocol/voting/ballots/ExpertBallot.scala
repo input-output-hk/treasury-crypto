@@ -3,7 +3,6 @@ package io.iohk.protocol.voting.ballots
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalCiphertextSerializer}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
-import io.iohk.core.Ciphertext
 import io.iohk.core.serialization.Serializer
 import io.iohk.protocol.nizk.shvzk.{SHVZKProof, SHVZKProofSerializer}
 import io.iohk.protocol.voting.Voter
@@ -13,7 +12,7 @@ import scala.util.Try
 case class ExpertBallot(
   proposalId: Int,
   expertId: Int,
-  uvChoice: Array[Ciphertext],
+  uvChoice: Array[ElGamalCiphertext],
   proof: SHVZKProof
 ) extends Ballot {
 
@@ -22,7 +21,7 @@ case class ExpertBallot(
 
   override val ballotTypeId: Byte = ExpertBallot.BallotTypeId
 
-  def unitVector: Array[Ciphertext] = uvChoice
+  def unitVector: Array[ElGamalCiphertext] = uvChoice
 }
 
 object ExpertBallot {
@@ -50,7 +49,7 @@ object ExpertBallotSerializer extends Serializer[ExpertBallot, DiscreteLogGroup]
     val expertId = Ints.fromByteArray(bytes.slice(4,8))
     var position = 8
 
-    val uvChoice: Array[Ciphertext] = (0 until Voter.VOTER_CHOISES_NUM).map { _ =>
+    val uvChoice: Array[ElGamalCiphertext] = (0 until Voter.VOTER_CHOISES_NUM).map { _ =>
       val len = bytes(position)
       val c = ElGamalCiphertextSerializer.parseBytes(bytes.slice(position+1, position+1+len), decoder).get
       position = position + len + 1

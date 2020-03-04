@@ -1,6 +1,5 @@
 package io.iohk.protocol.voting
 
-import io.iohk.core.One
 import io.iohk.protocol.Cryptosystem
 import org.scalatest.FunSuite
 
@@ -15,7 +14,7 @@ class VoterTest extends FunSuite {
     val voterId = 6
     val numberOfExperts = 6
 
-    val voter = new RegularVoter(cs, numberOfExperts, pubKey, One)
+    val voter = new RegularVoter(cs, numberOfExperts, pubKey, 1)
     val ballot = voter.produceVote(0, VotingOptions.Abstain)
 
     assert(voter.verifyBallot(ballot))

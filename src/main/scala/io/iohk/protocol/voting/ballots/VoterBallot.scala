@@ -1,11 +1,8 @@
 package io.iohk.protocol.voting.ballots
 
-import java.math.BigInteger
-
 import com.google.common.primitives.{Bytes, Ints, Shorts}
-import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertextSerializer
+import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalCiphertextSerializer}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
-import io.iohk.core.Ciphertext
 import io.iohk.core.serialization.Serializer
 import io.iohk.protocol.nizk.shvzk.{SHVZKProof, SHVZKProofSerializer}
 import io.iohk.protocol.voting.Voter
@@ -14,10 +11,10 @@ import scala.util.Try
 
 case class VoterBallot(
   proposalId: Int,
-  uvDelegations: Array[Ciphertext],
-  uvChoice: Array[Ciphertext],
+  uvDelegations: Array[ElGamalCiphertext],
+  uvChoice: Array[ElGamalCiphertext],
   proof: SHVZKProof,
-  stake: BigInteger
+  stake: BigInt
 ) extends Ballot {
 
   override type M = Ballot
@@ -25,7 +22,7 @@ case class VoterBallot(
 
   override val ballotTypeId: Byte = VoterBallot.BallotTypeId
 
-  def unitVector: Array[Ciphertext] = uvDelegations ++ uvChoice
+  def unitVector: Array[ElGamalCiphertext] = uvDelegations ++ uvChoice
 }
 
 object VoterBallot {
@@ -55,7 +52,7 @@ object VoterBallotSerializer extends Serializer[VoterBallot, DiscreteLogGroup] {
     val uvLen = Shorts.fromByteArray(bytes.slice(4,6))
     var position = 6
 
-    val unitVector: Array[Ciphertext] = (0 until uvLen).map { _ =>
+    val unitVector: Array[ElGamalCiphertext] = (0 until uvLen).map { _ =>
       val len = bytes(position)
       val c = ElGamalCiphertextSerializer.parseBytes(bytes.slice(position+1, position+1+len), decoder).get
       position = position + len + 1
@@ -68,7 +65,7 @@ object VoterBallotSerializer extends Serializer[VoterBallot, DiscreteLogGroup] {
     position = position + 4 + proofLen
 
     val stakeLen = bytes(position)
-    val stake = new BigInteger(bytes.slice(position+1, position+1+stakeLen))
+    val stake = BigInt(bytes.slice(position+1, position+1+stakeLen))
 
     VoterBallot(proposalId, uvDelegations, uvChoices, proof, stake)
   }

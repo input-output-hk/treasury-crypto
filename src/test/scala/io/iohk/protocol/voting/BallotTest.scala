@@ -1,6 +1,5 @@
 package io.iohk.protocol.voting
 
-import io.iohk.core.One
 import io.iohk.protocol.Cryptosystem
 import io.iohk.protocol.voting.ballots.{BallotSerializer, ExpertBallot, VoterBallot}
 import org.scalatest.FunSuite
@@ -14,7 +13,7 @@ class BallotTest extends FunSuite {
 
   test("voter ballot serialization") {
     val numberOfExperts = 6
-    val voter = new RegularVoter(cs, numberOfExperts, pubKey, One)
+    val voter = new RegularVoter(cs, numberOfExperts, pubKey, 1)
     val ballotBytes = voter.produceVote(0, VotingOptions.Abstain).bytes
     val ballot = BallotSerializer.parseBytes(ballotBytes, Option(cs.group)).get.asInstanceOf[VoterBallot]
 
@@ -22,12 +21,12 @@ class BallotTest extends FunSuite {
     assert(ballot.proposalId == 0)
     assert(ballot.uvDelegations.length == numberOfExperts)
     assert(ballot.uvChoice.length == Voter.VOTER_CHOISES_NUM)
-    assert(ballot.stake.equals(One))
+    assert(ballot.stake == 1)
   }
 
   test("voter ballot serialization 2") {
     val numberOfExperts = 0
-    val voter = new RegularVoter(cs, numberOfExperts, pubKey, One)
+    val voter = new RegularVoter(cs, numberOfExperts, pubKey, 1)
     val ballotBytes = voter.produceVote(0, VotingOptions.Abstain).bytes
     val ballot = BallotSerializer.parseBytes(ballotBytes, Option(cs.group)).get.asInstanceOf[VoterBallot]
 
@@ -35,7 +34,7 @@ class BallotTest extends FunSuite {
     assert(ballot.proposalId == 0)
     assert(ballot.uvDelegations.length == numberOfExperts)
     assert(ballot.uvChoice.length == Voter.VOTER_CHOISES_NUM)
-    assert(ballot.stake.equals(One))
+    assert(ballot.stake == 1)
   }
 
   test("expert ballot serialization 2") {

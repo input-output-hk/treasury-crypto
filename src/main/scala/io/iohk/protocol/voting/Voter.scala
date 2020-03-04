@@ -1,8 +1,7 @@
 package io.iohk.protocol.voting
 
-import java.math.BigInteger
-
-import io.iohk.core._
+import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
+import io.iohk.core.crypto.encryption.{PubKey, Randomness}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.crypto.primitives.hash.CryptographicHash
 import io.iohk.protocol.Cryptosystem
@@ -17,13 +16,13 @@ abstract class Voter(implicit dlogGroup: DiscreteLogGroup, hash: CryptographicHa
     new SHVZKVerifier(publicKey, ballot.unitVector, ballot.proof).verifyProof()
   }
 
-  protected def produceUnitVector(size: Int, nonZeroPos: Int): (Array[Ciphertext], Array[Randomness]) = {
-    val ciphertexts = new Array[Ciphertext](size)
+  protected def produceUnitVector(size: Int, nonZeroPos: Int): (Array[ElGamalCiphertext], Array[Randomness]) = {
+    val ciphertexts = new Array[ElGamalCiphertext](size)
     val randomness = new Array[Randomness](size)
 
     for (i <- 0 until size) {
       randomness(i) = cs.getRand
-      ciphertexts(i) = cs.encrypt(publicKey, randomness(i), if (i == nonZeroPos) One else Zero)
+      ciphertexts(i) = LiftedElGamalEnc.encrypt(publicKey, randomness(i), if (i == nonZeroPos) 1 else 0).get
     }
 
     (ciphertexts, randomness)
@@ -37,7 +36,7 @@ object Voter {
 class RegularVoter(val cs: Cryptosystem,
                    val expertsNum: Integer,
                    val publicKey: PubKey,
-                   val stake: BigInteger)
+                   val stake: BigInt)
                   (implicit dlogGroup: DiscreteLogGroup, hash: CryptographicHash) extends Voter {
 
   def produceVote(proposalID: Integer, choice: VotingOptions.Value, withProof: Boolean = true): VoterBallot = {

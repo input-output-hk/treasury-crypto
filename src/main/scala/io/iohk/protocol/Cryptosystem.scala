@@ -1,12 +1,11 @@
 package io.iohk.protocol
 
-import java.math.BigInteger
 import java.security.SecureRandom
 
 import io.iohk.core._
 import io.iohk.core.crypto.encryption
-import io.iohk.core.crypto.encryption.elgamal.{ElGamalEnc, LiftedElGamalEnc}
-import io.iohk.core.crypto.encryption.hybrid.{HybridCiphertext, HybridEncryption, HybridPlaintext}
+import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalEnc}
+import io.iohk.core.crypto.encryption.{PrivKey, PubKey, Randomness}
 import io.iohk.core.crypto.primitives.blockcipher.BlockCipherFactory
 import io.iohk.core.crypto.primitives.blockcipher.BlockCipherFactory.AvailableBlockCiphers
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
@@ -43,28 +42,28 @@ class Cryptosystem {
   /* Implements Elliptic Curve version of Lifted ElGamal encryption.
   *  A plaintext is represented as BigInteger.
   * */
-  def encrypt(pubKey: PubKey, rand: Randomness, msg: BigInteger): Ciphertext = {
-    LiftedElGamalEnc.encrypt(pubKey, rand, BigInt(msg)).get
-  }
+//  def encrypt(pubKey: PubKey, rand: Randomness, msg: BigInteger): Ciphertext = {
+//    LiftedElGamalEnc.encrypt(pubKey, rand, BigInt(msg)).get
+//  }
 
   /* Implements Elliptic Curve version of Lifted ElGamal decryption.
   *  A plaintext is represented as BigInteger. It is reconstructed by solving DLOG.
   * */
-  def decrypt(privKey: PrivKey, ciphertext: Ciphertext): BigInteger = {
-    LiftedElGamalEnc.decrypt(privKey, ciphertext).get.bigInteger
-  }
+//  def decrypt(privKey: PrivKey, ciphertext: Ciphertext): BigInteger = {
+//    LiftedElGamalEnc.decrypt(privKey, ciphertext).get.bigInteger
+//  }
 
   /* Implements Elliptic Curve version of classic ElGamal encryption.
   *  A plaintext is represented as point on the curve.
   * */
-  def encryptPoint(pubKey: PubKey, rand: Randomness, msg: Point): Ciphertext = {
+  def encryptPoint(pubKey: PubKey, rand: Randomness, msg: GroupElement): ElGamalCiphertext = {
     ElGamalEnc.encrypt(pubKey, rand, msg).get
   }
 
   /* Implements Elliptic Curve version of classic ElGamal decryption.
   *  A plaintext is represented as point on the curve.
   * */
-  def decryptPoint(privKey: PrivKey, ciphertext: Ciphertext): Point = {
+  def decryptPoint(privKey: PrivKey, ciphertext: ElGamalCiphertext): GroupElement = {
     ElGamalEnc.decrypt(privKey, ciphertext).get
   }
 
@@ -104,11 +103,11 @@ class Cryptosystem {
     bytes
   }
 
-  def add(cipherText1: Ciphertext, cipherText2: Ciphertext): Ciphertext = {
+  def add(cipherText1: ElGamalCiphertext, cipherText2: ElGamalCiphertext): ElGamalCiphertext = {
     cipherText1.multiply(cipherText2).get
   }
 
-  def multiply(cipherText: Ciphertext, scalar: Element): Ciphertext = {
+  def multiply(cipherText: ElGamalCiphertext, scalar: BigInt): ElGamalCiphertext = {
     cipherText.pow(scalar).get
   }
 
@@ -116,7 +115,7 @@ class Cryptosystem {
     hash.hash(bytes)
   }
 
-  def decodePoint(point: Array[Byte]): Point = {
+  def decodePoint(point: Array[Byte]): GroupElement = {
     group.reconstructGroupElement(point).get
   }
 }

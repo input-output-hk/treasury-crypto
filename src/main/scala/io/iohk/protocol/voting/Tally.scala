@@ -2,7 +2,7 @@ package io.iohk.protocol.voting
 
 import io.iohk.core._
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
-import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
+import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.protocol.Cryptosystem
 import io.iohk.protocol.voting.ballots.{Ballot, ExpertBallot, VoterBallot}
 
@@ -20,7 +20,7 @@ object Tally {
     * @return Sequence of ciphertexts, each of which represents the summation of a particular bit of the unit vector for
     *         all voters
     */
-  def computeDelegationsSum(cs: Cryptosystem, votersBallots: Seq[VoterBallot]): Seq[Ciphertext] = {
+  def computeDelegationsSum(cs: Cryptosystem, votersBallots: Seq[VoterBallot]): Seq[ElGamalCiphertext] = {
     votersBallots.map(_.uvDelegations).transpose.map(
       _.zip(votersBallots).foldLeft(ElGamalCiphertext(cs.infinityPoint, cs.infinityPoint)) {
         (sum, next) =>
@@ -44,7 +44,7 @@ object Tally {
   def computeChoicesSum(cs: Cryptosystem,
                         votersBallots: Seq[VoterBallot],
                         expertsBallots: Seq[ExpertBallot],
-                        delegations: Seq[Element]): Seq[Ciphertext] = {
+                        delegations: Seq[BigInt]): Seq[ElGamalCiphertext] = {
     // Unit-wise summation of the weighted experts votes
     //
     val expertsChoicesSum = expertsBallots.map(_.uvChoice).transpose.map(
@@ -86,8 +86,8 @@ object Tally {
     */
   def countVotes(cs: Cryptosystem,
                  ballots: Seq[Ballot],
-                 choicesC1: Seq[Seq[Point]],
-                 delegations: Seq[Element])
+                 choicesC1: Seq[Seq[GroupElement]],
+                 delegations: Seq[BigInt])
                 (implicit dlogGroup: DiscreteLogGroup): Try[Result] = Try {
 
     val votersBallots = ballots.collect { case b: VoterBallot => b }
@@ -120,7 +120,7 @@ object Tally {
     * @param encryptedVector A vector of encrypted integers.
     * @return
     */
-  def decryptVectorOnC1(cs: Cryptosystem, c1Vectors: Seq[Seq[Point]], encryptedVector: Seq[Ciphertext])
+  def decryptVectorOnC1(cs: Cryptosystem, c1Vectors: Seq[Seq[GroupElement]], encryptedVector: Seq[ElGamalCiphertext])
                        (implicit dlogGroup: DiscreteLogGroup): Seq[BigInt] = {
 
     require(c1Vectors.forall(_.length == c1Vectors.head.length))

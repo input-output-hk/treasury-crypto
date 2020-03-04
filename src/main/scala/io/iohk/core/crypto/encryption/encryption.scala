@@ -8,6 +8,7 @@ package object encryption {
 
   type PubKey = GroupElement
   type PrivKey = BigInt
+  type KeyPair = (PrivKey, PubKey)
   type Randomness = BigInt
 
   def createKeyPair(implicit dlogGroup: DiscreteLogGroup): Try[(PrivKey, PubKey)] = {

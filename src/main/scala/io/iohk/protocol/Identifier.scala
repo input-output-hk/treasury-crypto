@@ -1,6 +1,6 @@
 package io.iohk.protocol
 
-import io.iohk.core.PubKey
+import io.iohk.core.crypto.encryption.PubKey
 
 abstract class Identifier[T](val pubKeys: Seq[PubKey]) {
 
