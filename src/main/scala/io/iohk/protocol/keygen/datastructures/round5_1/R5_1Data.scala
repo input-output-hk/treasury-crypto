@@ -3,10 +3,7 @@ package io.iohk.protocol.keygen.datastructures.round5_1
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
-import io.iohk.protocol.keygen.datastructures.round4.OpenedShare
-import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
-import io.iohk.core.HasSize
-import io.iohk.core.serialization.{BytesSerializable, Serializer}
+import io.iohk.core.utils.HasSize
 import io.iohk.protocol.keygen.datastructures.round4.{OpenedShare, OpenedShareSerializer}
 
 import scala.util.Try

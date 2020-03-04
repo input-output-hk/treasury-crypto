@@ -1,11 +1,11 @@
 package io.iohk.protocol.keygen.datastructures.round2
 
 import com.google.common.primitives.{Bytes, Ints}
-import io.iohk.core.HasSize
 import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.core.crypto.primitives.blockcipher.BlockCipher
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
+import io.iohk.core.utils.HasSize
 
 import scala.util.Try
 

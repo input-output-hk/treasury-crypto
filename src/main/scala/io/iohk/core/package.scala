@@ -20,9 +20,7 @@ package object core {
   type Point = GroupElement
   type Element = BigInt
 
-  trait HasSize {
-    def size: Int
-  }
+
 
   val Zero: BigInteger = BigInteger.ZERO
   val One:  BigInteger = BigInteger.ONE
@@ -204,14 +202,14 @@ package object core {
 //    }
 //  }
 
-  object SizeUtils {
-    def getSize[T <: HasSize](vector: Seq[T]): Int = {
-      val maxSize = vector.maxBy(_.size).size
-      val totalSize = vector.foldLeft(0){(totalSize, currentElement) => totalSize + currentElement.size}
-
-      println(maxSize + " B;\t" + totalSize + " B")
-
-      totalSize
-    }
-  }
+//  object SizeUtils {
+//    def getSize[T <: HasSize](vector: Seq[T]): Int = {
+//      val maxSize = vector.maxBy(_.size).size
+//      val totalSize = vector.foldLeft(0){(totalSize, currentElement) => totalSize + currentElement.size}
+//
+//      println(maxSize + " B;\t" + totalSize + " B")
+//
+//      totalSize
+//    }
+//  }
 }

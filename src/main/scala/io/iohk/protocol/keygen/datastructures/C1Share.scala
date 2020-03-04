@@ -1,10 +1,10 @@
 package io.iohk.protocol.keygen.datastructures
 
 import com.google.common.primitives.{Bytes, Ints, Shorts}
-import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
+import io.iohk.core.Point
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
-import io.iohk.core.{HasSize, Point, PubKey}
+import io.iohk.core.utils.HasSize
 import io.iohk.protocol.nizk.{ElgamalDecrNIZKProof, ElgamalDecrNIZKProofSerializer}
 
 import scala.util.Try

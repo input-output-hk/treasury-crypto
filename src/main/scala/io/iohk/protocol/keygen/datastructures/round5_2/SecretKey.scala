@@ -2,7 +2,7 @@ package io.iohk.protocol.keygen.datastructures.round5_2
 
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
-import io.iohk.core.HasSize
+import io.iohk.core.utils.HasSize
 import io.iohk.protocol.Cryptosystem
 import io.iohk.protocol.keygen.IntAccumulator
 

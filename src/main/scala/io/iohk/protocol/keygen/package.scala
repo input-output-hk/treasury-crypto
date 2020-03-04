@@ -2,7 +2,8 @@ package io.iohk.protocol
 
 import java.math.BigInteger
 
-import io.iohk.core.{_}
+import io.iohk.core._
+import io.iohk.core.utils.HasSize
 import io.iohk.protocol.keygen.datastructures.round1.{R1Data, SecretShare}
 import io.iohk.protocol.keygen.datastructures.round2.R2Data
 import io.iohk.protocol.keygen.datastructures.round3.R3Data
