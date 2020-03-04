@@ -1,7 +1,5 @@
 package io.iohk.protocol.keygen
 
-import java.math.BigInteger
-
 import io.iohk.core.crypto.encryption.hybrid.HybridEncryption
 import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
@@ -57,11 +55,11 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
 
   if (initialize(roundsData).isFailure) throw new Exception("Wasn't initialized!")
 
-  def getShare(id: Integer): Option[BigInteger] = {
+  def getShare(id: Integer): Option[BigInt] = {
 
     val shareOpt = shares.find(_.issuerID == id)
     shareOpt match {
-      case Some(share) => Some(new BigInteger(share.share_a.S.decryptedMessage))
+      case Some(share) => Some(BigInt(share.share_a.S.decryptedMessage))
       case None => None
     }
   }
@@ -328,13 +326,13 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
     var A_sum: GroupElement = infinityPoint
     val share = shares.find(_.issuerID == issuerID)
     if(share.isDefined) {
-      val X = BigInteger.valueOf(share.get.share_a.receiverID.toLong + 1)
+      val X = BigInt(share.get.share_a.receiverID.toLong + 1)
 
       for(i <- A.indices) {
         A_sum = A_sum.multiply(A(i).pow(X.pow(i)).get).get
       }
 
-      val share_a = new BigInteger(share.get.share_a.S.decryptedMessage)
+      val share_a = BigInt(share.get.share_a.S.decryptedMessage)
       val g_sa = g.pow(share_a)
 
       g_sa.equals(A_sum)
@@ -573,7 +571,7 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
         }
 
         val violatorsPublicKeys = for(i <- violatorsSecretKeys.indices) yield {
-          g.pow(new BigInteger(violatorsSecretKeys(i).secretKey)).get
+          g.pow(BigInt(violatorsSecretKeys(i).secretKey)).get
         }
 
         var honestPublicKeysSum = A(0) // own public key
@@ -682,9 +680,9 @@ object DistrKeyGen {
     var E_sum: GroupElement = cs.infinityPoint
 
     for(i <- E.indices) {
-      E_sum = E_sum.multiply(cs.decodePoint(E(i)).pow(BigInteger.valueOf(share_a.receiverID.toLong + 1).pow(i)).get).get
+      E_sum = E_sum.multiply(cs.decodePoint(E(i)).pow(BigInt(share_a.receiverID.toLong + 1).pow(i)).get).get
     }
-    val CRS_Shares = cs.basePoint.pow(new BigInteger(share_a.S.decryptedMessage)).get.multiply(h.pow(new BigInteger(share_b.S.decryptedMessage)).get).get
+    val CRS_Shares = cs.basePoint.pow(BigInt(share_a.S.decryptedMessage)).get.multiply(h.pow(BigInt(share_b.S.decryptedMessage)).get).get
 
     CRS_Shares.equals(E_sum)
   }
@@ -748,7 +746,7 @@ object DistrKeyGen {
                                (implicit dlogGroup: DiscreteLogGroup): Boolean = {
 
     val A = commitment.map(cs.decodePoint)
-    val X = BigInteger.valueOf(share.share_a.receiverID.toLong + 1)
+    val X = BigInt(share.share_a.receiverID.toLong + 1)
 
     var A_sum: GroupElement = cs.infinityPoint
 
@@ -756,7 +754,7 @@ object DistrKeyGen {
       A_sum = A_sum.multiply(A(i).pow(X.pow(i)).get).get
     }
 
-    val share_a = new BigInteger(share.share_a.S.decryptedMessage)
+    val share_a = BigInt(share.share_a.S.decryptedMessage)
     val g_sa = cs.basePoint.pow(share_a).get
 
     g_sa.equals(A_sum)

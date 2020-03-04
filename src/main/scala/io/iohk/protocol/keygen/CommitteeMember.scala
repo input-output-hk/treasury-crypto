@@ -1,8 +1,5 @@
 package io.iohk.protocol.keygen
 
-import java.math.BigInteger
-
-import io.iohk.core._
 import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
 import io.iohk.core.crypto.encryption.hybrid.HybridPlaintext
 import io.iohk.core.crypto.encryption.{KeyPair, PubKey}
@@ -115,7 +112,7 @@ class CommitteeMember(val cs: Cryptosystem,
 
     decryptionViolatorsIds ++= absenteesIds.toSet
 
-    KeyShares(ownId, absenteesIds.map(x => SKShare(x, dkg.getShare(x).getOrElse(new BigInteger("")))))
+    KeyShares(ownId, absenteesIds.map(x => SKShare(x, dkg.getShare(x).get))) // TODO: check if dkg.getShare(x) can return None and how it should be managed
   }
 
   def recoverDelegationsC1(skShares: Seq[KeyShares]): Seq[Seq[GroupElement]] = {

@@ -1,8 +1,5 @@
 package io.iohk.protocol
 
-import java.math.BigInteger
-
-import io.iohk.core._
 import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.core.crypto.primitives.dlog.GroupElement
 import io.iohk.core.utils.HasSize
@@ -50,7 +47,7 @@ package object keygen {
 
   case class SKShare(
     ownerID: Integer,
-    share:   BigInteger
+    share:   BigInt
   ) extends HasSize {
 
     def size: Int = {
