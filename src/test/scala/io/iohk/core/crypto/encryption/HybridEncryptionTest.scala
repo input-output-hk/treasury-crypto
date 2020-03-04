@@ -3,7 +3,7 @@ package io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption
 import org.scalatest.FunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
-import io.iohk.core.crypto.encryption.hybrid.{HybridCiphertextSerializer, HybridEncryption}
+import io.iohk.core.crypto.encryption.hybrid.{HybridCiphertextSerializer, HybridEncryption, HybridPlaintext, HybridPlaintextSerializer}
 import io.iohk.core.crypto.primitives.blockcipher.BlockCipherFactory
 import io.iohk.core.crypto.primitives.blockcipher.BlockCipherFactory.AvailableBlockCiphers
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory
@@ -102,6 +102,20 @@ class HybridEncryptionTest extends FunSuite with TableDrivenPropertyChecks {
 
         require(ciphertext3.bytes.sameElements(ciphertext4.bytes))
       }
+    }
+  }
+
+  test("HybridPlaintext should support serialization") {
+    forAll(dlogGroups) { implicit group =>
+      val message = "Message".getBytes
+      val key = group.createRandomGroupElement.get
+
+      val hybridPlaintext = HybridPlaintext(key, message)
+      val bytes = hybridPlaintext.bytes
+      val reconstructedPlaintext = HybridPlaintextSerializer.parseBytes(bytes, Option(group)).get
+
+      require(hybridPlaintext.decryptedKey == reconstructedPlaintext.decryptedKey)
+      require(hybridPlaintext.decryptedMessage.sameElements(reconstructedPlaintext.decryptedMessage))
     }
   }
 }
