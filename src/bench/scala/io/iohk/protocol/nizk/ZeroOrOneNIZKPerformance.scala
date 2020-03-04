@@ -6,7 +6,8 @@ import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
-import io.iohk.core.{One, TimeUtils}
+import io.iohk.core.One
+import io.iohk.core.utils.TimeUtils
 import io.iohk.protocol.nizk.unitvectornizk.{ZeroOrOneBZNIZK, ZeroOrOneSigmaNIZK}
 
 class ZeroOrOneNIZKPerformance {

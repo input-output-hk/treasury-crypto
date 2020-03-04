@@ -1,6 +1,6 @@
 package io.iohk.protocol
 
-import io.iohk.core.TimeUtils
+import io.iohk.core.utils.TimeUtils
 import org.scalatest.FunSuite
 
 class IdentifierTest extends FunSuite {

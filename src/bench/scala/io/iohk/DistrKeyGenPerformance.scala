@@ -4,7 +4,8 @@ import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
-import io.iohk.core.{SizeUtils, TimeUtils}
+import io.iohk.core.SizeUtils
+import io.iohk.core.utils.TimeUtils
 import io.iohk.protocol.Cryptosystem
 import io.iohk.protocol.keygen._
 

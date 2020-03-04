@@ -1,7 +1,7 @@
 package io.iohk
 
 import io.iohk.common.VotingSimulator
-import io.iohk.core.TimeUtils
+import io.iohk.core.utils.TimeUtils
 
 /* Benchmarking tally for different number of experts */
 class VotingPerformance2 {
