@@ -17,8 +17,7 @@ import scala.util.Try
 * refused to publish shares by himself, so his secret key was publicly reconstructed.
 */
 class DecryptionManager(cs:               CryptoContext,
-                        ballots:          Seq[Ballot],
-                        recoveryThreshold: Integer = 0) {
+                        ballots:          Seq[Ballot]) {
   import cs.{group, hash}
 
   lazy val votersBallots = ballots.collect { case b: VoterBallot => b }
@@ -95,7 +94,7 @@ class DecryptionManager(cs:               CryptoContext,
     * @param secretKey Secret key of the committee member
     * @return C1Share
     */
-  def decryptC1ForDelegations(issuerId: Integer, proposalId: Int, secretKey: PrivKey): C1Share = {
+  def decryptC1ForDelegations(issuerId: Int, proposalId: Int, secretKey: PrivKey): C1Share = {
     val shares = delegationsSum.map { unit =>
       val decryptedC1 = unit.c1.pow(secretKey).get
       val proof = ElgamalDecrNIZK.produceNIZK(unit, secretKey).get
@@ -117,7 +116,7 @@ class DecryptionManager(cs:               CryptoContext,
     * @param delegations An array that represents number of delegations for each expert
     * @return C1Share
     */
-  def decryptC1ForChoices(issuerId: Integer, proposalId: Int, secretKey: PrivKey, delegations: Seq[BigInt]): C1Share = {
+  def decryptC1ForChoices(issuerId: Int, proposalId: Int, secretKey: PrivKey, delegations: Seq[BigInt]): C1Share = {
     val choicesSum = Tally.computeChoicesSum(cs, votersBallots, expertsBallots, delegations)
 
     val shares = choicesSum.map { unit =>

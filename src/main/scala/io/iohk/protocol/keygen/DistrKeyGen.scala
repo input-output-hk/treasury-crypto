@@ -2,8 +2,7 @@ package io.iohk.protocol.keygen
 
 import io.iohk.core.crypto.encryption.hybrid.HybridEncryption
 import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
-import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
-import io.iohk.core.crypto.primitives.hash.CryptographicHash
+import io.iohk.core.crypto.primitives.dlog.GroupElement
 import io.iohk.protocol.keygen.DistrKeyGen.{checkCommitmentR3, checkComplaintR2, checkOnCRS}
 import io.iohk.protocol.keygen.datastructures.round1.{R1Data, SecretShare}
 import io.iohk.protocol.keygen.datastructures.round2.{ComplaintR2, R2Data, ShareProof}
@@ -33,8 +32,8 @@ class DistrKeyGen(cs:               CryptoContext, // cryptosystem, which should
   private val commitments     = new ArrayBuffer[Commitment]()     // Commitments of other participants
   private val shares          = new ArrayBuffer[Share]()          // Shares(decrypted) of other participants
   private val secretShares    = new ArrayBuffer[ShareEncrypted]() // Secret(encrypted) shares of other participants
-  private val violatorsIDs    = new ArrayBuffer[Integer]()        // ID's of members-violators (absent on the 1-st round, and those, who supplied incorrect commitments on rounds 1 and 3)
-  private val absenteesIDs    = new ArrayBuffer[Integer]()        // ID's of members who were absent on round 3, so their secrets should be reconstructed
+  private val violatorsIDs    = new ArrayBuffer[Int]()        // ID's of members-violators (absent on the 1-st round, and those, who supplied incorrect commitments on rounds 1 and 3)
+  private val absenteesIDs    = new ArrayBuffer[Int]()        // ID's of members who were absent on round 3, so their secrets should be reconstructed
 
   private val n = membersPubKeys.size           // Total number of protocol participants
           val t = (n.toFloat / 2).ceil.toInt    // Threshold number of participants
@@ -46,7 +45,7 @@ class DistrKeyGen(cs:               CryptoContext, // cryptosystem, which should
   private val ownPrivateKey = transportKeyPair._1
   private val ownPublicKey  = transportKeyPair._2
   private val allMembersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
-          val ownID: Integer = memberIdentifier.getId(ownPublicKey).get
+          val ownID: Int = memberIdentifier.getId(ownPublicKey).get
 
           val roundsDataCache = RoundsData()
   private var roundsPassed: Int = 0
@@ -54,7 +53,7 @@ class DistrKeyGen(cs:               CryptoContext, // cryptosystem, which should
 
   if (initialize(roundsData).isFailure) throw new Exception("Wasn't initialized!")
 
-  def getShare(id: Integer): Option[BigInt] = {
+  def getShare(id: Int): Option[BigInt] = {
 
     val shareOpt = shares.find(_.issuerID == id)
     shareOpt match {
@@ -318,7 +317,7 @@ class DistrKeyGen(cs:               CryptoContext, // cryptosystem, which should
     }
   }
 
-  def checkCommitment(issuerID: Integer, commitment: Array[Array[Byte]]): Boolean = {
+  def checkCommitment(issuerID: Int, commitment: Array[Array[Byte]]): Boolean = {
 
     val A = commitment.map(group.reconstructGroupElement(_).get)
     var A_sum: GroupElement = group.groupIdentity
@@ -446,7 +445,7 @@ class DistrKeyGen(cs:               CryptoContext, // cryptosystem, which should
       case 4 =>
     }
 
-    val violatorsShares = ArrayBuffer[(Integer, OpenedShare)]()
+    val violatorsShares = ArrayBuffer[(Int, OpenedShare)]()
 
     val r4Data = r4DataIn.filter(x => {
       !violatorsIDs.contains(x.issuerID) &&
@@ -1118,7 +1117,6 @@ object DistrKeyGen {
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey],
                   r1DataSeq:        Seq[R1Data]): Try[Unit] = Try {
-    import cs.{group,hash}
     val crs = cs.commonReferenceString.get
 
     val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
@@ -1212,7 +1210,6 @@ object DistrKeyGen {
                   r1DataSeq:        Seq[R1Data],
                   r2DataSeq:        Seq[R2Data],
                   r3DataSeq:        Seq[R3Data]): Try[Unit] = Try {
-    import cs.{group,hash}
     val crs = cs.commonReferenceString.get
 
     val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
@@ -1291,7 +1288,7 @@ object DistrKeyGen {
     val membersNum = membersPubKeys.length
     require(r5_1Data.violatorsShares.length <= membersNum, "Exceeding number of R5_1 opened shares")
 
-    def checkOpenedShare(shareIssuerID: Integer, share: OpenedShare): Boolean = {
+    def checkOpenedShare(shareIssuerID: Int, share: OpenedShare): Boolean = {
 
       val r1DataOpt = r1DataSeq.find(_.issuerID == shareIssuerID)
       require(r1DataOpt.isDefined, s"Missing secret shares of $shareIssuerID")

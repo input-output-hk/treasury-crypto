@@ -8,7 +8,7 @@ import io.iohk.core.utils.HasSize
 import scala.util.Try
 
 case class R4Data(
-                   issuerID:    Integer,
+                   issuerID:    Int,
                    complaints:  Array[ComplaintR4]
                  )
   extends HasSize with BytesSerializable {

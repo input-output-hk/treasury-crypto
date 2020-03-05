@@ -9,8 +9,8 @@ import io.iohk.protocol.keygen.datastructures.round4.{OpenedShare, OpenedShareSe
 import scala.util.Try
 
 case class R5_1Data(
-                     issuerID:        Integer,
-                     violatorsShares: Array[(Integer, OpenedShare)] // decrypted share from violator to issuer of this message
+                     issuerID:        Int,
+                     violatorsShares: Array[(Int, OpenedShare)] // decrypted share from violator to issuer of this message
                    )
   extends HasSize with BytesSerializable {
 
@@ -66,7 +66,7 @@ object R5_1DataSerializer extends Serializer[R5_1Data, DiscreteLogGroup] {
       val violatorID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
       val violatorsShareBytesLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
       val violatorsShareBytes = bytes.slice(offset.value, offset.plus(violatorsShareBytesLen))
-      (new Integer(violatorID), OpenedShareSerializer.parseBytes(violatorsShareBytes, csOpt).get)
+      (violatorID, OpenedShareSerializer.parseBytes(violatorsShareBytes, csOpt).get)
     }
 
     R5_1Data(issuerID, violatorsShares.toArray)

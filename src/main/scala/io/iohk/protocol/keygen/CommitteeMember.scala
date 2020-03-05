@@ -44,9 +44,9 @@ class CommitteeMember(val cs: CryptoContext,
   // DistrKeyGen depends on common system parameters, committee member's keypair and set of committee members. It encapsulates the shared key generation logic.
   private val dkg = new DistrKeyGen(cs, transportKeyPair, secretKey, committeeMembersPubKeys, memberIdentifier, roundsData)
 
-  val ownId: Integer = dkg.ownID
+  val ownId: Int = dkg.ownID
   var dkgViolatorsSKs: Array[BigInt] = Array[BigInt]()
-  var dkgViolatorsIds: Set[Integer] = Set()
+  var dkgViolatorsIds: Set[Int] = Set()
   var decryptionViolatorsIds: Set[Int] = Set()
   var delegations: Option[Seq[BigInt]] = None
 
@@ -92,7 +92,7 @@ class CommitteeMember(val cs: CryptoContext,
       case Some(data) => data
       case None =>
         println("doRound5_1 returned None")
-        R5_1Data(12345, Array[(Integer, OpenedShare)]())
+        R5_1Data(12345, Array[(Int, OpenedShare)]())
     }
   }
 
@@ -110,7 +110,7 @@ class CommitteeMember(val cs: CryptoContext,
   //
   private var decryptor: Option[DecryptionManager] = None
 
-  private def getSkShares(submittersIDs: Seq[Integer]): KeyShares =
+  private def getSkShares(submittersIDs: Seq[Int]): KeyShares =
   {
     val membersIds = committeeMembersPubKeys.map(memberIdentifier.getId(_).get.intValue())
     val activeMembersIds = membersIds.diff(dkgViolatorsIds.toSeq).diff(decryptionViolatorsIds.toSeq)
@@ -146,7 +146,7 @@ class CommitteeMember(val cs: CryptoContext,
   def decryptTallyR1(ballots: Seq[Ballot]): C1Share =
   {
     // Initialization of the decryptor
-    decryptor = Some(new DecryptionManager(cs, ballots, dkg.t))
+    decryptor = Some(new DecryptionManager(cs, ballots))
     decryptor.get.decryptC1ForDelegations(ownId, 0, secretKey)
   }
 

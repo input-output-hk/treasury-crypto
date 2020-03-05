@@ -10,7 +10,7 @@ import io.iohk.core.utils.HasSize
 import scala.util.Try
 
 case class ComplaintR2(
-                        violatorID:        Integer,
+                        violatorID:        Int,
                         issuerPublicKey:   PubKey,
                         shareProof_a:      ShareProof,
                         shareProof_b:      ShareProof

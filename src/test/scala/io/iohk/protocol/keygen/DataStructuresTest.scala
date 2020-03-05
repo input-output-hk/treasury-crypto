@@ -19,7 +19,7 @@ class DataStructuresTest extends FunSuite {
     val crs = CryptoContext.generateRandomCRS
     val cs = new CryptoContext(Option(crs))
     import cs.{group, hash}
-    
+
     val keyPairs = for(id <- 1 to 10) yield encryption.createKeyPair.get
     val committeeMembersPubKeys = keyPairs.map(_._2)
 

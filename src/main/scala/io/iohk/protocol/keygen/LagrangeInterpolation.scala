@@ -7,7 +7,7 @@ import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen.datastructures.round4.OpenedShare
 
 object LagrangeInterpolation {
-  private def getLagrangeCoeff(cs: CryptoContext, x: Integer, shares: Seq[OpenedShare]): BigInt = {
+  private def getLagrangeCoeff(cs: CryptoContext, x: Int, shares: Seq[OpenedShare]): BigInt = {
     import cs.group
     var coeff = BigInt(1)
 

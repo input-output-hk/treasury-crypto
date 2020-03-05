@@ -9,7 +9,7 @@ import io.iohk.core.utils.HasSize
 
 import scala.util.Try
 
-case class SecretShare(receiverID: Integer, S: HybridCiphertext)
+case class SecretShare(receiverID: Int, S: HybridCiphertext)
   extends HasSize with BytesSerializable {
 
   override type M = SecretShare

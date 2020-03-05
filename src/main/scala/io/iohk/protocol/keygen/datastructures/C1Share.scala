@@ -13,7 +13,7 @@ import scala.util.Try
 //
 case class C1Share(
     proposalId:   Int,
-    issuerID:     Integer,
+    issuerID:     Int,
     decryptedC1:  Seq[(GroupElement, ElgamalDecrNIZKProof)]
 ) extends HasSize with BytesSerializable {
 

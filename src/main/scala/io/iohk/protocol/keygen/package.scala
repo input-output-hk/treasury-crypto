@@ -19,12 +19,12 @@ package object keygen {
     def plus(i: Int): Int = {value += i; value}
   }
 
-  case class CRS_commitment (issuerID: Integer, crs_commitment: Array[GroupElement])
-  case class Commitment     (issuerID: Integer, commitment: Array[GroupElement])
-  case class Share          (issuerID: Integer, share_a: OpenedShare, share_b: OpenedShare)
-  case class ShareEncrypted (issuerID: Integer, share_a: SecretShare, share_b: SecretShare)
+  case class CRS_commitment (issuerID: Int, crs_commitment: Array[GroupElement])
+  case class Commitment     (issuerID: Int, commitment: Array[GroupElement])
+  case class Share          (issuerID: Int, share_a: OpenedShare, share_b: OpenedShare)
+  case class ShareEncrypted (issuerID: Int, share_a: SecretShare, share_b: SecretShare)
 
-  case class ViolatorShare(violatorID: Integer, violatorShares: ArrayBuffer[OpenedShare])
+  case class ViolatorShare(violatorID: Int, violatorShares: ArrayBuffer[OpenedShare])
 
   type SharedPublicKey = Array[Byte]
 
@@ -46,24 +46,22 @@ package object keygen {
   //
 
   case class SKShare(
-    ownerID: Integer,
+    ownerID: Int,
     share:   BigInt
   ) extends HasSize {
 
     def size: Int = {
-      Integer.BYTES +
-      share.toByteArray.size
+      4 + share.toByteArray.size
     }
   }
 
   case class KeyShares(
-    issuerID:    Integer,
+    issuerID:    Int,
     keyShares:   Seq[SKShare]
   ) extends HasSize {
 
     def size: Int = {
-      Integer.BYTES +
-      keyShares.foldLeft(0){(totalSize, currentElement) => totalSize + currentElement.size}
+      4 + keyShares.foldLeft(0){(totalSize, currentElement) => totalSize + currentElement.size}
     }
   }
 

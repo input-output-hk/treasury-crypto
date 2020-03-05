@@ -193,7 +193,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     val roundsData = RoundsData()
 
-    val absenteesPublicKeys = ArrayBuffer[(Integer, GroupElement)]()
+    val absenteesPublicKeys = ArrayBuffer[(Int, GroupElement)]()
     val absenteeIndex = 0
 
     committeeMembers.remove(absenteeIndex)
@@ -382,14 +382,14 @@ class DistrKeyGenTest  extends FunSuite {
       committeeMembers(memberIndex) = new CommitteeMember(cs, keyPairs(memberIndex), committeeMembersPubKeys, roundsData)
     }
 
-    def removeMemberFromEnd(absenteesPublicKeysAccumulator: ArrayBuffer[(Integer, GroupElement)]) {
+    def removeMemberFromEnd(absenteesPublicKeysAccumulator: ArrayBuffer[(Int, GroupElement)]) {
       val index = committeeMembers.length - 1
       absenteesPublicKeysAccumulator += Tuple2(committeeMembers(index).ownId, group.groupGenerator.pow(committeeMembers(index).secretKey).get)
       committeeMembers.remove(index)
     }
 
     val roundsData = RoundsData()
-    val absenteesPublicKeys = ArrayBuffer[(Integer, GroupElement)]()
+    val absenteesPublicKeys = ArrayBuffer[(Int, GroupElement)]()
 
     // For round 1 there is no need to save public keys of violators, as the will not be used for shared public key creation
     var violatorOfRound1Index = committeeMembers.length - 1

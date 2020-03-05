@@ -8,7 +8,7 @@ import io.iohk.protocol.CryptoContext
 import scala.util.Try
 
 case class R3Data(
-                   issuerID:    Integer,
+                   issuerID:    Int,
                    commitments: Array[Array[Byte]]
                  )
   extends HasSize with BytesSerializable {

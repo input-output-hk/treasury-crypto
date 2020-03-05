@@ -9,7 +9,7 @@ import io.iohk.protocol.keygen.IntAccumulator
 import scala.util.Try
 
 case class SecretKey(
-                      ownerID:   Integer,
+                      ownerID:   Int,
                       secretKey: Array[Byte]
                     )
   extends HasSize with BytesSerializable {

@@ -8,7 +8,7 @@ import io.iohk.core.utils.HasSize
 
 import scala.util.Try
 
-case class OpenedShare(receiverID: Integer, S: HybridPlaintext)
+case class OpenedShare(receiverID: Int, S: HybridPlaintext)
   extends HasSize with BytesSerializable {
 
   override type M = OpenedShare

@@ -35,11 +35,11 @@ object Voter {
 }
 
 class RegularVoter(override val cs: CryptoContext,
-                   val expertsNum: Integer,
+                   val expertsNum: Int,
                    val publicKey: PubKey,
                    val stake: BigInt) extends Voter(cs) {
 
-  def produceVote(proposalID: Integer, choice: VotingOptions.Value, withProof: Boolean = true): VoterBallot = {
+  def produceVote(proposalID: Int, choice: VotingOptions.Value, withProof: Boolean = true): VoterBallot = {
 
     val nonZeroPos = choice match {
       case VotingOptions.Yes      => 0
@@ -58,7 +58,7 @@ class RegularVoter(override val cs: CryptoContext,
     VoterBallot(proposalID, uvDelegVector, uvChoiceVector, proof, stake)
   }
 
-  def produceDelegatedVote(proposalID: Integer, delegate: Int, withProof: Boolean = true): VoterBallot = {
+  def produceDelegatedVote(proposalID: Int, delegate: Int, withProof: Boolean = true): VoterBallot = {
     assert(delegate >= 0 && delegate < expertsNum)
 
     val (uvDelegVector, uvDelegRand) = produceUnitVector(expertsNum, delegate)
@@ -76,7 +76,7 @@ case class Expert(override val cs: CryptoContext,
                   expertId: Int,
                   publicKey: PubKey) extends Voter(cs) {
 
-  def produceVote(proposalID: Integer, choice: VotingOptions.Value, withProof: Boolean = true): ExpertBallot = {
+  def produceVote(proposalID: Int, choice: VotingOptions.Value, withProof: Boolean = true): ExpertBallot = {
 
     val nonZeroPos = choice match {
       case VotingOptions.Yes      => 0

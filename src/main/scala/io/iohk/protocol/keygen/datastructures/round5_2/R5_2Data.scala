@@ -9,7 +9,7 @@ import io.iohk.protocol.keygen.{IntAccumulator, SharedPublicKey}
 import scala.util.Try
 
 case class R5_2Data(
-                     issuerID:            Integer,
+                     issuerID:            Int,
                      sharedPublicKey:     SharedPublicKey,
                      violatorsSecretKeys: Array[SecretKey]
                    )

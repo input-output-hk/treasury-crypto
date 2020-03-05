@@ -9,7 +9,7 @@ import io.iohk.core.utils.HasSize
 import scala.util.Try
 
 case class R1Data(
-    issuerID: Integer,            // ID of commitments and shares issuer
+    issuerID: Int,            // ID of commitments and shares issuer
     E:        Array[Array[Byte]], // CRS commitments for coefficients of the both polynomials (E = g * a_i + h * b_i; i = [0; t) )
     S_a:      Array[SecretShare], // poly_a shares for each of k = n-1 committee members
     S_b:      Array[SecretShare]  // poly_b shares for each of k = n-1 committee members

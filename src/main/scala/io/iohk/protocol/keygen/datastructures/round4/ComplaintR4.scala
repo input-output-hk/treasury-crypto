@@ -8,7 +8,7 @@ import io.iohk.core.utils.HasSize
 import scala.util.Try
 
 case class ComplaintR4(
-                        violatorID:  Integer,
+                        violatorID:  Int,
                         share_a:     OpenedShare,
                         share_b:     OpenedShare
                       )
