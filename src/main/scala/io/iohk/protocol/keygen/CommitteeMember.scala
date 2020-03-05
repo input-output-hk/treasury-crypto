@@ -18,9 +18,14 @@ import io.iohk.protocol.voting.Tally.Result
 import io.iohk.protocol.voting.ballots.Ballot
 import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
 
-
+/**
+  *
+  * @param cs
+  * @param transportKeyPair TODO transportKeyPair serves also as a key pair for generating shared key - is it ok?
+  * @param committeeMembersPubKeys
+  * @param roundsData
+  */
 class CommitteeMember(val cs: CryptoContext,
-                      val h: GroupElement,
                       val transportKeyPair: KeyPair,
                       val committeeMembersPubKeys: Seq[PubKey],
                       roundsData: RoundsData = RoundsData()) {
@@ -32,11 +37,12 @@ class CommitteeMember(val cs: CryptoContext,
   // Here public keys are forcibly sorted, thus their indices, which plays the role of member ID, will be always the same for the same set of public keys
   val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
 
+  // TODO: transport key pair serves also as a key pair for generating shared key. Originally these pairs were designed to be different. Check if it is ok.
   val secretKey = transportKeyPair._1
   val publicKey = transportKeyPair._2
 
   // DistrKeyGen depends on common system parameters, committee member's keypair and set of committee members. It encapsulates the shared key generation logic.
-  private val dkg = new DistrKeyGen(cs, h, transportKeyPair, secretKey, committeeMembersPubKeys, memberIdentifier, roundsData)
+  private val dkg = new DistrKeyGen(cs, transportKeyPair, secretKey, committeeMembersPubKeys, memberIdentifier, roundsData)
 
   val ownId: Integer = dkg.ownID
   var dkgViolatorsSKs: Array[BigInt] = Array[BigInt]()

@@ -7,7 +7,7 @@ import org.scalatest.{FunSuite, Matchers}
 
 class RandomnessGenManagerTest extends FunSuite with TableDrivenPropertyChecks with Matchers {
 
-  val ctx = new CryptoContext
+  val ctx = new CryptoContext(None)
   import ctx.group
 
   test("randomness generation") {

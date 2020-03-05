@@ -5,7 +5,7 @@ import org.scalatest.FunSuite
 
 class IdentifierTest extends FunSuite {
   test("experts identifier") {
-    val cs = new CryptoContext
+    val cs = new CryptoContext(None)
     val keys = for (i <- 0 until 10) yield cs.group.createRandomGroupElement.get
     val identifier = new ExpertIdentifier(keys)
 
@@ -17,7 +17,7 @@ class IdentifierTest extends FunSuite {
   }
 
   test("committee identifier") {
-    val cs = new CryptoContext
+    val cs = new CryptoContext(None)
     val keys = for (i <- 0 until 10) yield cs.group.createRandomGroupElement.get
     val identifier = new CommitteeIdentifier(keys)
 
@@ -29,7 +29,7 @@ class IdentifierTest extends FunSuite {
   }
 
   test("experts identifier performance") {
-    val cs = new CryptoContext
+    val cs = new CryptoContext(None)
     val keys = TimeUtils.time_ms("Keys generation: ", for (i <- 0 until 1000) yield cs.group.createRandomGroupElement.get)
     val identifier = TimeUtils.time_ms("Identifier creation: ", new ExpertIdentifier(keys))
 

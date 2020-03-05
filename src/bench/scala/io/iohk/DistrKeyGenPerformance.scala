@@ -1,18 +1,15 @@
 package io.iohk
 
 import io.iohk.core.crypto.encryption
-import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory
-import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
-import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
-import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
 import io.iohk.core.utils.{SizeUtils, TimeUtils}
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen._
 
 class DistrKeyGenPerformance {
 
-  implicit val group = DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256r1).get
-  implicit val hash = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
+  val crs = CryptoContext.generateRandomCRS
+  val cs = new CryptoContext(Option(crs))
+  import cs.group
 
   def Run(commiteeMembersNum: Int, violatorsPercentage: Int): Unit = {
 //    println("--------------------------------------------------------------------------------------")
@@ -25,14 +22,11 @@ class DistrKeyGenPerformance {
     println("t: " + violatorsNum + " (" + violatorsPercentage + "%)")
     println("------------------------")
 
-    val cs = new CryptoContext
-    val crs_h = group.groupGenerator.pow(group.createRandomNumber).get
-
     val keyPairs = for(id <- 1 to commiteeMembersNum) yield encryption.createKeyPair.get
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield
-      new CommitteeMember(cs, crs_h, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(cs, keyPairs(i), committeeMembersPubKeys)
 
     var overallBytes = 0
 

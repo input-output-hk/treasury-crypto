@@ -16,16 +16,15 @@ class DataStructuresTest extends FunSuite {
 
   test("DKG round data serialization") {
 
-    val cs = new CryptoContext
+    val crs = CryptoContext.generateRandomCRS
+    val cs = new CryptoContext(Option(crs))
     import cs.{group, hash}
-
-    val crs_h = group.groupGenerator.pow(group.createRandomNumber).get
-
+    
     val keyPairs = for(id <- 1 to 10) yield encryption.createKeyPair.get
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(cs, crs_h, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(cs, keyPairs(i), committeeMembersPubKeys)
     }
 
     val r1Data = for (i <- committeeMembersPubKeys.indices) yield {

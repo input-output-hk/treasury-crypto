@@ -20,7 +20,6 @@ import scala.util.Try
 // Distributed Key Generation, based on Elliptic Curves
 //
 class DistrKeyGen(cs:               CryptoContext, // cryptosystem, which should be used for protocol running
-                  h:                GroupElement, // CRS parameter
                   transportKeyPair: KeyPair, // key pair for shares encryption/decryption
                   secretKey:        PrivKey, // secret key (own private key), which will be used for generation of the shared public key
                   membersPubKeys:   Seq[PubKey], // public keys of all protocol members, including own public key from transportKeyPair
@@ -41,6 +40,7 @@ class DistrKeyGen(cs:               CryptoContext, // cryptosystem, which should
           val t = (n.toFloat / 2).ceil.toInt    // Threshold number of participants
   private val A = new Array[GroupElement](t)         // Own commitments
 
+  private val crs = cs.commonReferenceString.get
   private val g = group.groupGenerator
 
   private val ownPrivateKey = transportKeyPair._1
@@ -99,7 +99,7 @@ class DistrKeyGen(cs:               CryptoContext, // cryptosystem, which should
 
     // CRS commitments for each coefficient of both polynomials
     for(i <- A.indices)
-      E += A(i).multiply(h.pow(poly_b(i))).get.bytes
+      E += A(i).multiply(crs.pow(poly_b(i))).get.bytes
 
     for(i <- membersPubKeys.indices)
     {
@@ -173,7 +173,7 @@ class DistrKeyGen(cs:               CryptoContext, // cryptosystem, which should
           val openedShare_a = OpenedShare(secretShare_a.receiverID, HybridEncryption.decrypt(ownPrivateKey, secretShare_a.S).get)
           val openedShare_b = OpenedShare(secretShare_b.receiverID, HybridEncryption.decrypt(ownPrivateKey, secretShare_b.S).get)
 
-          if(checkOnCRS(cs, h, openedShare_a, openedShare_b, r1Data(i).E)) {
+          if(checkOnCRS(cs, openedShare_a, openedShare_b, r1Data(i).E)) {
             secretShares += ShareEncrypted(r1Data(i).issuerID, secretShare_a, secretShare_b)
             shares += Share(r1Data(i).issuerID, openedShare_a, openedShare_b)
             CRS_commitments += CRS_commitment(r1Data(i).issuerID, r1Data(i).E.map(x => group.reconstructGroupElement(x).get))
@@ -283,11 +283,10 @@ class DistrKeyGen(cs:               CryptoContext, // cryptosystem, which should
            violatorsCRSCommitment.isDefined &&
            violatorsSecretShare.isDefined &&
            checkComplaintR2(
+             cs,
              complaint,
              violatorsSecretShare.get,
              memberIdentifier,
-             cs,
-             h,
              violatorsCRSCommitment.get.crs_commitment.map(_.bytes))) {
 
           CRS_commitments -= violatorsCRSCommitment.get
@@ -433,7 +432,7 @@ class DistrKeyGen(cs:               CryptoContext, // cryptosystem, which should
 
     def checkComplaint(violatorsCommitment: Commitment, complaint: ComplaintR4): Boolean = {
       val violatorsCRSCommitment = CRS_commitments.find(_.issuerID == complaint.violatorID).get
-      val CRS_Ok = checkOnCRS(cs, h, complaint.share_a, complaint.share_b, violatorsCRSCommitment.crs_commitment.map(_.bytes))
+      val CRS_Ok = checkOnCRS(cs, complaint.share_a, complaint.share_b, violatorsCRSCommitment.crs_commitment.map(_.bytes))
 
       val share = Share(complaint.violatorID, complaint.share_a, complaint.share_b)
       val Commitment_Ok = checkCommitmentR3(cs, share, violatorsCommitment.commitment.map(_.bytes))
@@ -670,11 +669,11 @@ class DistrKeyGen(cs:               CryptoContext, // cryptosystem, which should
 object DistrKeyGen {
 
   private def checkOnCRS(cs: CryptoContext,
-                         h: GroupElement,
                          share_a: OpenedShare,
                          share_b: OpenedShare,
                          E: Array[Array[Byte]]): Boolean = {
     import cs.group
+    val crs = cs.commonReferenceString.get
 
     var E_sum: GroupElement = group.groupIdentity
 
@@ -682,19 +681,19 @@ object DistrKeyGen {
       E_sum = E_sum.multiply(group.reconstructGroupElement(E(i)).get.pow(BigInt(share_a.receiverID.toLong + 1).pow(i))).get
     }
     val CRS_Shares = group.groupGenerator.pow(BigInt(share_a.S.decryptedMessage)).flatMap {
-      _.multiply(h.pow(BigInt(share_b.S.decryptedMessage)))
+      _.multiply(crs.pow(BigInt(share_b.S.decryptedMessage)))
     }.get
 
     CRS_Shares.equals(E_sum)
   }
 
-  private def checkComplaintR2(complaint:         ComplaintR2,
+  private def checkComplaintR2(cs:                CryptoContext,
+                               complaint:         ComplaintR2,
                                secretShare:       ShareEncrypted,
                                memberIdentifier:  Identifier[Int],
-                               cs:                CryptoContext,
-                               h:                 GroupElement,
                                E:                 Array[Array[Byte]]): Boolean = {
     import cs.{blockCipher, group, hash}
+    val crs = cs.commonReferenceString.get
 
     def checkProof(pubKey: PubKey, proof: ShareProof): Boolean = {
       ElgamalDecrNIZK.verifyNIZK(
@@ -722,9 +721,9 @@ object DistrKeyGen {
 
           // Check, that decrypted shares corresponds to the previously submitted secret shares
           // Check, that shares doesn't correspond to the submitted CRS commitments
-          sharesAreEqual(share_a, secretShare.share_a, cs) &&
-          sharesAreEqual(share_b, secretShare.share_b, cs) &&
-          !checkOnCRS(cs, h, share_a, share_b, E)
+          sharesAreEqual(cs, share_a, secretShare.share_a) &&
+          sharesAreEqual(cs, share_b, secretShare.share_b) &&
+          !checkOnCRS(cs, share_a, share_b, E)
 
         } else {
           false
@@ -765,14 +764,14 @@ object DistrKeyGen {
     * Verifies, if a decrypted share corresponds to a specififc encrypted share.
     * Verification consists in an encryption of the decrypted share (using its opened symmetric key) and checking the obtained ciphertext for equality with the encrypted share.
     *
+    * @param cs cryptosystem, used for the protocol running;
     * @param openedShare decypted share;
     * @param secretShare encrypted share;
-    * @param cs cryptosystem, used for the protocol running;
     * @return true, if shares are equal.
     */
-  def sharesAreEqual(openedShare: OpenedShare,
-                     secretShare: SecretShare,
-                     cs:          CryptoContext): Boolean = {
+  def sharesAreEqual(cs:          CryptoContext,
+                     openedShare: OpenedShare,
+                     secretShare: SecretShare): Boolean = {
 
     import cs.{blockCipher, group}
 
@@ -1037,7 +1036,7 @@ object DistrKeyGen {
     val violatorId = memberIdentifier.getId(violatorPubKey).get
     val submittedShare = r1Data.find(_.issuerID == violatorId).get.S_a.find(_.receiverID == issuerId).get
 
-    require(sharesAreEqual(openedShare, submittedShare, cs), "OpenedShare doesn't conform to the submitted share")
+    require(sharesAreEqual(cs, openedShare, submittedShare), "OpenedShare doesn't conform to the submitted share")
   }
 
   /**
@@ -1106,22 +1105,21 @@ object DistrKeyGen {
     * Verifies for validity the 2-nd round's data, submitted by a certain member of the DKG protocol.
     * Verification can be performed externally, without being a member of the protocol.
     *
+    * @param cs cryptosystem, which should be used for the protocol running;
     * @param r2Data round 2 data, submitted by a certain protocol member;
     * @param memberIdentifier generator of protocol members IDs, based on a full set of protocol members public keys;
     * @param membersPubKeys public keys of the all members of the protocol;
-    * @param cs cryptosystem, which should be used for the protocol running;
-    * @param h CRS parameter;
     * @param r1DataSeq a sequence of posted during the 1-st round R1Data packets of all protocol members;
     * @return Success(Unit) if submitted r2Data is valid;
     *         Failure(e)    otherwise.
     */
-  def checkR2Data(r2Data:           R2Data,
+  def checkR2Data(cs:               CryptoContext,
+                  r2Data:           R2Data,
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey],
-                  cs:               CryptoContext,
-                  h:                GroupElement,
                   r1DataSeq:        Seq[R1Data]): Try[Unit] = Try {
     import cs.{group,hash}
+    val crs = cs.commonReferenceString.get
 
     val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
     require(membersIDs.contains(r2Data.issuerID), "Illegal issuer's ID")
@@ -1148,7 +1146,7 @@ object DistrKeyGen {
 
       val secretShare = ShareEncrypted(complaint.violatorID, secretShare_a.get, secretShare_b.get)
 
-      checkComplaintR2(complaint, secretShare, memberIdentifier, cs, h, r1DataOpt.get.E)
+      checkComplaintR2(cs, complaint, secretShare, memberIdentifier, r1DataOpt.get.E)
     }
 
     r2Data.complaints.foreach {
@@ -1163,19 +1161,19 @@ object DistrKeyGen {
     * Verifies for validity the 3-rd round's data, submitted by a certain member of the DKG protocol.
     * Verification can be performed externally, without being a member of the protocol.
     *
+    * @param cs cryptosystem, which should be used for the protocol running;
     * @param r3Data round 3 data, submitted by a certain protocol member;
     * @param memberIdentifier generator of protocol members IDs, based on a full set of protocol members public keys;
     * @param membersPubKeys public keys of the all members of the protocol;
-    * @param cs cryptosystem, which should be used for the protocol running;
     * @param r1DataSeq a sequence of posted during the 1-st round R1Data packets of all protocol members;
     * @param r2DataSeq a sequence of posted during the 2-nd round R2Data packets of all protocol members;
     * @return Success(Unit) if submitted r3Data is valid;
     *         Failure(e)    otherwise.
     */
-  def checkR3Data(r3Data:           R3Data,
+  def checkR3Data(cs:               CryptoContext,
+                  r3Data:           R3Data,
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey],
-                  cs:               CryptoContext,
                   r1DataSeq:        Seq[R1Data],
                   r2DataSeq:        Seq[R2Data]): Try[Unit] = Try {
 
@@ -1197,26 +1195,25 @@ object DistrKeyGen {
     * Verifies for validity the 4-th round's data, submitted by a certain member of the DKG protocol.
     * Verification can be performed externally, without being a member of the protocol.
     *
+    * @param cs cryptosystem, which should be used for the protocol running;
     * @param r4Data round 4 data, submitted by a certain protocol member;
     * @param memberIdentifier generator of protocol members IDs, based on a full set of protocol members public keys;
     * @param membersPubKeys public keys of the all members of the protocol;
-    * @param cs cryptosystem, which should be used for the protocol running;
-    * @param h CRS parameter;
     * @param r1DataSeq a sequence of posted during the 1-st round R1Data packets of all protocol members;
     * @param r2DataSeq a sequence of posted during the 2-nd round R2Data packets of all protocol members;
     * @param r3DataSeq a sequence of posted during the 3-rd round R3Data packets of all protocol members;
     * @return Success(Unit) if submitted r4Data is valid;
     *         Failure(e)    otherwise.
     */
-  def checkR4Data(r4Data:           R4Data,
+  def checkR4Data(cs:               CryptoContext,
+                  r4Data:           R4Data,
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey],
-                  cs:               CryptoContext,
-                  h:                GroupElement,
                   r1DataSeq:        Seq[R1Data],
                   r2DataSeq:        Seq[R2Data],
                   r3DataSeq:        Seq[R3Data]): Try[Unit] = Try {
     import cs.{group,hash}
+    val crs = cs.commonReferenceString.get
 
     val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
     require(membersIDs.contains(r4Data.issuerID), "Illegal issuer's ID")
@@ -1238,7 +1235,7 @@ object DistrKeyGen {
       val r3DataOpt = r3DataSeq.find(_.issuerID == complaint.violatorID)
       require(r3DataOpt.isDefined, s"R3 commitments are absent for ${complaint.violatorID}")
 
-      val CRS_Ok = checkOnCRS(cs, h, complaint.share_a, complaint.share_b, r1DataOpt.get.E)
+      val CRS_Ok = checkOnCRS(cs, complaint.share_a, complaint.share_b, r1DataOpt.get.E)
 
       val share = Share(r1DataOpt.get.issuerID, complaint.share_a, complaint.share_b)
       val Commitment_Ok = checkCommitmentR3(cs, share, r3DataOpt.get.commitments)
@@ -1262,10 +1259,10 @@ object DistrKeyGen {
     * Verifies for validity the 5-th round's data, submitted by a certain member of the DKG protocol.
     * Verification can be performed externally, without being a member of the protocol.
     *
+    * @param cs cryptosystem, which should be used for the protocol running;
     * @param r5_1Data round 5 data, submitted by a certain protocol member;
     * @param memberIdentifier generator of protocol members IDs, based on a full set of protocol members public keys;
     * @param membersPubKeys public keys of the all members of the protocol;
-    * @param cs cryptosystem, which should be used for the protocol running;
     * @param r1DataSeq a sequence of posted during the 1-st round R1Data packets of all protocol members;
     * @param r2DataSeq a sequence of posted during the 2-nd round R2Data packets of all protocol members;
     * @param r3DataSeq a sequence of posted during the 3-rd round R3Data packets of all protocol members;
@@ -1273,10 +1270,10 @@ object DistrKeyGen {
     * @return Success(Unit) if submitted r5_1Data is valid;
     *         Failure(e)    otherwise.
     */
-  def checkR5Data(r5_1Data:         R5_1Data,
+  def checkR5Data(cs:               CryptoContext,
+                  r5_1Data:         R5_1Data,
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey],
-                  cs:               CryptoContext,
                   r1DataSeq:        Seq[R1Data],
                   r2DataSeq:        Seq[R2Data],
                   r3DataSeq:        Seq[R3Data],
@@ -1303,7 +1300,7 @@ object DistrKeyGen {
       require(secretShareOpt.isDefined, s"Secret share for ${share.receiverID} is missing among secret shares of $shareIssuerID")
 
       // Check if an encrypted opened share is the same as previously submitted secret share
-      sharesAreEqual(share, secretShareOpt.get, cs)
+      sharesAreEqual(cs, share, secretShareOpt.get)
     }
 
     val violatorsSharesIDs = r5_1Data.violatorsShares.map(_._1)

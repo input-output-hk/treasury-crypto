@@ -7,7 +7,7 @@ import org.scalatest.FunSuite
 
 class BallotTest extends FunSuite {
 
-  val cs = new CryptoContext
+  val cs = new CryptoContext(None)
   import cs.{group, hash}
 
   val (privKey, pubKey) = encryption.createKeyPair.get

@@ -7,7 +7,7 @@ import io.iohk.protocol.CryptoContext
 
 class ElgamalDecrNIZKTest extends FunSuite {
 
-  val cs = new CryptoContext
+  val cs = new CryptoContext(None)
   implicit val group = cs.group
   implicit val hash = cs.hash
 

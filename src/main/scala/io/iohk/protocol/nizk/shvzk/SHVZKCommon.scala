@@ -16,6 +16,7 @@ class SHVZKCommon(pubKey: PubKey, unitVector: Seq[ElGamalCiphertext])
   protected val uvSize = scala.math.pow(2, log).toInt
 
   /* Use hash of the statement as Common Reference String for both prover and verifier */
+  // TODO: confirm it's fine to generate crs like this from the security standpoint
   protected val crs = BigInt({
     val bytes: Array[Byte] = unitVector.foldLeft(Array[Byte]()) {
       (acc, c) => acc ++ c.c1.bytes ++ c.c2.bytes

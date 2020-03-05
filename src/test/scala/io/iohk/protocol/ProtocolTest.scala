@@ -9,15 +9,13 @@ class ProtocolTest extends FunSuite {
   def doTest(cs: CryptoContext, elections: Elections): Boolean = {
     import cs.{group, hash}
 
-    val crs_h = group.groupGenerator.pow(group.createRandomNumber).get
-
     // Generating keypairs for every commitee member
     val keyPairs = Array.fill(10)(encryption.createKeyPair.get)
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     // Instantiating committee members
     //
-    val committeeMembers = keyPairs.map(k => new CommitteeMember(cs, crs_h, k, committeeMembersPubKeys))
+    val committeeMembers = keyPairs.map(k => new CommitteeMember(cs, k, committeeMembersPubKeys))
 
     // Generating shared public key by committee members (by running the DKG protocol between them)
     val sharedPubKey = getSharedPublicKey(cs, committeeMembers)
@@ -63,8 +61,8 @@ class ProtocolTest extends FunSuite {
   }
 
   test("test protocol") {
-
-    val cs = new CryptoContext
+    val crs = CryptoContext.generateRandomCRS
+    val cs = new CryptoContext(Option(crs))
 
     assert(doTest(cs, ElectionsScenario1(cs)))
     assert(doTest(cs, ElectionsScenario2(cs)))

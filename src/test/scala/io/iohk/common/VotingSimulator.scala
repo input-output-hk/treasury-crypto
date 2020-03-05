@@ -21,7 +21,7 @@ class VotingSimulator(
   sharedPubKey: Option[PubKey] = None
 ) {
 
-  val cs = new CryptoContext
+  val cs = new CryptoContext(None)
   import cs.{group, hash}
 
   protected lazy val committeeMembers = Array.fill(numberOfCommitteeMembers)(encryption.createKeyPair.get)
@@ -114,8 +114,8 @@ class VotingSimulator(
 
     val delegations = validator.computeDelegations(delegationsC1.map(_._2.decryptedC1.map(_._1)))
 
-    val failedDeleg = delegationsC1.exists(c => !validator.validateDelegationsC1(c._1, c._2).isSuccess)
-    val failedChoices = choicesC1.exists(c => !validator.validateChoicesC1(c._1, c._2, delegations).isSuccess)
+    val failedDeleg = delegationsC1.exists(c => validator.validateDelegationsC1(c._1, c._2).isFailure)
+    val failedChoices = choicesC1.exists(c => validator.validateChoicesC1(c._1, c._2, delegations).isFailure)
 
     !failedDeleg && !failedChoices
   }.isSuccess
