@@ -3,7 +3,7 @@ package io.iohk.protocol.keygen.datastructures.round5_2
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.core.utils.HasSize
-import io.iohk.protocol.Cryptosystem
+import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen.{IntAccumulator, SharedPublicKey}
 
 import scala.util.Try
@@ -17,7 +17,7 @@ case class R5_2Data(
   extends HasSize with BytesSerializable {
 
   override type M = R5_2Data
-  override type DECODER = Cryptosystem
+  override type DECODER = CryptoContext
   override val serializer: Serializer[M, DECODER] = R5_2DataSerializer
 
   def size: Int = bytes.length
@@ -40,7 +40,7 @@ case class R5_2Data(
   }
 }
 
-object R5_2DataSerializer extends Serializer[R5_2Data, Cryptosystem] {
+object R5_2DataSerializer extends Serializer[R5_2Data, CryptoContext] {
 
   override def toBytes(obj: R5_2Data): Array[Byte] = {
 
@@ -55,7 +55,7 @@ object R5_2DataSerializer extends Serializer[R5_2Data, Cryptosystem] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[R5_2Data] = Try {
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[CryptoContext]): Try[R5_2Data] = Try {
     val cs = csOpt.get
     val offset = IntAccumulator(0)
 

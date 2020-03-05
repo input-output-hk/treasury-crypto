@@ -3,11 +3,11 @@ package io.iohk.protocol.nizk
 import org.scalatest.FunSuite
 import io.iohk.core.crypto.encryption.elgamal.ElGamalEnc
 import io.iohk.core.crypto.encryption._
-import io.iohk.protocol.Cryptosystem
+import io.iohk.protocol.CryptoContext
 
 class ElgamalDecrNIZKTest extends FunSuite {
 
-  val cs = new Cryptosystem
+  val cs = new CryptoContext
   implicit val group = cs.group
   implicit val hash = cs.hash
 

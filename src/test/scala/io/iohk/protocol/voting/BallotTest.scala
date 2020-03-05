@@ -1,15 +1,16 @@
 package io.iohk.protocol.voting
 
-import io.iohk.protocol.Cryptosystem
+import io.iohk.core.crypto.encryption
+import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.voting.ballots.{BallotSerializer, ExpertBallot, VoterBallot}
 import org.scalatest.FunSuite
 
 class BallotTest extends FunSuite {
 
-  val cs = new Cryptosystem
+  val cs = new CryptoContext
   import cs.{group, hash}
 
-  val (privKey, pubKey) = cs.createKeyPair
+  val (privKey, pubKey) = encryption.createKeyPair.get
 
   test("voter ballot serialization") {
     val numberOfExperts = 6

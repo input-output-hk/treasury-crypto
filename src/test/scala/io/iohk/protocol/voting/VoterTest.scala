@@ -1,14 +1,15 @@
 package io.iohk.protocol.voting
 
-import io.iohk.protocol.Cryptosystem
+import io.iohk.core.crypto.encryption
+import io.iohk.protocol.CryptoContext
 import org.scalatest.FunSuite
 
 class VoterTest extends FunSuite {
 
-  val cs = new Cryptosystem
+  val cs = new CryptoContext
   import cs.{group, hash}
 
-  val (privKey, pubKey) = cs.createKeyPair
+  val (privKey, pubKey) = encryption.createKeyPair.get
 
   test("test zero knowledge proof for Voter ballot") {
     val voterId = 6

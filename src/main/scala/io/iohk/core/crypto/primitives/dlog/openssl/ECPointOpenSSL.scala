@@ -15,7 +15,7 @@ import scala.util.Try
 
 /**
   * This class represents a point on the curve. Note that it holds a reference to the native EC_POINT object which is
-  * freed in the finalize method. In general, the method finalize is not guaranteed to be called upon object descrutcion,
+  * freed in the finalize method. In general, the method finalize is not guaranteed to be called upon object destruction,
   * so the memory leaks are possible.
   * An alternative approach would be to hold only serialized point and recover native object only when operations to be
   * performed and free it right after that. Such an approach comes with performance penalty (approx 30% slower), thus

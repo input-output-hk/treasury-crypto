@@ -11,7 +11,7 @@ import scala.util.Try
 
 /*
 * HybridEncryption implements a hybrid scheme where a message is encrypted by symmetric cipher (such as AES) while the
-* key for symmetric cipher is encrypted with assymetric ElGamal scheme. Both encrypted message and encrypted symmetric key
+* key for symmetric cipher is encrypted with asymmetric ElGamal scheme. Both encrypted message and encrypted symmetric key
 * constitute a HybridCiphertext. The receiver provided with a private key for Elgamal scheme is able to decrypt the
 * symmetric key and consequently an entire message.
 * Such scheme allows efficient encryption of big messages without need to agree on shared symmetric key. Using pure

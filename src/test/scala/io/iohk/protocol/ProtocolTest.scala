@@ -1,17 +1,18 @@
 package io.iohk.protocol
 
+import io.iohk.core.crypto.encryption
 import io.iohk.protocol.keygen._
 import org.scalatest.FunSuite
 
 class ProtocolTest extends FunSuite {
 
-  def doTest(cs: Cryptosystem, elections: Elections): Boolean = {
+  def doTest(cs: CryptoContext, elections: Elections): Boolean = {
     import cs.{group, hash}
 
-    val crs_h = cs.basePoint.pow(cs.getRand).get
+    val crs_h = group.groupGenerator.pow(group.createRandomNumber).get
 
     // Generating keypairs for every commitee member
-    val keyPairs = Array.fill(10)(cs.createKeyPair)
+    val keyPairs = Array.fill(10)(encryption.createKeyPair.get)
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     // Instantiating committee members
@@ -63,7 +64,7 @@ class ProtocolTest extends FunSuite {
 
   test("test protocol") {
 
-    val cs = new Cryptosystem
+    val cs = new CryptoContext
 
     assert(doTest(cs, ElectionsScenario1(cs)))
     assert(doTest(cs, ElectionsScenario2(cs)))

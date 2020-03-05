@@ -3,7 +3,7 @@ package io.iohk.protocol.keygen.datastructures.round3
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.core.utils.HasSize
-import io.iohk.protocol.Cryptosystem
+import io.iohk.protocol.CryptoContext
 
 import scala.util.Try
 
@@ -14,7 +14,7 @@ case class R3Data(
   extends HasSize with BytesSerializable {
 
   override type M = R3Data
-  override type DECODER = Cryptosystem
+  override type DECODER = CryptoContext
   override val serializer: Serializer[M, DECODER] = R3DataSerializer
 
   def size: Int = bytes.length
@@ -36,7 +36,7 @@ case class R3Data(
   }
 }
 
-object R3DataSerializer extends Serializer[R3Data, Cryptosystem] {
+object R3DataSerializer extends Serializer[R3Data, CryptoContext] {
 
   override def toBytes(obj: R3Data): Array[Byte] = {
 
@@ -49,7 +49,7 @@ object R3DataSerializer extends Serializer[R3Data, Cryptosystem] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[Cryptosystem]): Try[R3Data] = Try {
+  override def parseBytes(bytes: Array[Byte], csOpt: Option[CryptoContext]): Try[R3Data] = Try {
     case class IntAccumulator(var value: Int = 0){
       def plus(i: Int): Int = {value += i; value}
     }

@@ -1,13 +1,13 @@
 package io.iohk.protocol.keygen
 
 import io.iohk.core.crypto.primitives.numbergenerator.FieldElementSP800DRNG
-import io.iohk.protocol.Cryptosystem
+import io.iohk.protocol.CryptoContext
 
-class Polynomial(cs: Cryptosystem, a_0: BigInt, degree: Int) {
+class Polynomial(cs: CryptoContext, a_0: BigInt, degree: Int) {
 
   private val polynomial = new Array[BigInt](degree)
 
-  val drng = new FieldElementSP800DRNG(a_0.toByteArray, cs.orderOfBasePoint)
+  val drng = new FieldElementSP800DRNG(a_0.toByteArray, cs.group.groupOrder)
 
   // Generating random polynomial coefficients
   for(i <- polynomial.indices) {
@@ -21,7 +21,7 @@ class Polynomial(cs: Cryptosystem, a_0: BigInt, degree: Int) {
   def evaluate(x: BigInt): BigInt = {
     var res = polynomial(0)
     for(i <- 1 until polynomial.length)
-      res = (polynomial(i) * x.pow(i) + res) mod cs.orderOfBasePoint
+      res = (polynomial(i) * x.pow(i) + res) mod cs.group.groupOrder
     res
   }
 

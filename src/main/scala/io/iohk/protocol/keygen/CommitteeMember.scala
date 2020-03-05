@@ -16,15 +16,15 @@ import io.iohk.protocol.keygen.datastructures.round5_2.R5_2Data
 import io.iohk.protocol.voting.Tally
 import io.iohk.protocol.voting.Tally.Result
 import io.iohk.protocol.voting.ballots.Ballot
-import io.iohk.protocol.{CommitteeIdentifier, Cryptosystem}
+import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
 
 
-class CommitteeMember(val cs: Cryptosystem,
+class CommitteeMember(val cs: CryptoContext,
                       val h: GroupElement,
                       val transportKeyPair: KeyPair,
                       val committeeMembersPubKeys: Seq[PubKey],
-                      roundsData: RoundsData = RoundsData())
-                     (implicit dlogGroup: DiscreteLogGroup, hash: CryptographicHash) {
+                      roundsData: RoundsData = RoundsData()) {
+  import cs.{group, hash}
 
 //  // SimpleIdentifier is useful for debugging purposes, but in real it's better to not rely on an order stability of the externally provided public keys
 //  val memberIdentifier = SimpleIdentifier(committeeMembersPubKeys)
@@ -130,7 +130,7 @@ class CommitteeMember(val cs: Cryptosystem,
       member =>
         member.keyShares.map(
           share =>
-            (share.ownerID, OpenedShare(member.issuerID, HybridPlaintext(cs.infinityPoint, share.share.toByteArray)))
+            (share.ownerID, OpenedShare(member.issuerID, HybridPlaintext(group.groupIdentity, share.share.toByteArray)))
         )
     ).map(_.sortBy(_._1).map(_._2)).transpose
 

@@ -7,6 +7,7 @@ import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHash
 import io.iohk.core.crypto.primitives.numbergenerator.FieldElementSP800DRNG
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
+import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.nizk.{ElgamalDecrNIZK, ElgamalDecrNIZKProof, ElgamalDecrNIZKProofSerializer}
 
 import scala.util.Try
@@ -27,11 +28,11 @@ object RandomnessGenManager {
     * @param seed a seed to initialize random generator
     * @return
     */
-  def getRand(seed: Array[Byte])
-             (implicit dlogGroup: DiscreteLogGroup): GroupElement = {
+  def getRand(cs: CryptoContext, seed: Array[Byte]): GroupElement = {
+    import cs.group
     val bytes = seed ++ SALT.toByteArray
-    val rand = new FieldElementSP800DRNG(bytes, dlogGroup.groupOrder).nextRand
-    dlogGroup.groupGenerator.pow(rand).get
+    val rand = new FieldElementSP800DRNG(bytes, group.groupOrder).nextRand
+    group.groupGenerator.pow(rand).get
   }
 
   /**
@@ -42,8 +43,8 @@ object RandomnessGenManager {
     * @param msg randomness
     * @return
     */
-  def encryptRandomnessShare(pubKey: PubKey, msg: GroupElement)
-                            (implicit dlogGroup: DiscreteLogGroup): ElGamalCiphertext = {
+  def encryptRandomnessShare(cs: CryptoContext, pubKey: PubKey, msg: GroupElement): ElGamalCiphertext = {
+    import cs.group
     ElGamalEnc.encrypt(pubKey, msg).get._1
   }
 
@@ -55,8 +56,8 @@ object RandomnessGenManager {
     * @param ciphertext encrypted share
     * @return
     */
-  def decryptRandomnessShare(privKey: PrivKey, ciphertext: ElGamalCiphertext)
-                            (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): DecryptedRandomnessShare = {
+  def decryptRandomnessShare(cs: CryptoContext, privKey: PrivKey, ciphertext: ElGamalCiphertext): DecryptedRandomnessShare = {
+    import cs.{group,hash}
     val decryptedRandomness = ElGamalEnc.decrypt(privKey, ciphertext).get
     val proof = ElgamalDecrNIZK.produceNIZK(ciphertext, privKey).get
     DecryptedRandomnessShare(decryptedRandomness, proof)
@@ -71,13 +72,17 @@ object RandomnessGenManager {
     * @param decryptedShare decrypted randomness with zero-knowledge proof
     * @return
     */
-  def validateDecryptedRandomnessShare(pubKey: PubKey, ciphertext: ElGamalCiphertext, decryptedShare: DecryptedRandomnessShare)
-                                      (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Boolean = {
+  def validateDecryptedRandomnessShare(cs: CryptoContext,
+                                       pubKey: PubKey,
+                                       ciphertext: ElGamalCiphertext,
+                                       decryptedShare: DecryptedRandomnessShare): Boolean = {
+    import cs.{group,hash}
     ElgamalDecrNIZK.verifyNIZK(pubKey, ciphertext, decryptedShare.randomness, decryptedShare.proof)
   }
 }
 
-case class DecryptedRandomnessShare(randomness: GroupElement, proof: ElgamalDecrNIZKProof) extends BytesSerializable {
+case class DecryptedRandomnessShare(randomness: GroupElement,
+                                    proof: ElgamalDecrNIZKProof) extends BytesSerializable {
 
   override type M = DecryptedRandomnessShare
   override type DECODER = DiscreteLogGroup

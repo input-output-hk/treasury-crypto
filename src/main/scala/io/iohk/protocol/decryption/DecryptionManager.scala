@@ -1,11 +1,9 @@
 package io.iohk.protocol.decryption
 
-import io.iohk.core._
 import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
 import io.iohk.core.crypto.encryption.{PrivKey, PubKey}
-import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
-import io.iohk.core.crypto.primitives.hash.CryptographicHash
-import io.iohk.protocol.Cryptosystem
+import io.iohk.core.crypto.primitives.dlog.GroupElement
+import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen.datastructures.C1Share
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
 import io.iohk.protocol.voting.Tally
@@ -18,10 +16,10 @@ import scala.util.Try
 * It can also be used to generate decryption shares (namely decrypted C1 components) of the faulty committee member who
 * refused to publish shares by himself, so his secret key was publicly reconstructed.
 */
-class DecryptionManager(cs:               Cryptosystem,
+class DecryptionManager(cs:               CryptoContext,
                         ballots:          Seq[Ballot],
-                        recoveryThreshold: Integer = 0)
-                       (implicit dlogGroup: DiscreteLogGroup, hash: CryptographicHash) {
+                        recoveryThreshold: Integer = 0) {
+  import cs.{group, hash}
 
   lazy val votersBallots = ballots.collect { case b: VoterBallot => b }
   assert(votersBallots.forall(_.uvDelegations.length == votersBallots.head.uvDelegations.length))

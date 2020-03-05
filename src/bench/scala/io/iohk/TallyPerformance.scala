@@ -1,18 +1,19 @@
 package io.iohk
 
 import io.iohk.common.VotingSimulator
+import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
 import io.iohk.core.utils.{SizeUtils, TimeUtils}
-import io.iohk.protocol.Cryptosystem
+import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen._
 
 class TallyPerformance {
 
-  implicit val group = DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256r1).get
-  implicit val hash = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
+  val cs = new CryptoContext
+  import cs.{group,hash}
 
   def run(commiteeMembersNum: Int, violatorsPercentage: Int): Unit =
   {
@@ -27,11 +28,10 @@ class TallyPerformance {
     println("Experts:\t" + numberOfExperts)
     println("------------------------")
 
-    val cs = new Cryptosystem
-    val crs_h = cs.basePoint.pow(cs.getRand).get
+    val crs_h = group.groupGenerator.pow(group.createRandomNumber).get
 
     // Generating keypairs for every commitee member
-    val keyPairs = for(id <- 1 to commiteeMembersNum) yield cs.createKeyPair
+    val keyPairs = for(id <- 1 to commiteeMembersNum) yield encryption.createKeyPair.get
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     // Instantiating committee members

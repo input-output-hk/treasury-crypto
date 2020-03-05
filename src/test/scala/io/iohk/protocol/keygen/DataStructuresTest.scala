@@ -1,7 +1,8 @@
 package io.iohk.protocol.keygen
 
 import io.iohk.common.VotingSimulator
-import io.iohk.protocol.Cryptosystem
+import io.iohk.core.crypto.encryption
+import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen.datastructures.C1ShareSerializer
 import io.iohk.protocol.keygen.datastructures.round1.R1DataSerializer
 import io.iohk.protocol.keygen.datastructures.round2.R2DataSerializer
@@ -15,12 +16,12 @@ class DataStructuresTest extends FunSuite {
 
   test("DKG round data serialization") {
 
-    val cs = new Cryptosystem
+    val cs = new CryptoContext
     import cs.{group, hash}
 
-    val crs_h = cs.basePoint.pow(cs.getRand).get
+    val crs_h = group.groupGenerator.pow(group.createRandomNumber).get
 
-    val keyPairs = for(id <- 1 to 10) yield cs.createKeyPair
+    val keyPairs = for(id <- 1 to 10) yield encryption.createKeyPair.get
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
@@ -74,12 +75,12 @@ class DataStructuresTest extends FunSuite {
     assert(r5_2DataRestored.sameElements(r5_2Data.map(_._2)))
 
     //--------------------------------------------------------------------------------
-    val sharedPublicKeys = r5_2Data.map(_._2.sharedPublicKey).map(cs.decodePoint)
+    val sharedPublicKeys = r5_2Data.map(_._2.sharedPublicKey).map(group.reconstructGroupElement(_).get)
 
     var individualPublicKeys = for(i <- committeeMembers.indices) yield {
-      (committeeMembers(i).ownId, cs.basePoint.pow(committeeMembers(i).secretKey).get)
+      (committeeMembers(i).ownId, group.groupGenerator.pow(committeeMembers(i).secretKey).get)
     }
-    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(cs.infinityPoint){(publicKeysSum, publicKey) => publicKeysSum.multiply(publicKey).get}
+    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(group.groupIdentity){(publicKeysSum, publicKey) => publicKeysSum.multiply(publicKey).get}
 
     assert(publicKeysSum.equals(sharedPublicKeys(0)))
 

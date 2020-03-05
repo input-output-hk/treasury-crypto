@@ -2,14 +2,15 @@ package io.iohk.protocol.voting
 
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
 import io.iohk.core.crypto.encryption.{PubKey, Randomness}
-import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
-import io.iohk.core.crypto.primitives.hash.CryptographicHash
-import io.iohk.protocol.Cryptosystem
+import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKVerifier}
 import io.iohk.protocol.voting.ballots.{Ballot, ExpertBallot, VoterBallot}
 
-abstract class Voter(implicit dlogGroup: DiscreteLogGroup, hash: CryptographicHash) {
-  def cs: Cryptosystem
+abstract class Voter(val cs: CryptoContext) {
+
+  protected implicit val group = cs.group
+  protected implicit val hash = cs.hash
+
   def publicKey: PubKey
 
   def verifyBallot(ballot: Ballot): Boolean = {
@@ -21,7 +22,7 @@ abstract class Voter(implicit dlogGroup: DiscreteLogGroup, hash: CryptographicHa
     val randomness = new Array[Randomness](size)
 
     for (i <- 0 until size) {
-      randomness(i) = cs.getRand
+      randomness(i) = group.createRandomNumber
       ciphertexts(i) = LiftedElGamalEnc.encrypt(publicKey, randomness(i), if (i == nonZeroPos) 1 else 0).get
     }
 
@@ -33,11 +34,10 @@ object Voter {
   val VOTER_CHOISES_NUM = 3
 }
 
-class RegularVoter(val cs: Cryptosystem,
+class RegularVoter(override val cs: CryptoContext,
                    val expertsNum: Integer,
                    val publicKey: PubKey,
-                   val stake: BigInt)
-                  (implicit dlogGroup: DiscreteLogGroup, hash: CryptographicHash) extends Voter {
+                   val stake: BigInt) extends Voter(cs) {
 
   def produceVote(proposalID: Integer, choice: VotingOptions.Value, withProof: Boolean = true): VoterBallot = {
 
@@ -72,10 +72,9 @@ class RegularVoter(val cs: Cryptosystem,
   }
 }
 
-case class Expert(cs: Cryptosystem,
+case class Expert(override val cs: CryptoContext,
                   expertId: Int,
-                  publicKey: PubKey)
-                 (implicit dlogGroup: DiscreteLogGroup, hash: CryptographicHash) extends Voter {
+                  publicKey: PubKey) extends Voter(cs) {
 
   def produceVote(proposalID: Integer, choice: VotingOptions.Value, withProof: Boolean = true): ExpertBallot = {
 

@@ -70,7 +70,7 @@ package object keygen {
   //----------------------------------------------------------
   // For testing purposes
   //
-  def patchR3Data(cs: Cryptosystem, r3Data: Seq[R3Data], numOfPatches: Int): Seq[R3Data] = {
+  def patchR3Data(cs: CryptoContext, r3Data: Seq[R3Data], numOfPatches: Int): Seq[R3Data] = {
     require(numOfPatches <= r3Data.length)
 
     var r3DataPatched = r3Data
@@ -80,12 +80,12 @@ package object keygen {
 
     for(i <- r3Data.indices)
       if(indexesToPatch(i))
-        r3DataPatched(i).commitments(0) = cs.infinityPoint.bytes
+        r3DataPatched(i).commitments(0) = cs.group.groupIdentity.bytes
 
     r3DataPatched
   }
 
-  def getSharedPublicKey(cs: Cryptosystem, committeeMembers: Seq[CommitteeMember]): PubKey = {
+  def getSharedPublicKey(cs: CryptoContext, committeeMembers: Seq[CommitteeMember]): PubKey = {
     val r1Data    = committeeMembers.map(_.setKeyR1   ())
     val r2Data    = committeeMembers.map(_.setKeyR2   (r1Data))
     val r3Data    = committeeMembers.map(_.setKeyR3   (r2Data))
@@ -97,7 +97,7 @@ package object keygen {
     val r5_1Data  = committeeMembers.map(_.setKeyR5_1 (r4Data))
     val r5_2Data  = committeeMembers.map(_.setKeyR5_2 (r5_1Data))
 
-    val sharedPublicKeys = r5_2Data.map(_.sharedPublicKey).map(cs.decodePoint)
+    val sharedPublicKeys = r5_2Data.map(_.sharedPublicKey).map(cs.group.reconstructGroupElement(_).get)
 
     assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys.head)))
     sharedPublicKeys.head

@@ -10,7 +10,7 @@ trait Elections {
   def verify(tallyRes: Result): Boolean
 }
 
-case class ElectionsScenario1(cs: Cryptosystem) extends Elections {
+case class ElectionsScenario1(cs: CryptoContext) extends Elections {
   private val proposalID = 1
   private val votersNum = 2
   private val expertsNum = 2
@@ -40,7 +40,7 @@ case class ElectionsScenario1(cs: Cryptosystem) extends Elections {
   }
 }
 
-case class ElectionsScenario2(cs: Cryptosystem) extends Elections
+case class ElectionsScenario2(cs: CryptoContext) extends Elections
 {
 
   private val MULTIPLIER = 2

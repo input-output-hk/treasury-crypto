@@ -1,11 +1,12 @@
 package io.iohk
 
+import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
 import io.iohk.core.utils.{SizeUtils, TimeUtils}
-import io.iohk.protocol.Cryptosystem
+import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen._
 
 class DistrKeyGenPerformance {
@@ -24,10 +25,10 @@ class DistrKeyGenPerformance {
     println("t: " + violatorsNum + " (" + violatorsPercentage + "%)")
     println("------------------------")
 
-    val cs = new Cryptosystem
-    val crs_h = cs.basePoint.pow(cs.getRand).get
+    val cs = new CryptoContext
+    val crs_h = group.groupGenerator.pow(group.createRandomNumber).get
 
-    val keyPairs = for(id <- 1 to commiteeMembersNum) yield cs.createKeyPair
+    val keyPairs = for(id <- 1 to commiteeMembersNum) yield encryption.createKeyPair.get
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield
@@ -92,15 +93,15 @@ class DistrKeyGenPerformance {
 
     // Calculating the individual public keys (pk_i = g^sk_i for each committee)
     var individualPublicKeys = for(i <- committeeMembers.indices) yield
-      (committeeMembers(i).ownId, cs.basePoint.pow(committeeMembers(i).secretKey).get)
+      (committeeMembers(i).ownId, group.groupGenerator.pow(committeeMembers(i).secretKey).get)
 
-    val sharedPublicKeys = r5_2Data.map(_.sharedPublicKey).map(cs.decodePoint)
+    val sharedPublicKeys = r5_2Data.map(_.sharedPublicKey).map(group.reconstructGroupElement(_).get)
 
     // Verify, that each committee has obtained the same shared public key after round 2
     assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys(0))))
 
     // Using individual public keys to calculate the shared public key without any secret key reconstruction
-    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(cs.infinityPoint){(publicKeysSum, publicKey) => publicKeysSum.multiply(publicKey).get}
+    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(group.groupIdentity){(publicKeysSum, publicKey) => publicKeysSum.multiply(publicKey).get}
 
     // Verify, that shared public key is equal to the original public key
     assert(publicKeysSum.equals(sharedPublicKeys(0)))

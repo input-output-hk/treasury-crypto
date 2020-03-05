@@ -3,11 +3,12 @@ package io.iohk.protocol.keygen
 import java.security.SecureRandom
 
 import io.iohk.core.crypto.encryption.hybrid.HybridPlaintext
-import io.iohk.protocol.Cryptosystem
+import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen.datastructures.round4.OpenedShare
 
 object LagrangeInterpolation {
-  private def getLagrangeCoeff(cs: Cryptosystem, x: Integer, shares: Seq[OpenedShare]): BigInt = {
+  private def getLagrangeCoeff(cs: CryptoContext, x: Integer, shares: Seq[OpenedShare]): BigInt = {
+    import cs.group
     var coeff = BigInt(1)
 
     for(j <- shares.indices) {
@@ -16,16 +17,16 @@ object LagrangeInterpolation {
         val J = BigInt(shares(j).receiverID.toLong + 1)
         val I = BigInt(x.toLong)
 
-        val J_I = (J - I).mod(cs.orderOfBasePoint)
-        val JdivJ_I = (J * J_I.modInverse(cs.orderOfBasePoint)).mod(cs.orderOfBasePoint)
+        val J_I = (J - I).mod(group.groupOrder)
+        val JdivJ_I = (J * J_I.modInverse(group.groupOrder)).mod(group.groupOrder)
 
-        coeff = (coeff * JdivJ_I).mod(cs.orderOfBasePoint)
+        coeff = (coeff * JdivJ_I).mod(group.groupOrder)
       }
     }
     coeff
   }
 
-  def restoreSecret(cs: Cryptosystem, shares_in: Seq[OpenedShare], threshold: Int = 0): BigInt = {
+  def restoreSecret(cs: CryptoContext, shares_in: Seq[OpenedShare], threshold: Int = 0): BigInt = {
     val shares = shares_in.take(if(threshold != 0) threshold else shares_in.length)
 
     var restoredSecret = BigInt(0)
@@ -33,17 +34,17 @@ object LagrangeInterpolation {
       val L_i = getLagrangeCoeff(cs, shares(i).receiverID + 1, shares)
       val p_i = BigInt(shares(i).S.decryptedMessage)
 
-      restoredSecret = restoredSecret + (L_i * p_i) mod(cs.orderOfBasePoint)
+      restoredSecret = restoredSecret + (L_i * p_i) mod(cs.group.groupOrder)
     }
     restoredSecret
   }
 
-  def testInterpolation(cs: Cryptosystem, degree: Int): Boolean = {
-    val secret = BigInt(cs.orderOfBasePoint.bitLength, new SecureRandom()).mod(cs.orderOfBasePoint)
+  def testInterpolation(cs: CryptoContext, degree: Int): Boolean = {
+    val secret = BigInt(cs.group.groupOrder.bitLength, new SecureRandom()).mod(cs.group.groupOrder)
     val poly = new Polynomial(cs, secret, degree)
 
     val sharesNum = degree * 2 // ratio specific for voting protocol, as assumed t = n / 2, i.e. degree = sharesNum / 2
-    var shares = for(x <- 0 until sharesNum) yield {OpenedShare(x, HybridPlaintext(cs.infinityPoint, poly.evaluate(x+1).toByteArray))}
+    var shares = for(x <- 0 until sharesNum) yield {OpenedShare(x, HybridPlaintext(cs.group.groupIdentity, poly.evaluate(x+1).toByteArray))}
 
     val rnd = new scala.util.Random
     val patchIndex = rnd.nextInt(sharesNum)

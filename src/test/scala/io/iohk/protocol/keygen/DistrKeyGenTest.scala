@@ -1,9 +1,10 @@
 package io.iohk.protocol.keygen
 
+import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.primitives.dlog.GroupElement
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.keygen.datastructures.round3.R3Data
-import io.iohk.protocol.{CommitteeIdentifier, Cryptosystem}
+import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
 import org.scalatest.FunSuite
 
 import scala.collection.mutable.ArrayBuffer
@@ -13,7 +14,7 @@ class DistrKeyGenTest  extends FunSuite {
 
   test("dkg_interpolation") {
 
-    val cs = new Cryptosystem
+    val cs = new CryptoContext
 
     for(degree <- 2 to 10) {
       assert(LagrangeInterpolation.testInterpolation(cs, degree))
@@ -24,12 +25,12 @@ class DistrKeyGenTest  extends FunSuite {
 
   test("dkg_functionality") {
 
-    val cs = new Cryptosystem
+    val cs = new CryptoContext
     import cs.{group, hash}
 
-    val crs_h = cs.basePoint.pow(cs.getRand).get
+    val crs_h = group.groupGenerator.pow(group.createRandomNumber).get
 
-    val keyPairs = for(id <- 1 to 10) yield cs.createKeyPair
+    val keyPairs = for(id <- 1 to 10) yield encryption.createKeyPair.get
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
@@ -52,7 +53,7 @@ class DistrKeyGenTest  extends FunSuite {
         if(x.issuerID == 1)
         {
           println(x.issuerID + " committee members's commitment modified on Round 2")
-          E(0) = cs.infinityPoint.bytes
+          E(0) = group.groupIdentity.bytes
         }
         R1Data(x.issuerID, E, x.S_a, x.S_b)
       }
@@ -95,7 +96,7 @@ class DistrKeyGenTest  extends FunSuite {
         if(x.issuerID == 2 || x.issuerID == 3)
         {
           println(x.issuerID + " committee members's commitment modified on Round 3")
-          commitments(0) = cs.infinityPoint.bytes
+          commitments(0) = group.groupIdentity.bytes
         }
         R3Data(x.issuerID, commitments)
       }
@@ -149,7 +150,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     // Calculating the individual public keys (pk_i = g^sk_i for each committee)
     var individualPublicKeys = for(i <- committeeMembers.indices) yield {
-      (committeeMembers(i).ownId, cs.basePoint.pow(committeeMembers(i).secretKey).get)
+      (committeeMembers(i).ownId, group.groupGenerator.pow(committeeMembers(i).secretKey).get)
     }
 
     var sharedPublicKeysAfterR2 = r5_2Data
@@ -164,18 +165,20 @@ class DistrKeyGenTest  extends FunSuite {
       }
     }
 
-    val sharedPublicKeys = sharedPublicKeysAfterR2.map(_._2.sharedPublicKey).map(cs.decodePoint)
+    val sharedPublicKeys = sharedPublicKeysAfterR2.map(_._2.sharedPublicKey).map(group.reconstructGroupElement(_).get)
 
     // Verify, that each committee has obtained the same shared public key after round 2
     assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys(0))))
 
     // Using individual public keys to calculate the shared public key without any secret key reconstruction
-    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(cs.infinityPoint){(publicKeysSum, publicKey) => publicKeysSum.multiply(publicKey).get}
+    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(group.groupIdentity){(publicKeysSum, publicKey) => publicKeysSum.multiply(publicKey).get}
 
     // Verify, that shared public key is equal to the original public key
     assert(publicKeysSum.equals(sharedPublicKeys(0)))
 
-    val sharedPubKey = cs.decodePoint(DistrKeyGen.getSharedPublicKey(cs, committeeMembersPubKeys, memberIdentifier, roundsData).get)
+    val sharedPubKey = DistrKeyGen.getSharedPublicKey(cs, committeeMembersPubKeys, memberIdentifier, roundsData).flatMap {
+      group.reconstructGroupElement(_)
+    }.get
     assert(publicKeysSum.equals(sharedPubKey))
   }
 
@@ -183,12 +186,12 @@ class DistrKeyGenTest  extends FunSuite {
 
   test("dkg_absentees") {
 
-    val cs = new Cryptosystem
+    val cs = new CryptoContext
     import cs.{group, hash}
 
-    val crs_h = cs.basePoint.pow(cs.getRand).get
+    val crs_h = group.groupGenerator.pow(group.createRandomNumber).get
 
-    val keyPairs = for(id <- 1 to 10) yield cs.createKeyPair
+    val keyPairs = for(id <- 1 to 10) yield encryption.createKeyPair.get
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = (for (i <- committeeMembersPubKeys.indices) yield {
@@ -208,7 +211,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     roundsData.r1Data = r1Data
 
-    absenteesPublicKeys += Tuple2(committeeMembers(absenteeIndex).ownId, cs.basePoint.pow(committeeMembers(absenteeIndex).secretKey).get)
+    absenteesPublicKeys += Tuple2(committeeMembers(absenteeIndex).ownId, group.groupGenerator.pow(committeeMembers(absenteeIndex).secretKey).get)
     committeeMembers.remove(absenteeIndex)
 
     val r2Data = for (i <- committeeMembers.indices) yield {
@@ -217,18 +220,18 @@ class DistrKeyGenTest  extends FunSuite {
 
     roundsData.r2Data = r2Data
 
-    absenteesPublicKeys += Tuple2(committeeMembers(absenteeIndex).ownId, cs.basePoint.pow(committeeMembers(absenteeIndex).secretKey).get)
+    absenteesPublicKeys += Tuple2(committeeMembers(absenteeIndex).ownId, group.groupGenerator.pow(committeeMembers(absenteeIndex).secretKey).get)
     committeeMembers.remove(absenteeIndex)
 
     val r3Data = for (i <- committeeMembers.indices) yield {
       committeeMembers(i).setKeyR3(r2Data)
     }
 
-    absenteesPublicKeys += Tuple2(committeeMembers(absenteeIndex).ownId, cs.basePoint.pow(committeeMembers(absenteeIndex).secretKey).get)
+    absenteesPublicKeys += Tuple2(committeeMembers(absenteeIndex).ownId, group.groupGenerator.pow(committeeMembers(absenteeIndex).secretKey).get)
     committeeMembers.remove(absenteeIndex)
 
     // change commitment of the member with id = 0
-    r3Data(0).commitments(0) = cs.infinityPoint.bytes
+    r3Data(0).commitments(0) = group.groupIdentity.bytes
 
     roundsData.r3Data = r3Data
 
@@ -238,7 +241,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     roundsData.r4Data = r4Data
 
-    absenteesPublicKeys += Tuple2(committeeMembers(absenteeIndex).ownId, cs.basePoint.pow(committeeMembers(absenteeIndex).secretKey).get)
+    absenteesPublicKeys += Tuple2(committeeMembers(absenteeIndex).ownId, group.groupGenerator.pow(committeeMembers(absenteeIndex).secretKey).get)
     committeeMembers.remove(absenteeIndex)
 
     val r5_1Data = for (i <- committeeMembers.indices) yield {
@@ -252,22 +255,24 @@ class DistrKeyGenTest  extends FunSuite {
     }
 
     //--------------------------------------------------------------------------------
-    val sharedPublicKeys = r5_2Data.map(_._2.sharedPublicKey).map(x => cs.decodePoint(x))
+    val sharedPublicKeys = r5_2Data.map(_._2.sharedPublicKey).map(group.reconstructGroupElement(_).get)
 
     var individualPublicKeys = (for(i <- committeeMembers.indices) yield {
-      (committeeMembers(i).ownId, cs.basePoint.pow(committeeMembers(i).secretKey).get)
+      (committeeMembers(i).ownId, group.groupGenerator.pow(committeeMembers(i).secretKey).get)
     }).toBuffer
 
     individualPublicKeys ++= absenteesPublicKeys
 
-    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(cs.infinityPoint){(publicKeysSum, publicKey) => publicKeysSum.multiply(publicKey).get}
+    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(group.groupIdentity){(publicKeysSum, publicKey) => publicKeysSum.multiply(publicKey).get}
 
     assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys(0))))
     assert(publicKeysSum.equals(sharedPublicKeys(0)))
 
     val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
 
-    val sharedPubKey = cs.decodePoint(DistrKeyGen.getSharedPublicKey(cs, committeeMembersPubKeys, memberIdentifier, roundsData).get)
+    val sharedPubKey = DistrKeyGen.getSharedPublicKey(cs, committeeMembersPubKeys, memberIdentifier, roundsData).flatMap {
+      group.reconstructGroupElement(_)
+    }.get
     assert(publicKeysSum.equals(sharedPubKey))
   }
 
@@ -275,12 +280,12 @@ class DistrKeyGenTest  extends FunSuite {
 
   test("dkg_state") {
 
-    val cs = new Cryptosystem
+    val cs = new CryptoContext
     import cs.{group, hash}
 
-    val crs_h = cs.basePoint.pow(cs.getRand).get
+    val crs_h = group.groupGenerator.pow(group.createRandomNumber).get
 
-    val keyPairs = for(id <- 1 to 10) yield cs.createKeyPair
+    val keyPairs = for(id <- 1 to 10) yield encryption.createKeyPair.get
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = (for (i <- committeeMembersPubKeys.indices) yield {
@@ -297,7 +302,7 @@ class DistrKeyGenTest  extends FunSuite {
     }
 
     val violatorIndex = committeeMembers.length - 1
-    r1Data(violatorIndex).E(0) = cs.infinityPoint.bytes // provoke complaints on the member
+    r1Data(violatorIndex).E(0) = group.groupIdentity.bytes // provoke complaints on the member
     committeeMembers.remove(violatorIndex) // remove member, as he will be ignored anyway in the further rounds
 
     roundsData.r1Data = r1Data
@@ -315,7 +320,7 @@ class DistrKeyGenTest  extends FunSuite {
     }
 
     // change commitment of the member with id = 0
-    r3Data(0).commitments(0) = cs.infinityPoint.bytes
+    r3Data(0).commitments(0) = group.groupIdentity.bytes
 
     roundsData.r3Data = r3Data
     reCreateMember(2, roundsData)
@@ -352,21 +357,21 @@ class DistrKeyGenTest  extends FunSuite {
       } match {
         case Success(dkg) =>
           dkg.roundsDataCache.r5_2Data.headOption match {
-            case Some(data) => cs.decodePoint(data.sharedPublicKey)
-            case None => cs.infinityPoint
+            case Some(data) => group.reconstructGroupElement(data.sharedPublicKey).get
+            case None => group.groupIdentity
           }
         case Failure(e) =>
           println("EXCEPTION: " + e.getMessage)
-          cs.infinityPoint
+          group.groupIdentity
       }
     }
     //--------------------------------------------------------------------------------
-    val sharedPublicKeys = r5_2Data.map(_._2.sharedPublicKey).map(x => cs.decodePoint(x))
+    val sharedPublicKeys = r5_2Data.map(_._2.sharedPublicKey).map(group.reconstructGroupElement(_).get)
 
     val individualPublicKeys = (for(i <- committeeMembers.indices) yield {
-      (committeeMembers(i).ownId, cs.basePoint.pow(committeeMembers(i).secretKey).get)
+      (committeeMembers(i).ownId, group.groupGenerator.pow(committeeMembers(i).secretKey).get)
     }).toBuffer
-    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(cs.infinityPoint){(publicKeysSum, publicKey) => publicKeysSum.multiply(publicKey).get}
+    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(group.groupIdentity){(publicKeysSum, publicKey) => publicKeysSum.multiply(publicKey).get}
 
     assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys.head)))
     assert(publicKeysSum.equals(sharedPublicKeys.head))
@@ -378,12 +383,12 @@ class DistrKeyGenTest  extends FunSuite {
   // state restoring together with presence of the protocol violators and absentees during protocol execution
   test("dkg_complex") {
 
-    val cs = new Cryptosystem
+    val cs = new CryptoContext
     import cs.{group, hash}
 
-    val crs_h = cs.basePoint.pow(cs.getRand).get
+    val crs_h = group.groupGenerator.pow(group.createRandomNumber).get
 
-    val keyPairs = for(id <- 1 to 14) yield cs.createKeyPair
+    val keyPairs = for(id <- 1 to 14) yield encryption.createKeyPair.get
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = (for (i <- committeeMembersPubKeys.indices) yield {
@@ -396,7 +401,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     def removeMemberFromEnd(absenteesPublicKeysAccumulator: ArrayBuffer[(Integer, GroupElement)]) {
       val index = committeeMembers.length - 1
-      absenteesPublicKeysAccumulator += Tuple2(committeeMembers(index).ownId, cs.basePoint.pow(committeeMembers(index).secretKey).get)
+      absenteesPublicKeysAccumulator += Tuple2(committeeMembers(index).ownId, group.groupGenerator.pow(committeeMembers(index).secretKey).get)
       committeeMembers.remove(index)
     }
 
@@ -412,7 +417,7 @@ class DistrKeyGenTest  extends FunSuite {
     }
 
     violatorOfRound1Index = committeeMembers.length - 1
-    r1Data(violatorOfRound1Index).E(0) = cs.infinityPoint.bytes // provoke complaints on the member
+    r1Data(violatorOfRound1Index).E(0) = group.groupIdentity.bytes // provoke complaints on the member
     committeeMembers.remove(violatorOfRound1Index) // remove member, as he will be ignored anyway in the further rounds
 
     roundsData.r1Data = r1Data
@@ -434,7 +439,7 @@ class DistrKeyGenTest  extends FunSuite {
     }
 
     // change commitment of the member, which will not participate in rounds  5_1, 5_2
-    r3Data(committeeMembers.length - 2).commitments(0) = cs.infinityPoint.bytes // protocol violator on the 3-rd round
+    r3Data(committeeMembers.length - 2).commitments(0) = group.groupIdentity.bytes // protocol violator on the 3-rd round
 
     roundsData.r3Data = r3Data
     reCreateMember(2, roundsData)
@@ -478,24 +483,24 @@ class DistrKeyGenTest  extends FunSuite {
       } match {
         case Success(dkg) =>
           dkg.roundsDataCache.r5_2Data.headOption match {
-            case Some(data) => cs.decodePoint(data.sharedPublicKey)
-            case None => cs.infinityPoint
+            case Some(data) => group.reconstructGroupElement(data.sharedPublicKey).get
+            case None => group.groupIdentity
           }
         case Failure(e) =>
           println("EXCEPTION: " + e.getMessage)
-          cs.infinityPoint
+          group.groupIdentity
       }
     }
     //--------------------------------------------------------------------------------
-    val sharedPublicKeys = r5_2Data.map(_._2.sharedPublicKey).map(x => cs.decodePoint(x))
+    val sharedPublicKeys = r5_2Data.map(_._2.sharedPublicKey).map(group.reconstructGroupElement(_).get)
 
     var individualPublicKeys = (for(i <- committeeMembers.indices) yield {
-      (committeeMembers(i).ownId, cs.basePoint.pow(committeeMembers(i).secretKey).get)
+      (committeeMembers(i).ownId, group.groupGenerator.pow(committeeMembers(i).secretKey).get)
     }).toBuffer
 
     individualPublicKeys ++= absenteesPublicKeys
 
-    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(cs.infinityPoint){(publicKeysSum, publicKey) => publicKeysSum.multiply(publicKey).get}
+    val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(group.groupIdentity){(publicKeysSum, publicKey) => publicKeysSum.multiply(publicKey).get}
 
     assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys(0))))
     assert(publicKeysSum.equals(sharedPublicKeys(0)))
@@ -503,17 +508,19 @@ class DistrKeyGenTest  extends FunSuite {
 
     val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
 
-    val sharedPubKeyIndependent = cs.decodePoint(DistrKeyGen.getSharedPublicKey(cs, committeeMembersPubKeys, memberIdentifier, roundsData).get)
+    val sharedPubKeyIndependent = DistrKeyGen.getSharedPublicKey(cs, committeeMembersPubKeys, memberIdentifier, roundsData).flatMap {
+      group.reconstructGroupElement(_)
+    }.get
     assert(publicKeysSum.equals(sharedPubKeyIndependent))
   }
 
   test("generateRecoveryKeyShare") {
-    val cs = new Cryptosystem
+    val cs = new CryptoContext
     import cs.{group, hash}
 
-    val crs_h = cs.basePoint.pow(cs.getRand).get
+    val crs_h = group.groupGenerator.pow(group.createRandomNumber).get
 
-    val keyPairs = for(id <- 1 to 2) yield cs.createKeyPair
+    val keyPairs = for(id <- 1 to 2) yield encryption.createKeyPair.get
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
@@ -531,12 +538,12 @@ class DistrKeyGenTest  extends FunSuite {
   }
 
   test("recoverPrivateKeyByOpenedShares") {
-    val cs = new Cryptosystem
+    val cs = new CryptoContext
     import cs.{group, hash}
 
-    val crs_h = cs.basePoint.pow(cs.getRand).get
+    val crs_h = group.groupGenerator.pow(group.createRandomNumber).get
 
-    val transportKeyPairs = for(id <- 1 to 3) yield cs.createKeyPair
+    val transportKeyPairs = for(id <- 1 to 3) yield encryption.createKeyPair.get
     val committeeMembersPubKeys = transportKeyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
@@ -551,7 +558,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     val violatorTransportPubKey = transportKeyPairs(2)._2
     val violatorId = identifier.getId(violatorTransportPubKey)
-    val violatorPubKey = cs.decodePoint(r3Data(2).commitments(0))
+    val violatorPubKey = group.reconstructGroupElement(r3Data(2).commitments(0)).get
 
     val openedShare1 = DistrKeyGen.generateRecoveryKeyShare(cs, identifier, transportKeyPairs(0), violatorTransportPubKey, r1Data).get
     val openedShare2 = DistrKeyGen.generateRecoveryKeyShare(cs, identifier, transportKeyPairs(1), violatorTransportPubKey, r1Data).get

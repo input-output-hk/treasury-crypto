@@ -12,14 +12,14 @@ import io.iohk.protocol.keygen.datastructures.round4.{ComplaintR4, OpenedShare, 
 import io.iohk.protocol.keygen.datastructures.round5_1.R5_1Data
 import io.iohk.protocol.keygen.datastructures.round5_2.{R5_2Data, SecretKey}
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
-import io.iohk.protocol.{Cryptosystem, Identifier}
+import io.iohk.protocol.{CryptoContext, Identifier}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
 // Distributed Key Generation, based on Elliptic Curves
 //
-class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should be used for protocol running
+class DistrKeyGen(cs:               CryptoContext, // cryptosystem, which should be used for protocol running
                   h:                GroupElement, // CRS parameter
                   transportKeyPair: KeyPair, // key pair for shares encryption/decryption
                   secretKey:        PrivKey, // secret key (own private key), which will be used for generation of the shared public key
@@ -41,8 +41,7 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
           val t = (n.toFloat / 2).ceil.toInt    // Threshold number of participants
   private val A = new Array[GroupElement](t)         // Own commitments
 
-  private val g = cs.basePoint
-  private val infinityPoint = cs.infinityPoint
+  private val g = group.groupGenerator
 
   private val ownPrivateKey = transportKeyPair._1
   private val ownPublicKey  = transportKeyPair._2
@@ -177,7 +176,7 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
           if(checkOnCRS(cs, h, openedShare_a, openedShare_b, r1Data(i).E)) {
             secretShares += ShareEncrypted(r1Data(i).issuerID, secretShare_a, secretShare_b)
             shares += Share(r1Data(i).issuerID, openedShare_a, openedShare_b)
-            CRS_commitments += CRS_commitment(r1Data(i).issuerID, r1Data(i).E.map(x => cs.decodePoint(x)))
+            CRS_commitments += CRS_commitment(r1Data(i).issuerID, r1Data(i).E.map(x => group.reconstructGroupElement(x).get))
           }
           else {
             val proof_a = ElgamalDecrNIZK.produceNIZK(secretShare_a.S.encryptedSymmetricKey, ownPrivateKey).get
@@ -322,8 +321,8 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
 
   def checkCommitment(issuerID: Integer, commitment: Array[Array[Byte]]): Boolean = {
 
-    val A = commitment.map(cs.decodePoint)
-    var A_sum: GroupElement = infinityPoint
+    val A = commitment.map(group.reconstructGroupElement(_).get)
+    var A_sum: GroupElement = group.groupIdentity
     val share = shares.find(_.issuerID == issuerID)
     if(share.isDefined) {
       val X = BigInt(share.get.share_a.receiverID.toLong + 1)
@@ -382,7 +381,7 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
         if(share.isDefined) {
 
           if(checkCommitmentR3(cs, share.get, issuerCommitments)) {
-            commitments += Commitment(issuerID, issuerCommitments.map(cs.decodePoint))
+            commitments += Commitment(issuerID, issuerCommitments.map(group.reconstructGroupElement(_).get))
           } else {
             complaints += ComplaintR4(issuerID, share.get.share_a, share.get.share_b)
             violatorsIDs += issuerID
@@ -579,7 +578,7 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
           honestPublicKeysSum = honestPublicKeysSum.multiply(commitments(i).commitment(0)).get
         }
 
-        var violatorsPublicKeysSum: GroupElement = cs.infinityPoint
+        var violatorsPublicKeysSum: GroupElement = group.groupIdentity
         for(i <- violatorsPublicKeys.indices) {
           violatorsPublicKeysSum = violatorsPublicKeysSum.multiply(violatorsPublicKeys(i)).get
         }
@@ -589,7 +588,7 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
         R5_2Data(ownID, sharedPublicKey.bytes, violatorsSecretKeys.sortBy(_.ownerID).toArray)
 
       } else {
-        R5_2Data(ownID, cs.infinityPoint.bytes, Array[SecretKey]())
+        R5_2Data(ownID, group.groupIdentity.bytes, Array[SecretKey]())
       }
     }
 
@@ -670,19 +669,21 @@ class DistrKeyGen(cs:               Cryptosystem, // cryptosystem, which should 
 
 object DistrKeyGen {
 
-  private def checkOnCRS(cs: Cryptosystem,
+  private def checkOnCRS(cs: CryptoContext,
                          h: GroupElement,
                          share_a: OpenedShare,
                          share_b: OpenedShare,
-                         E: Array[Array[Byte]])
-                        (implicit dlogGroup: DiscreteLogGroup): Boolean = {
+                         E: Array[Array[Byte]]): Boolean = {
+    import cs.group
 
-    var E_sum: GroupElement = cs.infinityPoint
+    var E_sum: GroupElement = group.groupIdentity
 
     for(i <- E.indices) {
-      E_sum = E_sum.multiply(cs.decodePoint(E(i)).pow(BigInt(share_a.receiverID.toLong + 1).pow(i)).get).get
+      E_sum = E_sum.multiply(group.reconstructGroupElement(E(i)).get.pow(BigInt(share_a.receiverID.toLong + 1).pow(i))).get
     }
-    val CRS_Shares = cs.basePoint.pow(BigInt(share_a.S.decryptedMessage)).get.multiply(h.pow(BigInt(share_b.S.decryptedMessage)).get).get
+    val CRS_Shares = group.groupGenerator.pow(BigInt(share_a.S.decryptedMessage)).flatMap {
+      _.multiply(h.pow(BigInt(share_b.S.decryptedMessage)))
+    }.get
 
     CRS_Shares.equals(E_sum)
   }
@@ -690,7 +691,7 @@ object DistrKeyGen {
   private def checkComplaintR2(complaint:         ComplaintR2,
                                secretShare:       ShareEncrypted,
                                memberIdentifier:  Identifier[Int],
-                               cs:                Cryptosystem,
+                               cs:                CryptoContext,
                                h:                 GroupElement,
                                E:                 Array[Array[Byte]]): Boolean = {
     import cs.{blockCipher, group, hash}
@@ -705,7 +706,7 @@ object DistrKeyGen {
 
     def checkEncryption(proof: ShareProof): Boolean = {
       val ciphertext = HybridEncryption.encrypt(
-        cs.infinityPoint,                     // for this verification no matter what public key is used
+        group.groupIdentity,                     // for this verification no matter what public key is used
         proof.decryptedShare.decryptedMessage,
         proof.decryptedShare.decryptedKey).get
 
@@ -740,22 +741,22 @@ object DistrKeyGen {
       (checkProof(publicKey, proof_b) && checkEncryption(proof_b))
   }
 
-  private def checkCommitmentR3(cs: Cryptosystem,
+  private def checkCommitmentR3(cs: CryptoContext,
                                 share: Share,
-                                commitment: Array[Array[Byte]])
-                               (implicit dlogGroup: DiscreteLogGroup): Boolean = {
+                                commitment: Array[Array[Byte]]): Boolean = {
+    import cs.group
 
-    val A = commitment.map(cs.decodePoint)
+    val A = commitment.map(group.reconstructGroupElement(_).get)
     val X = BigInt(share.share_a.receiverID.toLong + 1)
 
-    var A_sum: GroupElement = cs.infinityPoint
+    var A_sum: GroupElement = group.groupIdentity
 
     for(i <- A.indices) {
       A_sum = A_sum.multiply(A(i).pow(X.pow(i)).get).get
     }
 
     val share_a = BigInt(share.share_a.S.decryptedMessage)
-    val g_sa = cs.basePoint.pow(share_a).get
+    val g_sa = group.groupGenerator.pow(share_a).get
 
     g_sa.equals(A_sum)
   }
@@ -771,12 +772,12 @@ object DistrKeyGen {
     */
   def sharesAreEqual(openedShare: OpenedShare,
                      secretShare: SecretShare,
-                     cs:          Cryptosystem): Boolean = {
+                     cs:          CryptoContext): Boolean = {
 
     import cs.{blockCipher, group}
 
     val shareCiphertext = HybridEncryption.encrypt(
-      cs.infinityPoint,                     // for this verification no matter what public key is used
+      group.groupIdentity,                     // for this verification no matter what public key is used
       openedShare.S.decryptedMessage,
       openedShare.S.decryptedKey
     ).get
@@ -797,7 +798,7 @@ object DistrKeyGen {
     * @param r2Data a sequence of posted during the 2-nd round R2Data packets of all protocol members;
     * @return a sequence of IDs of disqualified after round 1 protocol members.
     */
-  def getDisqualifiedOnR1CommitteeMembersIDs(cs: Cryptosystem,
+  def getDisqualifiedOnR1CommitteeMembersIDs(cs: CryptoContext,
                                              membersPubKeys: Seq[PubKey],
                                              memberIdentifier: Identifier[Int],
                                              r1Data: Seq[R1Data],
@@ -827,7 +828,7 @@ object DistrKeyGen {
     * @param r4Data a sequence of posted during the 4-th round R4Data packets of all protocol members;
     * @return a sequence of IDs of disqualified after round 3 protocol members.
     */
-  def getDisqualifiedOnR3CommitteeMembersIDs(cs: Cryptosystem,
+  def getDisqualifiedOnR3CommitteeMembersIDs(cs: CryptoContext,
                                              membersPubKeys: Seq[PubKey],
                                              memberIdentifier: Identifier[Int],
                                              disqualifiedMembersOnR1: Seq[Int],
@@ -865,7 +866,7 @@ object DistrKeyGen {
     * @param r4Data a sequence of posted during the 4-th round R4Data packets of all protocol members;
     * @return pub keys of the disqualified CMs
     */
-  def getAllDisqualifiedCommitteeMembersPubKeys(cs: Cryptosystem,
+  def getAllDisqualifiedCommitteeMembersPubKeys(cs: CryptoContext,
                                                 membersPubKeys: Seq[PubKey],
                                                 memberIdentifier: Identifier[Int],
                                                 r1Data: Seq[R1Data],
@@ -881,12 +882,12 @@ object DistrKeyGen {
     (disqualifiedMembersOnR1 ++ disqualifiedMembersOnR3).map(memberIdentifier.getPubKey(_).get)
   }
 
-  def recoverKeysOfDisqualifiedOnR3Members(cs: Cryptosystem,
+  def recoverKeysOfDisqualifiedOnR3Members(cs: CryptoContext,
                                            numberOfMembers: Int,
                                            r5_1Data: Seq[R5_1Data],
                                            disqualifiedMembersOnR1: Seq[Int],
-                                           disqualifiedMembersOnR3: Seq[Int])
-                                          (implicit dlogGroup: DiscreteLogGroup): Seq[(PubKey, PrivKey)] = {
+                                           disqualifiedMembersOnR3: Seq[Int]): Seq[(PubKey, PrivKey)] = {
+    import cs.group
 
     val r5_1DataFiltered = r5_1Data.filter(
       r5 =>
@@ -922,7 +923,7 @@ object DistrKeyGen {
       val violatorsSecretKeys = disqualifiedR3MembersShares.map(
         share => LagrangeInterpolation.restoreSecret(cs, share.violatorShares, t)
       )
-      val violatorsPublicKeys = violatorsSecretKeys.map(cs.basePoint.pow(_).get)
+      val violatorsPublicKeys = violatorsSecretKeys.map(group.groupGenerator.pow(_).get)
 
       violatorsPublicKeys zip violatorsSecretKeys
     } else {
@@ -940,11 +941,11 @@ object DistrKeyGen {
     * @return Success(SharedPublicKey), where the SharedPublicKey is an encoded to a byte representation shared public key - in case of success;
     *         Failure(e) - if an error during computations has occurred.
     */
-  def getSharedPublicKey (cs:                       Cryptosystem,
+  def getSharedPublicKey (cs:                       CryptoContext,
                           membersPubKeys:           Seq[PubKey],
                           memberIdentifier:         Identifier[Int],
-                          roundsData:               RoundsData)
-                         (implicit dlogGroup: DiscreteLogGroup): Try[SharedPublicKey] = Try {
+                          roundsData:               RoundsData): Try[SharedPublicKey] = Try {
+    import cs.group
 
     val disqualifiedMembersOnR1 =
       getDisqualifiedOnR1CommitteeMembersIDs(cs, membersPubKeys, memberIdentifier, roundsData.r1Data, roundsData.r2Data)
@@ -969,19 +970,19 @@ object DistrKeyGen {
     val r3Data = roundsData.r3Data.filter(r3 => !disqualifiedMembersOnR1.contains(r3.issuerID))
     val validCommitments =
       r3Data.filter(r3 => !disqualifiedMembersOnR3.contains(r3.issuerID)).
-        map(r3 => Commitment(r3.issuerID, r3.commitments.map(cs.decodePoint)))
+        map(r3 => Commitment(r3.issuerID, r3.commitments.map(group.reconstructGroupElement(_).get)))
 
-    val honestPublicKeysSum = validCommitments.foldLeft(cs.infinityPoint){
+    val honestPublicKeysSum = validCommitments.foldLeft(group.groupIdentity){
       (acc, c) => acc.multiply(c.commitment.head).get
     }
 
-    val violatorsPublicKeysSum = recoveredViolatorsKeys.foldLeft(cs.infinityPoint){
+    val violatorsPublicKeysSum = recoveredViolatorsKeys.foldLeft(group.groupIdentity){
       (acc, keys) => acc.multiply(keys._1).get
     }
 
     val sharedPublicKey = honestPublicKeysSum.multiply(violatorsPublicKeysSum).get
     require(
-      !sharedPublicKey.equals(cs.infinityPoint),
+      !sharedPublicKey.equals(group.groupIdentity),
       "Shared public key is undefined")
 
     sharedPublicKey.bytes
@@ -998,7 +999,7 @@ object DistrKeyGen {
     * @param r1Data submitted encrypted shares for all CMs
     * @return OpenedShare
     */
-  def generateRecoveryKeyShare(cs: Cryptosystem,
+  def generateRecoveryKeyShare(cs: CryptoContext,
                                memberIdentifier: Identifier[Int],
                                keys: (PrivKey, PubKey),
                                violatorPubKey: PubKey,
@@ -1026,7 +1027,7 @@ object DistrKeyGen {
     * @param openedShare openedShare for verification
     * @return Try(Success(Unit)) if succeeds
     */
-  def validateRecoveryKeyShare(cs: Cryptosystem,
+  def validateRecoveryKeyShare(cs: CryptoContext,
                                memberIdentifier: Identifier[Int],
                                issuerPubKey: PubKey,
                                violatorPubKey: PubKey,
@@ -1052,18 +1053,19 @@ object DistrKeyGen {
     *                                 be verified by this key (pub keys should be the same)
     * @return
     */
-  def recoverPrivateKeyByOpenedShares(cs: Cryptosystem,
+  def recoverPrivateKeyByOpenedShares(cs: CryptoContext,
                                       numberOfMembers: Int,
                                       openedShares: Seq[OpenedShare],
-                                      pubKeyOfRecoveredPrivKey: Option[PubKey] = None)
-                                     (implicit dlogGroup: DiscreteLogGroup): Try[PrivKey] = Try {
+                                      pubKeyOfRecoveredPrivKey: Option[PubKey] = None): Try[PrivKey] = Try {
+    import cs.group
+
     val recoveryThreshold = (numberOfMembers.toFloat / 2).ceil.toInt
     require(openedShares.size >= recoveryThreshold, "Not enough opened shares to recover a key")
 
     val recoveredPrivKey = LagrangeInterpolation.restoreSecret(cs, openedShares, recoveryThreshold)
 
     if (pubKeyOfRecoveredPrivKey.isDefined) {
-      val recoveredPubKey = cs.basePoint.pow(recoveredPrivKey).get
+      val recoveredPubKey = group.groupGenerator.pow(recoveredPrivKey).get
       require(recoveredPubKey == pubKeyOfRecoveredPrivKey.get, "Recovered key doesn't conform to the given pub key")
     }
 
@@ -1116,10 +1118,10 @@ object DistrKeyGen {
   def checkR2Data(r2Data:           R2Data,
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey],
-                  cs:               Cryptosystem,
+                  cs:               CryptoContext,
                   h:                GroupElement,
-                  r1DataSeq:        Seq[R1Data])
-                 (implicit dlogGroup: DiscreteLogGroup, hash: CryptographicHash): Try[Unit] = Try {
+                  r1DataSeq:        Seq[R1Data]): Try[Unit] = Try {
+    import cs.{group,hash}
 
     val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
     require(membersIDs.contains(r2Data.issuerID), "Illegal issuer's ID")
@@ -1173,7 +1175,7 @@ object DistrKeyGen {
   def checkR3Data(r3Data:           R3Data,
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey],
-                  cs:               Cryptosystem,
+                  cs:               CryptoContext,
                   r1DataSeq:        Seq[R1Data],
                   r2DataSeq:        Seq[R2Data]): Try[Unit] = Try {
 
@@ -1209,12 +1211,12 @@ object DistrKeyGen {
   def checkR4Data(r4Data:           R4Data,
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey],
-                  cs:               Cryptosystem,
+                  cs:               CryptoContext,
                   h:                GroupElement,
                   r1DataSeq:        Seq[R1Data],
                   r2DataSeq:        Seq[R2Data],
-                  r3DataSeq:        Seq[R3Data])
-                 (implicit dlogGroup: DiscreteLogGroup): Try[Unit] = Try {
+                  r3DataSeq:        Seq[R3Data]): Try[Unit] = Try {
+    import cs.{group,hash}
 
     val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
     require(membersIDs.contains(r4Data.issuerID), "Illegal issuer's ID")
@@ -1274,7 +1276,7 @@ object DistrKeyGen {
   def checkR5Data(r5_1Data:         R5_1Data,
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey],
-                  cs:               Cryptosystem,
+                  cs:               CryptoContext,
                   r1DataSeq:        Seq[R1Data],
                   r2DataSeq:        Seq[R2Data],
                   r3DataSeq:        Seq[R3Data],

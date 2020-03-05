@@ -1,7 +1,8 @@
 package io.iohk.common
 
+import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.PubKey
-import io.iohk.protocol.Cryptosystem
+import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.decryption.DecryptionManager
 import io.iohk.protocol.keygen.datastructures.C1Share
 import io.iohk.protocol.voting.Tally.Result
@@ -20,12 +21,12 @@ class VotingSimulator(
   sharedPubKey: Option[PubKey] = None
 ) {
 
-  val cs = new Cryptosystem
+  val cs = new CryptoContext
   import cs.{group, hash}
 
-  protected lazy val committeeMembers = Array.fill(numberOfCommitteeMembers)(cs.createKeyPair)
+  protected lazy val committeeMembers = Array.fill(numberOfCommitteeMembers)(encryption.createKeyPair.get)
   protected val sharedPublicKey = sharedPubKey.getOrElse(
-    committeeMembers.foldLeft(cs.infinityPoint)((sum,next) => sum.multiply(next._2).get))
+    committeeMembers.foldLeft(group.groupIdentity)((sum,next) => sum.multiply(next._2).get))
 
   def createVoterBallot(
     voterId: Int,
