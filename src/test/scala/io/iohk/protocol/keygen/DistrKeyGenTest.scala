@@ -4,6 +4,7 @@ import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.primitives.dlog.GroupElement
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.keygen.datastructures.round3.R3Data
+import io.iohk.protocol.keygen.math.LagrangeInterpolation
 import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
 import org.scalatest.FunSuite
 

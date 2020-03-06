@@ -64,40 +64,4 @@ package object keygen {
       4 + keyShares.foldLeft(0){(totalSize, currentElement) => totalSize + currentElement.size}
     }
   }
-
-  //----------------------------------------------------------
-  // For testing purposes
-  //
-  def patchR3Data(ctx: CryptoContext, r3Data: Seq[R3Data], numOfPatches: Int): Seq[R3Data] = {
-    require(numOfPatches <= r3Data.length)
-
-    var r3DataPatched = r3Data
-
-    var indexesToPatch = Array.fill[Boolean](numOfPatches)(true) ++ Array.fill[Boolean](r3Data.length - numOfPatches)(false)
-    indexesToPatch = Random.shuffle(indexesToPatch.toSeq).toArray
-
-    for(i <- r3Data.indices)
-      if(indexesToPatch(i))
-        r3DataPatched(i).commitments(0) = ctx.group.groupIdentity.bytes
-
-    r3DataPatched
-  }
-
-  def getSharedPublicKey(ctx: CryptoContext, committeeMembers: Seq[CommitteeMember]): PubKey = {
-    val r1Data    = committeeMembers.map(_.setKeyR1   ())
-    val r2Data    = committeeMembers.map(_.setKeyR2   (r1Data))
-    val r3Data    = committeeMembers.map(_.setKeyR3   (r2Data))
-
-    val r3DataPatched = patchR3Data(ctx, r3Data, 1)
-//    val r3DataPatched = r3Data
-
-    val r4Data    = committeeMembers.map(_.setKeyR4   (r3DataPatched))
-    val r5_1Data  = committeeMembers.map(_.setKeyR5_1 (r4Data))
-    val r5_2Data  = committeeMembers.map(_.setKeyR5_2 (r5_1Data))
-
-    val sharedPublicKeys = r5_2Data.map(_.sharedPublicKey).map(ctx.group.reconstructGroupElement(_).get)
-
-    assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys.head)))
-    sharedPublicKeys.head
-  }
 }

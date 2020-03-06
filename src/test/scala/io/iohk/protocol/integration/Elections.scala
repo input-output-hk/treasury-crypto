@@ -1,6 +1,7 @@
-package io.iohk.protocol
+package io.iohk.protocol.integration
 
 import io.iohk.core.crypto.encryption.PubKey
+import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.voting.Tally.Result
 import io.iohk.protocol.voting.ballots.Ballot
 import io.iohk.protocol.voting.{Expert, RegularVoter, VotingOptions}
@@ -14,8 +15,6 @@ case class ElectionsScenario1(ctx: CryptoContext) extends Elections {
   private val proposalID = 1
   private val votersNum = 2
   private val expertsNum = 2
-
-  import ctx.{group, hash}
 
   def run(sharedPubKey: PubKey): Seq[Ballot] = {
     val votersBallots =
@@ -49,8 +48,6 @@ case class ElectionsScenario2(ctx: CryptoContext) extends Elections
   private val votersNum = 10 * MULTIPLIER
   private val votersDelegatedNum = 20 * MULTIPLIER
   private val expertsNum = 5 * MULTIPLIER
-
-  import ctx.{group, hash}
 
   def run(sharedPubKey: PubKey): Seq[Ballot] =
   {

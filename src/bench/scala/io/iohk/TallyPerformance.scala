@@ -2,19 +2,16 @@ package io.iohk
 
 import io.iohk.common.VotingSimulator
 import io.iohk.core.crypto.encryption
-import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory
-import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
-import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
-import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
 import io.iohk.core.utils.{SizeUtils, TimeUtils}
 import io.iohk.protocol.CryptoContext
+import io.iohk.protocol.integration.ProtocolTest
 import io.iohk.protocol.keygen._
 
 class TallyPerformance {
 
   val crs = CryptoContext.generateRandomCRS
   val ctx = new CryptoContext(Option(crs))
-  import ctx.{group,hash}
+  import ctx.group
 
   def run(commiteeMembersNum: Int, violatorsPercentage: Int): Unit =
   {
@@ -40,7 +37,7 @@ class TallyPerformance {
     }
 
     // Generating shared public key by committee members (by running the DKG protocol between them)
-    val sharedPubKey = getSharedPublicKey(ctx, committeeMembers)
+    val sharedPubKey = ProtocolTest.getSharedPublicKey(ctx, committeeMembers)
 
     val ballots = new VotingSimulator(commiteeMembersNum, numberOfExperts, numberOfVoters, 1, false, Some(sharedPubKey)).prepareBallots()
 

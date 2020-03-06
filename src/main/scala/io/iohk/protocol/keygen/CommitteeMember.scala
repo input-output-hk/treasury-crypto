@@ -3,8 +3,7 @@ package io.iohk.protocol.keygen
 import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
 import io.iohk.core.crypto.encryption.hybrid.HybridPlaintext
 import io.iohk.core.crypto.encryption.{KeyPair, PubKey}
-import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
-import io.iohk.core.crypto.primitives.hash.CryptographicHash
+import io.iohk.core.crypto.primitives.dlog.GroupElement
 import io.iohk.protocol.decryption.DecryptionManager
 import io.iohk.protocol.keygen.datastructures.C1Share
 import io.iohk.protocol.keygen.datastructures.round1.{R1Data, SecretShare}
@@ -13,31 +12,43 @@ import io.iohk.protocol.keygen.datastructures.round3.R3Data
 import io.iohk.protocol.keygen.datastructures.round4.{ComplaintR4, OpenedShare, R4Data}
 import io.iohk.protocol.keygen.datastructures.round5_1.R5_1Data
 import io.iohk.protocol.keygen.datastructures.round5_2.R5_2Data
+import io.iohk.protocol.keygen.math.LagrangeInterpolation
 import io.iohk.protocol.voting.Tally
 import io.iohk.protocol.voting.Tally.Result
 import io.iohk.protocol.voting.ballots.Ballot
 import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
 
 /**
+  * CommitteeMember is strictly for testing purposes at this point. It is a wrapper for the functionality performed
+  * by a committee member. It wraps 5-round distributed key generation and 4-round tally decryption.
+
+  * TODO: actually it will be useful to have a wrapper like this for the production use to ease integration with the
+  *       target platform. We already have a wrapper for a voter, so it will be nice to have it also for a committee member.
+  *       It will simplify library API and eliminate the need for a target platform to interact separately with different
+  *       components (DistKeyGen, DecryptionManager, RandomnessGenManager) like it is now in our TreasuryCoin
+  *       prototype on top of Scorex.
+  * TODO: consider to refactor CommitteeMember class for being a full-fledged wrapper for a committee member functionality
   *
   * @param ctx
-  * @param transportKeyPair TODO transportKeyPair serves also as a key pair for generating shared key - is it ok?
-  * @param committeeMembersPubKeys
+  * @param transportKeyPair key pair of this committee member
+  *                         TODO: here transportKeyPair serves also as a key pair for generating shared key.
+  *                         TODO: It is ok for testing but not the case for real world.
+  * @param committeeMembersPubKeys public keys of all committee members
   * @param roundsData
   */
 class CommitteeMember(val ctx: CryptoContext,
                       val transportKeyPair: KeyPair,
                       val committeeMembersPubKeys: Seq[PubKey],
                       roundsData: RoundsData = RoundsData()) {
-  import ctx.{group, hash}
+  import ctx.group
 
 //  // SimpleIdentifier is useful for debugging purposes, but in real it's better to not rely on an order stability of the externally provided public keys
 //  val memberIdentifier = SimpleIdentifier(committeeMembersPubKeys)
 
-  // Here public keys are forcibly sorted, thus their indices, which plays the role of member ID, will be always the same for the same set of public keys
+  // Here public keys are forcibly sorted, thus their indices, which play the role of member IDs, will be always the same for the same set of public keys
   val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
 
-  // TODO: transport key pair serves also as a key pair for generating shared key. Originally these pairs were designed to be different. Check if it is ok.
+  // TODO: transport key pair serves also as a key pair for generating shared key. Originally these pairs were designed to be different.
   val secretKey = transportKeyPair._1
   val publicKey = transportKeyPair._2
 

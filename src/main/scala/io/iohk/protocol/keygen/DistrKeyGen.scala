@@ -10,6 +10,7 @@ import io.iohk.protocol.keygen.datastructures.round3.R3Data
 import io.iohk.protocol.keygen.datastructures.round4.{ComplaintR4, OpenedShare, R4Data}
 import io.iohk.protocol.keygen.datastructures.round5_1.R5_1Data
 import io.iohk.protocol.keygen.datastructures.round5_2.{R5_2Data, SecretKey}
+import io.iohk.protocol.keygen.math.{LagrangeInterpolation, Polynomial}
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
 import io.iohk.protocol.{CryptoContext, Identifier}
 

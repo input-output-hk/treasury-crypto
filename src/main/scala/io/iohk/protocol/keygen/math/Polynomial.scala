@@ -1,4 +1,4 @@
-package io.iohk.protocol.keygen
+package io.iohk.protocol.keygen.math
 
 import io.iohk.core.crypto.primitives.numbergenerator.FieldElementSP800DRNG
 import io.iohk.protocol.CryptoContext

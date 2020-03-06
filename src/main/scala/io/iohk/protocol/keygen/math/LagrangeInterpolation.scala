@@ -1,4 +1,4 @@
-package io.iohk.protocol.keygen
+package io.iohk.protocol.keygen.math
 
 import java.security.SecureRandom
 
