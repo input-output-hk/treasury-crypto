@@ -21,8 +21,8 @@ class VotingSimulator(
   sharedPubKey: Option[PubKey] = None
 ) {
 
-  val cs = new CryptoContext(None)
-  import cs.{group, hash}
+  val ctx = new CryptoContext(None)
+  import ctx.{group, hash}
 
   protected lazy val committeeMembers = Array.fill(numberOfCommitteeMembers)(encryption.createKeyPair.get)
   protected val sharedPublicKey = sharedPubKey.getOrElse(
@@ -35,7 +35,7 @@ class VotingSimulator(
     choice: VotingOptions.Value
   ): VoterBallot = {
 
-    val voter = new RegularVoter(cs, numberOfExperts, sharedPublicKey, stakePerVoter)
+    val voter = new RegularVoter(ctx, numberOfExperts, sharedPublicKey, stakePerVoter)
     if (delegation >= 0 && delegation < numberOfExperts)
       voter.produceDelegatedVote(projectId, delegation, withProofs)
     else
@@ -43,7 +43,7 @@ class VotingSimulator(
   }
 
   def createExpertBallot(expertId: Int, projectId: Int, choice: VotingOptions.Value): ExpertBallot = {
-    new Expert(cs, expertId, sharedPublicKey).produceVote(projectId, choice, withProofs)
+    new Expert(ctx, expertId, sharedPublicKey).produceVote(projectId, choice, withProofs)
   }
 
   def prepareExpertBallots(yes: Int, no: Int, abstain: Int): Seq[ExpertBallot] = {
@@ -92,7 +92,7 @@ class VotingSimulator(
   }
 
   def prepareDecryptionShares(ballots: Seq[Ballot]): Seq[((PubKey, C1Share), (PubKey, C1Share))] = {
-    val manager = new DecryptionManager(cs, ballots)
+    val manager = new DecryptionManager(ctx, ballots)
     val delegationsC1 = for (i <- committeeMembers.indices) yield {
       (committeeMembers(i)._2, manager.decryptC1ForDelegations(i, 0, committeeMembers(i)._1))
     }
@@ -107,7 +107,7 @@ class VotingSimulator(
   }
 
   def verifyDecryptionShares(ballots: Seq[Ballot], decryptionShares: Seq[((PubKey, C1Share), (PubKey, C1Share))]): Boolean = Try {
-    val validator = new DecryptionManager(cs, ballots)
+    val validator = new DecryptionManager(ctx, ballots)
 
     val delegationsC1 = decryptionShares.map(_._1)
     val choicesC1 = decryptionShares.map(_._2)
@@ -129,9 +129,9 @@ class VotingSimulator(
 
     require(decryptionShares.size == numberOfCommitteeMembers)
 
-    val d = new DecryptionManager(cs, ballots)
+    val d = new DecryptionManager(ctx, ballots)
     val delegations = d.computeDelegations(decryptionShares.map(_._1.decryptedC1.map(_._1)))
 
-    Tally.countVotes(cs, ballots, decryptionShares.map(_._2.decryptedC1.map(_._1)), delegations).get
+    Tally.countVotes(ctx, ballots, decryptionShares.map(_._2.decryptedC1.map(_._1)), delegations).get
   }
 }

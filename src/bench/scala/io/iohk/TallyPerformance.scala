@@ -13,8 +13,8 @@ import io.iohk.protocol.keygen._
 class TallyPerformance {
 
   val crs = CryptoContext.generateRandomCRS
-  val cs = new CryptoContext(Option(crs))
-  import cs.{group,hash}
+  val ctx = new CryptoContext(Option(crs))
+  import ctx.{group,hash}
 
   def run(commiteeMembersNum: Int, violatorsPercentage: Int): Unit =
   {
@@ -36,11 +36,11 @@ class TallyPerformance {
     // Instantiating committee members
     //
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(cs, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
     }
 
     // Generating shared public key by committee members (by running the DKG protocol between them)
-    val sharedPubKey = getSharedPublicKey(cs, committeeMembers)
+    val sharedPubKey = getSharedPublicKey(ctx, committeeMembers)
 
     val ballots = new VotingSimulator(commiteeMembersNum, numberOfExperts, numberOfVoters, 1, false, Some(sharedPubKey)).prepareBallots()
 

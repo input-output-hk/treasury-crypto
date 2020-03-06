@@ -20,16 +20,16 @@ import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
 
 /**
   *
-  * @param cs
+  * @param ctx
   * @param transportKeyPair TODO transportKeyPair serves also as a key pair for generating shared key - is it ok?
   * @param committeeMembersPubKeys
   * @param roundsData
   */
-class CommitteeMember(val cs: CryptoContext,
+class CommitteeMember(val ctx: CryptoContext,
                       val transportKeyPair: KeyPair,
                       val committeeMembersPubKeys: Seq[PubKey],
                       roundsData: RoundsData = RoundsData()) {
-  import cs.{group, hash}
+  import ctx.{group, hash}
 
 //  // SimpleIdentifier is useful for debugging purposes, but in real it's better to not rely on an order stability of the externally provided public keys
 //  val memberIdentifier = SimpleIdentifier(committeeMembersPubKeys)
@@ -42,7 +42,7 @@ class CommitteeMember(val cs: CryptoContext,
   val publicKey = transportKeyPair._2
 
   // DistrKeyGen depends on common system parameters, committee member's keypair and set of committee members. It encapsulates the shared key generation logic.
-  private val dkg = new DistrKeyGen(cs, transportKeyPair, secretKey, committeeMembersPubKeys, memberIdentifier, roundsData)
+  private val dkg = new DistrKeyGen(ctx, transportKeyPair, secretKey, committeeMembersPubKeys, memberIdentifier, roundsData)
 
   val ownId: Int = dkg.ownID
   var dkgViolatorsSKs: Array[BigInt] = Array[BigInt]()
@@ -140,13 +140,13 @@ class CommitteeMember(val cs: CryptoContext,
         )
     ).map(_.sortBy(_._1).map(_._2)).transpose
 
-    decryptionViolatorsShares.map(LagrangeInterpolation.restoreSecret(cs, _, dkg.t)).toArray
+    decryptionViolatorsShares.map(LagrangeInterpolation.restoreSecret(ctx, _, dkg.t)).toArray
   }
 
   def decryptTallyR1(ballots: Seq[Ballot]): C1Share =
   {
     // Initialization of the decryptor
-    decryptor = Some(new DecryptionManager(cs, ballots))
+    decryptor = Some(new DecryptionManager(ctx, ballots))
     decryptor.get.decryptC1ForDelegations(ownId, 0, secretKey)
   }
 
@@ -204,6 +204,6 @@ class CommitteeMember(val cs: CryptoContext,
 
     val allChoicesC1 = dkgViolatorsC1 ++ decryptionViolatorsC1 ++ c1ForChoices.map(_.decryptedC1.map(_._1))
 
-    Tally.countVotes(cs, d.votersBallots ++ d.expertsBallots, allChoicesC1, delegations.get).get
+    Tally.countVotes(ctx, d.votersBallots ++ d.expertsBallots, allChoicesC1, delegations.get).get
   }
 }

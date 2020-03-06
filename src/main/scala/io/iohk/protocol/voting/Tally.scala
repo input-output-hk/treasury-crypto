@@ -15,13 +15,13 @@ object Tally {
   /**
     * Unit-wise summation of the weighted regular voters delegations
     *
-    * @param cs A Cryptosystem instance
+    * @param ctx A Cryptosystem instance
     * @param votersBallots
     * @return Sequence of ciphertexts, each of which represents the summation of a particular bit of the unit vector for
     *         all voters
     */
-  def computeDelegationsSum(cs: CryptoContext, votersBallots: Seq[VoterBallot]): Seq[ElGamalCiphertext] = {
-    import cs.group
+  def computeDelegationsSum(ctx: CryptoContext, votersBallots: Seq[VoterBallot]): Seq[ElGamalCiphertext] = {
+    import ctx.group
 
     votersBallots.map(_.uvDelegations).transpose.map(
       _.zip(votersBallots).foldLeft(ElGamalCiphertext(group.groupIdentity, group.groupIdentity)) {
@@ -35,7 +35,7 @@ object Tally {
   /**
     * Unit-wise summation of the weighted voters and experts choices
     *
-    * @param cs A cryptosystem instance
+    * @param ctx A cryptosystem instance
     * @param votersBallots
     * @param expertsBallots
     * @param delegations An array representing delegations for all experts. The size of the array should be exactly
@@ -43,11 +43,11 @@ object Tally {
     * @return Sequence of ciphertexts, each of which represents the summation of a particular bit of the unit vector for
     *         all voters and experts
     */
-  def computeChoicesSum(cs: CryptoContext,
+  def computeChoicesSum(ctx: CryptoContext,
                         votersBallots: Seq[VoterBallot],
                         expertsBallots: Seq[ExpertBallot],
                         delegations: Seq[BigInt]): Seq[ElGamalCiphertext] = {
-    import cs.group
+    import ctx.group
 
     // Unit-wise summation of the weighted experts votes
     val expertsChoicesSum = expertsBallots.map(_.uvChoice).transpose.map(
@@ -79,7 +79,7 @@ object Tally {
   /**
     * Compute final tally based on the decryption shares
     *
-    * @param cs Cryptosystem instance
+    * @param ctx Cryptosystem instance
     * @param ballots all the ballots collected during the voting stage
     * @param choicesC1 decryptions shares of choices bits of the unit vector. It is crucial that this array contains
     *                  decryption shares of all committe members, including those who failed to submit shares by themselves
@@ -87,7 +87,7 @@ object Tally {
     * @param delegations vector of decrypted delegations for each expert
     * @return final result of the voting for the particular project
     */
-  def countVotes(cs: CryptoContext,
+  def countVotes(ctx: CryptoContext,
                  ballots: Seq[Ballot],
                  choicesC1: Seq[Seq[GroupElement]],
                  delegations: Seq[BigInt]): Try[Result] = Try {
@@ -101,8 +101,8 @@ object Tally {
     val expertsBallots = ballots.collect { case b: ExpertBallot => b }
     require(votersBallots.forall(_.uvChoice.length == votersBallots.head.uvChoice.length))
 
-    val choicesSum = Tally.computeChoicesSum(cs, votersBallots, expertsBallots, delegations)
-    val votesResult = Tally.decryptVectorOnC1(cs, choicesC1, choicesSum)
+    val choicesSum = Tally.computeChoicesSum(ctx, votersBallots, expertsBallots, delegations)
+    val votesResult = Tally.decryptVectorOnC1(ctx, choicesC1, choicesSum)
 
     Result(
       votesResult(0),
@@ -117,15 +117,15 @@ object Tally {
     * Morever, wrong decryption shares could lead to infinite computation since discreteLog will continuously try
     * to brute force encrypted value.
     *
-    * @param cs A Cryptosystem instance
+    * @param ctx A Cryptosystem instance
     * @param c1Vectors Decryption shares for each element of the encryptedVector
     * @param encryptedVector A vector of encrypted integers.
     * @return
     */
-  def decryptVectorOnC1(cs: CryptoContext,
+  def decryptVectorOnC1(ctx: CryptoContext,
                         c1Vectors: Seq[Seq[GroupElement]],
                         encryptedVector: Seq[ElGamalCiphertext]): Seq[BigInt] = {
-    import cs.group
+    import ctx.group
 
     require(c1Vectors.forall(_.length == c1Vectors.head.length))
     require(encryptedVector.length == c1Vectors.head.length)

@@ -31,12 +31,12 @@ object OpenedShareSerializer extends Serializer[OpenedShare, DiscreteLogGroup] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[DiscreteLogGroup]): Try[OpenedShare] = Try {
+  override def parseBytes(bytes: Array[Byte], ctxOpt: Option[DiscreteLogGroup]): Try[OpenedShare] = Try {
     case class IntAccumulator(var value: Int = 0){
       def plus(i: Int): Int = {value += i; value}
     }
 
-    val cs = csOpt.get
+    val ctx = ctxOpt.get
     val offset = IntAccumulator(0)
 
     val receiverID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -44,7 +44,7 @@ object OpenedShareSerializer extends Serializer[OpenedShare, DiscreteLogGroup] {
     val S_bytes_len = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
     val S_bytes = bytes.slice(offset.value, offset.plus(S_bytes_len))
 
-    val S = HybridPlaintextSerializer.parseBytes(S_bytes, Option(cs))
+    val S = HybridPlaintextSerializer.parseBytes(S_bytes, Option(ctx))
 
     OpenedShare(receiverID, S.get)
   }

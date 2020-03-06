@@ -24,12 +24,12 @@ object RandomnessGenManager {
     * Generates randomness as a point on the curve. Note that an additional SALT is used to initialize
     * random number generator, it is a sefety measury in case a private key is used as a seed.
     *
-    * @param cs
+    * @param ctx
     * @param seed a seed to initialize random generator
     * @return
     */
-  def getRand(cs: CryptoContext, seed: Array[Byte]): GroupElement = {
-    import cs.group
+  def getRand(ctx: CryptoContext, seed: Array[Byte]): GroupElement = {
+    import ctx.group
     val bytes = seed ++ SALT.toByteArray
     val rand = new FieldElementSP800DRNG(bytes, group.groupOrder).nextRand
     group.groupGenerator.pow(rand).get
@@ -38,26 +38,26 @@ object RandomnessGenManager {
   /**
     * Generate encrypted randomness share. Basically randomness share is an encrypted randomness.
     *
-    * @param cs
+    * @param ctx
     * @param pubKey personal pub key
     * @param msg randomness
     * @return
     */
-  def encryptRandomnessShare(cs: CryptoContext, pubKey: PubKey, msg: GroupElement): ElGamalCiphertext = {
-    import cs.group
+  def encryptRandomnessShare(ctx: CryptoContext, pubKey: PubKey, msg: GroupElement): ElGamalCiphertext = {
+    import ctx.group
     ElGamalEnc.encrypt(pubKey, msg).get._1
   }
 
   /**
     * Generate decrypted randomness share with a proof of correctness.
     *
-    * @param cs
+    * @param ctx
     * @param privKey private key that was used to produce ciphertext
     * @param ciphertext encrypted share
     * @return
     */
-  def decryptRandomnessShare(cs: CryptoContext, privKey: PrivKey, ciphertext: ElGamalCiphertext): DecryptedRandomnessShare = {
-    import cs.{group,hash}
+  def decryptRandomnessShare(ctx: CryptoContext, privKey: PrivKey, ciphertext: ElGamalCiphertext): DecryptedRandomnessShare = {
+    import ctx.{group,hash}
     val decryptedRandomness = ElGamalEnc.decrypt(privKey, ciphertext).get
     val proof = ElgamalDecrNIZK.produceNIZK(ciphertext, privKey).get
     DecryptedRandomnessShare(decryptedRandomness, proof)
@@ -66,17 +66,17 @@ object RandomnessGenManager {
   /**
     * Validates that the decrypted share corresponds to the encrypted share by checkiing a proof
     *
-    * @param cs
+    * @param ctx
     * @param pubKey pub key that was used to produce ciphertext
     * @param ciphertext encrypted randomness
     * @param decryptedShare decrypted randomness with zero-knowledge proof
     * @return
     */
-  def validateDecryptedRandomnessShare(cs: CryptoContext,
+  def validateDecryptedRandomnessShare(ctx: CryptoContext,
                                        pubKey: PubKey,
                                        ciphertext: ElGamalCiphertext,
                                        decryptedShare: DecryptedRandomnessShare): Boolean = {
-    import cs.{group,hash}
+    import ctx.{group,hash}
     ElgamalDecrNIZK.verifyNIZK(pubKey, ciphertext, decryptedShare.randomness, decryptedShare.proof)
   }
 }

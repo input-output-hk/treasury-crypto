@@ -7,9 +7,9 @@ import io.iohk.protocol.CryptoContext
 
 class ElgamalDecrNIZKTest extends FunSuite {
 
-  val cs = new CryptoContext(None)
-  implicit val group = cs.group
-  implicit val hash = cs.hash
+  val ctx = new CryptoContext(None)
+  implicit val group = ctx.group
+  implicit val hash = ctx.hash
 
   test("elgamal decryption nizk") {
     val (privKey, pubKey) = createKeyPair.get

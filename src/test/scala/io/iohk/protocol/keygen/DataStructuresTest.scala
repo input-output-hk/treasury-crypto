@@ -17,14 +17,14 @@ class DataStructuresTest extends FunSuite {
   test("DKG round data serialization") {
 
     val crs = CryptoContext.generateRandomCRS
-    val cs = new CryptoContext(Option(crs))
-    import cs.{group, hash}
+    val ctx = new CryptoContext(Option(crs))
+    import ctx.{group, hash}
 
     val keyPairs = for(id <- 1 to 10) yield encryption.createKeyPair.get
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(cs, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
     }
 
     val r1Data = for (i <- committeeMembersPubKeys.indices) yield {
@@ -32,45 +32,45 @@ class DataStructuresTest extends FunSuite {
     }
 
 //    val r1Data1 = r1Data(0)
-//    val r1Data1Restored = R1DataSerializer.parseBytes(r1Data1.bytes, cs).get
+//    val r1Data1Restored = R1DataSerializer.parseBytes(r1Data1.bytes, ctx).get
 //    assert(r1Data1.equals(r1Data1Restored))
 
-    val r1DataRestored = r1Data.map(d => R1DataSerializer.parseBytes(d.bytes, Option(cs.group, cs.blockCipher)).get).toArray
+    val r1DataRestored = r1Data.map(d => R1DataSerializer.parseBytes(d.bytes, Option(ctx.group, ctx.blockCipher)).get).toArray
     assert(r1DataRestored.sameElements(r1Data))
 
     val r2Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR2(r1DataRestored)
     }
 
-    val r2DataRestored = r2Data.map(d => R2DataSerializer.parseBytes(d.bytes, Option(cs.group, cs.blockCipher)).get).toArray
+    val r2DataRestored = r2Data.map(d => R2DataSerializer.parseBytes(d.bytes, Option(ctx.group, ctx.blockCipher)).get).toArray
     assert(r2DataRestored.sameElements(r2Data))
 
     val r3Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR3(r2Data)
     }
 
-    val r3DataRestored = r3Data.map(d => R3DataSerializer.parseBytes(d.bytes, Option(cs)).get).toArray
+    val r3DataRestored = r3Data.map(d => R3DataSerializer.parseBytes(d.bytes, Option(ctx)).get).toArray
     assert(r3DataRestored.sameElements(r3Data))
 
     val r4Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR4(r3Data)
     }
 
-    val r4DataRestored = r4Data.map(d => R4DataSerializer.parseBytes(d.bytes, Option(cs.group)).get).toArray
+    val r4DataRestored = r4Data.map(d => R4DataSerializer.parseBytes(d.bytes, Option(ctx.group)).get).toArray
     assert(r4DataRestored.sameElements(r4Data))
 
     val r5_1Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR5_1(r4Data)
     }
 
-    val r5_1DataRestored = r5_1Data.map(d => R5_1DataSerializer.parseBytes(d.bytes, Option(cs.group)).get).toArray
+    val r5_1DataRestored = r5_1Data.map(d => R5_1DataSerializer.parseBytes(d.bytes, Option(ctx.group)).get).toArray
     assert(r5_1DataRestored.sameElements(r5_1Data))
 
     val r5_2Data = for (i <- committeeMembersPubKeys.indices) yield {
       (committeeMembers(i).ownId, committeeMembers(i).setKeyR5_2(r5_1Data))
     }
 
-    val r5_2DataRestored = r5_2Data.map(d => R5_2DataSerializer.parseBytes(d._2.bytes, Option(cs)).get).toArray
+    val r5_2DataRestored = r5_2Data.map(d => R5_2DataSerializer.parseBytes(d._2.bytes, Option(ctx)).get).toArray
     assert(r5_2DataRestored.sameElements(r5_2Data.map(_._2)))
 
     //--------------------------------------------------------------------------------
@@ -99,8 +99,8 @@ class DataStructuresTest extends FunSuite {
     }
 
     val decryptionShares = decryptionSharesBytes.map { case (deleg, choices) =>
-      ((deleg._1, C1ShareSerializer.parseBytes(deleg._2, Option(simulator.cs.group)).get),
-        (choices._1, C1ShareSerializer.parseBytes(choices._2, Option(simulator.cs.group)).get))
+      ((deleg._1, C1ShareSerializer.parseBytes(deleg._2, Option(simulator.ctx.group)).get),
+        (choices._1, C1ShareSerializer.parseBytes(choices._2, Option(simulator.ctx.group)).get))
     }
 
     val verified = simulator.verifyDecryptionShares(ballots, decryptionShares)

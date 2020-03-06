@@ -51,7 +51,7 @@ object R5_1DataSerializer extends Serializer[R5_1Data, DiscreteLogGroup] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[DiscreteLogGroup]): Try[R5_1Data] = Try {
+  override def parseBytes(bytes: Array[Byte], ctxOpt: Option[DiscreteLogGroup]): Try[R5_1Data] = Try {
     case class IntAccumulator(var value: Int = 0){
       def plus(i: Int): Int = {value += i; value}
     }
@@ -66,7 +66,7 @@ object R5_1DataSerializer extends Serializer[R5_1Data, DiscreteLogGroup] {
       val violatorID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
       val violatorsShareBytesLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
       val violatorsShareBytes = bytes.slice(offset.value, offset.plus(violatorsShareBytesLen))
-      (violatorID, OpenedShareSerializer.parseBytes(violatorsShareBytes, csOpt).get)
+      (violatorID, OpenedShareSerializer.parseBytes(violatorsShareBytes, ctxOpt).get)
     }
 
     R5_1Data(issuerID, violatorsShares.toArray)

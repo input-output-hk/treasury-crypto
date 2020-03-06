@@ -41,12 +41,12 @@ object ComplaintR2Serializer extends Serializer[ComplaintR2, (DiscreteLogGroup, 
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[(DiscreteLogGroup, BlockCipher)]): Try[ComplaintR2] = Try {
+  override def parseBytes(bytes: Array[Byte], ctxOpt: Option[(DiscreteLogGroup, BlockCipher)]): Try[ComplaintR2] = Try {
     case class IntAccumulator(var value: Int = 0){
       def plus(i: Int): Int = {value += i; value}
     }
 
-    val cs = csOpt.get
+    val ctx = ctxOpt.get
     val offset = IntAccumulator(0)
 
     val violatorID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -62,9 +62,9 @@ object ComplaintR2Serializer extends Serializer[ComplaintR2, (DiscreteLogGroup, 
 
     ComplaintR2(
       violatorID,
-      cs._1.reconstructGroupElement(issuerPublicKeyBytes).get,
-      ShareProofSerializer.parseBytes(shareProof_a_Bytes, Option(cs)).get,
-      ShareProofSerializer.parseBytes(shareProof_b_Bytes, Option(cs)).get
+      ctx._1.reconstructGroupElement(issuerPublicKeyBytes).get,
+      ShareProofSerializer.parseBytes(shareProof_a_Bytes, Option(ctx)).get,
+      ShareProofSerializer.parseBytes(shareProof_b_Bytes, Option(ctx)).get
     )
   }
 }

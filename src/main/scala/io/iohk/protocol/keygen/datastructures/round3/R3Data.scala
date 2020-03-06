@@ -49,7 +49,7 @@ object R3DataSerializer extends Serializer[R3Data, CryptoContext] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[CryptoContext]): Try[R3Data] = Try {
+  override def parseBytes(bytes: Array[Byte], ctxOpt: Option[CryptoContext]): Try[R3Data] = Try {
     case class IntAccumulator(var value: Int = 0){
       def plus(i: Int): Int = {value += i; value}
     }

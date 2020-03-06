@@ -10,23 +10,23 @@ trait Elections {
   def verify(tallyRes: Result): Boolean
 }
 
-case class ElectionsScenario1(cs: CryptoContext) extends Elections {
+case class ElectionsScenario1(ctx: CryptoContext) extends Elections {
   private val proposalID = 1
   private val votersNum = 2
   private val expertsNum = 2
 
-  import cs.{group, hash}
+  import ctx.{group, hash}
 
   def run(sharedPubKey: PubKey): Seq[Ballot] = {
     val votersBallots =
       for (voterId <- expertsNum until (expertsNum + votersNum)) yield {
-        new RegularVoter(cs, expertsNum, sharedPubKey, 3)
+        new RegularVoter(ctx, expertsNum, sharedPubKey, 3)
           .produceDelegatedVote(proposalID, 1)
       }
 
     val expertsBallots =
       for (expertId <- 0 until expertsNum) yield {
-        Expert(cs, expertId, sharedPubKey)
+        Expert(ctx, expertId, sharedPubKey)
           .produceVote(proposalID, VotingOptions.Yes)
       }
 
@@ -40,7 +40,7 @@ case class ElectionsScenario1(cs: CryptoContext) extends Elections {
   }
 }
 
-case class ElectionsScenario2(cs: CryptoContext) extends Elections
+case class ElectionsScenario2(ctx: CryptoContext) extends Elections
 {
 
   private val MULTIPLIER = 2
@@ -50,25 +50,25 @@ case class ElectionsScenario2(cs: CryptoContext) extends Elections
   private val votersDelegatedNum = 20 * MULTIPLIER
   private val expertsNum = 5 * MULTIPLIER
 
-  import cs.{group, hash}
+  import ctx.{group, hash}
 
   def run(sharedPubKey: PubKey): Seq[Ballot] =
   {
     val votersBallots =
       for (voterId <- expertsNum until (expertsNum + votersNum)) yield {
-        new RegularVoter(cs, expertsNum, sharedPubKey, 3)
+        new RegularVoter(ctx, expertsNum, sharedPubKey, 3)
           .produceVote(proposalID, if (voterId % 2 == 1) VotingOptions.Yes else VotingOptions.Abstain)
       }
 
     val votersDelegatedBallots =
       for (voterId <- (expertsNum + votersNum) until (expertsNum + votersNum + votersDelegatedNum)) yield {
-        new RegularVoter(cs, expertsNum, sharedPubKey, 2)
+        new RegularVoter(ctx, expertsNum, sharedPubKey, 2)
           .produceDelegatedVote(proposalID, 0)
       }
 
     val expertsBallots =
       for (expertId <- 0 until expertsNum) yield {
-        Expert(cs, expertId, sharedPubKey)
+        Expert(ctx, expertId, sharedPubKey)
           .produceVote(proposalID, VotingOptions.No)
       }
 

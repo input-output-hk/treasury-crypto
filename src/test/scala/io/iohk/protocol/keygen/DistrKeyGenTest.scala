@@ -13,15 +13,15 @@ import scala.util.{Failure, Success, Try}
 class DistrKeyGenTest  extends FunSuite {
 
   val crs = CryptoContext.generateRandomCRS
-  val cs = new CryptoContext(Option(crs))
-  import cs.{group, hash}
+  val ctx = new CryptoContext(Option(crs))
+  import ctx.{group, hash}
 
   test("dkg_interpolation") {
 
-    val cs = new CryptoContext(None)
+    val ctx = new CryptoContext(None)
 
     for(degree <- 2 to 10) {
-      assert(LagrangeInterpolation.testInterpolation(cs, degree))
+      assert(LagrangeInterpolation.testInterpolation(ctx, degree))
     }
   }
 
@@ -32,7 +32,7 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(cs, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
     }
 
     val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
@@ -73,7 +73,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     r2Data.foreach{
       r2 =>
-        DistrKeyGen.checkR2Data(cs, r2, memberIdentifier, committeeMembersPubKeys, r1Data) match {
+        DistrKeyGen.checkR2Data(ctx, r2, memberIdentifier, committeeMembersPubKeys, r1Data) match {
           case Success(_) =>
           case _ => println(s"Incorrect R2 data from member ${r2.issuerID}")
         }
@@ -102,7 +102,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     r3Data.foreach{
       r3 =>
-        DistrKeyGen.checkR3Data(cs, r3, memberIdentifier, committeeMembersPubKeys, r1Data, r2Data) match {
+        DistrKeyGen.checkR3Data(ctx, r3, memberIdentifier, committeeMembersPubKeys, r1Data, r2Data) match {
           case Success(_) =>
           case _ => println(s"Incorrect R3 data from member ${r3.issuerID}")
         }
@@ -116,7 +116,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     r4Data.foreach{
       r4 =>
-        DistrKeyGen.checkR4Data(cs, r4, memberIdentifier, committeeMembersPubKeys, r1Data, r2Data, r3Data) match {
+        DistrKeyGen.checkR4Data(ctx, r4, memberIdentifier, committeeMembersPubKeys, r1Data, r2Data, r3Data) match {
           case Success(_) =>
           case _ => println(s"Incorrect R4 data from member ${r4.issuerID}")
         }
@@ -130,7 +130,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     r5_1Data.foreach{
       r5 =>
-        DistrKeyGen.checkR5Data(cs, r5, memberIdentifier, committeeMembersPubKeys, r1Data, r2Data, r3Data, r4Data) match {
+        DistrKeyGen.checkR5Data(ctx, r5, memberIdentifier, committeeMembersPubKeys, r1Data, r2Data, r3Data, r4Data) match {
           case Success(_) =>
           case _ => println(s"Incorrect R5_1 data from member ${r5.issuerID}")
         }
@@ -174,7 +174,7 @@ class DistrKeyGenTest  extends FunSuite {
     // Verify, that shared public key is equal to the original public key
     assert(publicKeysSum.equals(sharedPublicKeys(0)))
 
-    val sharedPubKey = DistrKeyGen.getSharedPublicKey(cs, committeeMembersPubKeys, memberIdentifier, roundsData).flatMap {
+    val sharedPubKey = DistrKeyGen.getSharedPublicKey(ctx, committeeMembersPubKeys, memberIdentifier, roundsData).flatMap {
       group.reconstructGroupElement(_)
     }.get
     assert(publicKeysSum.equals(sharedPubKey))
@@ -188,7 +188,7 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = (for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(cs, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
     }).toBuffer
 
     val roundsData = RoundsData()
@@ -263,7 +263,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
 
-    val sharedPubKey = DistrKeyGen.getSharedPublicKey(cs, committeeMembersPubKeys, memberIdentifier, roundsData).flatMap {
+    val sharedPubKey = DistrKeyGen.getSharedPublicKey(ctx, committeeMembersPubKeys, memberIdentifier, roundsData).flatMap {
       group.reconstructGroupElement(_)
     }.get
     assert(publicKeysSum.equals(sharedPubKey))
@@ -277,11 +277,11 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = (for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(cs, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
     }).toBuffer
 
     def reCreateMember(memberIndex: Int, roundsData: RoundsData){
-      committeeMembers(memberIndex) = new CommitteeMember(cs, keyPairs(memberIndex), committeeMembersPubKeys, roundsData)
+      committeeMembers(memberIndex) = new CommitteeMember(ctx, keyPairs(memberIndex), committeeMembersPubKeys, roundsData)
     }
     val roundsData = RoundsData()
 
@@ -341,7 +341,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     val sharedPubKey = {
       Try {
-        new DistrKeyGen(cs, keyPairs(memberIndex), committeeMembers(memberIndex).secretKey, committeeMembersPubKeys, new CommitteeIdentifier(committeeMembersPubKeys), roundsData)
+        new DistrKeyGen(ctx, keyPairs(memberIndex), committeeMembers(memberIndex).secretKey, committeeMembersPubKeys, new CommitteeIdentifier(committeeMembersPubKeys), roundsData)
       } match {
         case Success(dkg) =>
           dkg.roundsDataCache.r5_2Data.headOption match {
@@ -375,11 +375,11 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = (for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(cs, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
     }).toBuffer
 
     def reCreateMember(memberIndex: Int, roundsData: RoundsData) {
-      committeeMembers(memberIndex) = new CommitteeMember(cs, keyPairs(memberIndex), committeeMembersPubKeys, roundsData)
+      committeeMembers(memberIndex) = new CommitteeMember(ctx, keyPairs(memberIndex), committeeMembersPubKeys, roundsData)
     }
 
     def removeMemberFromEnd(absenteesPublicKeysAccumulator: ArrayBuffer[(Int, GroupElement)]) {
@@ -462,7 +462,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     val sharedPubKey = {
       Try {
-        new DistrKeyGen(cs, keyPairs(memberIndex), committeeMembers(memberIndex).secretKey, committeeMembersPubKeys, new CommitteeIdentifier(committeeMembersPubKeys), roundsData)
+        new DistrKeyGen(ctx, keyPairs(memberIndex), committeeMembers(memberIndex).secretKey, committeeMembersPubKeys, new CommitteeIdentifier(committeeMembersPubKeys), roundsData)
       } match {
         case Success(dkg) =>
           dkg.roundsDataCache.r5_2Data.headOption match {
@@ -491,7 +491,7 @@ class DistrKeyGenTest  extends FunSuite {
 
     val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
 
-    val sharedPubKeyIndependent = DistrKeyGen.getSharedPublicKey(cs, committeeMembersPubKeys, memberIdentifier, roundsData).flatMap {
+    val sharedPubKeyIndependent = DistrKeyGen.getSharedPublicKey(ctx, committeeMembersPubKeys, memberIdentifier, roundsData).flatMap {
       group.reconstructGroupElement(_)
     }.get
     assert(publicKeysSum.equals(sharedPubKeyIndependent))
@@ -503,15 +503,15 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(cs, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
     }
 
     val r1Data = for (i <- committeeMembersPubKeys.indices) yield {
       committeeMembers(i).setKeyR1()
     }
 
-    val openedShare = DistrKeyGen.generateRecoveryKeyShare(cs, committeeMembers(0).memberIdentifier, keyPairs(0), keyPairs(1)._2, r1Data).get
-    val verified = DistrKeyGen.validateRecoveryKeyShare(cs, committeeMembers(0).memberIdentifier, keyPairs(0)._2, keyPairs(1)._2, r1Data, openedShare).isSuccess
+    val openedShare = DistrKeyGen.generateRecoveryKeyShare(ctx, committeeMembers(0).memberIdentifier, keyPairs(0), keyPairs(1)._2, r1Data).get
+    val verified = DistrKeyGen.validateRecoveryKeyShare(ctx, committeeMembers(0).memberIdentifier, keyPairs(0)._2, keyPairs(1)._2, r1Data, openedShare).isSuccess
 
     assert(verified)
   }
@@ -522,7 +522,7 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = transportKeyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(cs, transportKeyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, transportKeyPairs(i), committeeMembersPubKeys)
     }
 
     val r1Data = for (i <- committeeMembersPubKeys.indices) yield committeeMembers(i).setKeyR1()
@@ -535,10 +535,10 @@ class DistrKeyGenTest  extends FunSuite {
     val violatorId = identifier.getId(violatorTransportPubKey)
     val violatorPubKey = group.reconstructGroupElement(r3Data(2).commitments(0)).get
 
-    val openedShare1 = DistrKeyGen.generateRecoveryKeyShare(cs, identifier, transportKeyPairs(0), violatorTransportPubKey, r1Data).get
-    val openedShare2 = DistrKeyGen.generateRecoveryKeyShare(cs, identifier, transportKeyPairs(1), violatorTransportPubKey, r1Data).get
+    val openedShare1 = DistrKeyGen.generateRecoveryKeyShare(ctx, identifier, transportKeyPairs(0), violatorTransportPubKey, r1Data).get
+    val openedShare2 = DistrKeyGen.generateRecoveryKeyShare(ctx, identifier, transportKeyPairs(1), violatorTransportPubKey, r1Data).get
 
-    val recoveredPrivKey = DistrKeyGen.recoverPrivateKeyByOpenedShares(cs, committeeMembers.size, Seq(openedShare1, openedShare2), Some(violatorPubKey))
+    val recoveredPrivKey = DistrKeyGen.recoverPrivateKeyByOpenedShares(ctx, committeeMembers.size, Seq(openedShare1, openedShare2), Some(violatorPubKey))
     assert(recoveredPrivKey.isSuccess)
   }
 }

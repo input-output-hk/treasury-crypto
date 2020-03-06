@@ -37,12 +37,12 @@ object ShareProofSerializer extends Serializer[ShareProof, (DiscreteLogGroup, Bl
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[(DiscreteLogGroup, BlockCipher)]): Try[ShareProof] = Try {
+  override def parseBytes(bytes: Array[Byte], ctxOpt: Option[(DiscreteLogGroup, BlockCipher)]): Try[ShareProof] = Try {
     case class IntAccumulator(var value: Int = 0){
       def plus(i: Int): Int = {value += i; value}
     }
 
-    val cs = csOpt.get
+    val ctx = ctxOpt.get
     val offset = IntAccumulator(0)
 
     val encryptedShareBytesLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -55,9 +55,9 @@ object ShareProofSerializer extends Serializer[ShareProof, (DiscreteLogGroup, Bl
     val NIZKProofBytes = bytes.slice(offset.value, offset.plus(NIZKProofLen))
 
     ShareProof(
-      HybridCiphertextSerializer.parseBytes(encryptedShareBytes, Option(cs)).get,
-      HybridPlaintextSerializer.parseBytes(decryptedShareBytes, Option(cs._1)).get,
-      ElgamalDecrNIZKProofSerializer.parseBytes(NIZKProofBytes, Option(cs._1)).get
+      HybridCiphertextSerializer.parseBytes(encryptedShareBytes, Option(ctx)).get,
+      HybridPlaintextSerializer.parseBytes(decryptedShareBytes, Option(ctx._1)).get,
+      ElgamalDecrNIZKProofSerializer.parseBytes(NIZKProofBytes, Option(ctx._1)).get
     )
   }
 }

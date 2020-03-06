@@ -55,8 +55,8 @@ object R5_2DataSerializer extends Serializer[R5_2Data, CryptoContext] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[CryptoContext]): Try[R5_2Data] = Try {
-    val cs = csOpt.get
+  override def parseBytes(bytes: Array[Byte], ctxOpt: Option[CryptoContext]): Try[R5_2Data] = Try {
+    val ctx = ctxOpt.get
     val offset = IntAccumulator(0)
 
     val issuerID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -69,7 +69,7 @@ object R5_2DataSerializer extends Serializer[R5_2Data, CryptoContext] {
     val violatorsSecretKeys = for (_ <- 0 until violatorsSecretKeysLen) yield {
       val violatorsSecretKeyLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
       val violatorsSecretKeyBytes = bytes.slice(offset.value, offset.plus(violatorsSecretKeyLen))
-      SecretKeySerializer.parseBytes(violatorsSecretKeyBytes, Option(cs)).get
+      SecretKeySerializer.parseBytes(violatorsSecretKeyBytes, Option(ctx)).get
     }
 
     R5_2Data(issuerID, sharedPublicKeyBytes, violatorsSecretKeys.toArray)

@@ -49,12 +49,12 @@ object R4DataSerializer extends Serializer[R4Data, DiscreteLogGroup] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[DiscreteLogGroup]): Try[R4Data] = Try {
+  override def parseBytes(bytes: Array[Byte], ctxOpt: Option[DiscreteLogGroup]): Try[R4Data] = Try {
     case class IntAccumulator(var value: Int = 0){
       def plus(i: Int): Int = {value += i; value}
     }
 
-    val cs = csOpt.get
+    val ctx = ctxOpt.get
     val offset = IntAccumulator(0)
 
     val issuerID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -64,7 +64,7 @@ object R4DataSerializer extends Serializer[R4Data, DiscreteLogGroup] {
     val complaints = for (_ <- 0 until complaintsLen) yield {
       val complaintBytesLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
       val complaintBytes = bytes.slice(offset.value, offset.plus(complaintBytesLen))
-      ComplaintR4Serializer.parseBytes(complaintBytes, Option(cs)).get
+      ComplaintR4Serializer.parseBytes(complaintBytes, Option(ctx)).get
     }
 
     R4Data(issuerID, complaints.toArray)

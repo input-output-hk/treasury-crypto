@@ -6,10 +6,10 @@ import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKVerifier}
 import io.iohk.protocol.voting.ballots.{Ballot, ExpertBallot, VoterBallot}
 
-abstract class Voter(val cs: CryptoContext) {
+abstract class Voter(val ctx: CryptoContext) {
 
-  protected implicit val group = cs.group
-  protected implicit val hash = cs.hash
+  protected implicit val group = ctx.group
+  protected implicit val hash = ctx.hash
 
   def publicKey: PubKey
 
@@ -34,10 +34,10 @@ object Voter {
   val VOTER_CHOISES_NUM = 3
 }
 
-class RegularVoter(override val cs: CryptoContext,
+class RegularVoter(override val ctx: CryptoContext,
                    val expertsNum: Int,
                    val publicKey: PubKey,
-                   val stake: BigInt) extends Voter(cs) {
+                   val stake: BigInt) extends Voter(ctx) {
 
   def produceVote(proposalID: Int, choice: VotingOptions.Value, withProof: Boolean = true): VoterBallot = {
 
@@ -72,9 +72,9 @@ class RegularVoter(override val cs: CryptoContext,
   }
 }
 
-case class Expert(override val cs: CryptoContext,
+case class Expert(override val ctx: CryptoContext,
                   expertId: Int,
-                  publicKey: PubKey) extends Voter(cs) {
+                  publicKey: PubKey) extends Voter(ctx) {
 
   def produceVote(proposalID: Int, choice: VotingOptions.Value, withProof: Boolean = true): ExpertBallot = {
 

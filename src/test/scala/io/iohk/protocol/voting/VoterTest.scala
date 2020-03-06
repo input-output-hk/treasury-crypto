@@ -6,8 +6,8 @@ import org.scalatest.FunSuite
 
 class VoterTest extends FunSuite {
 
-  val cs = new CryptoContext(None)
-  import cs.{group, hash}
+  val ctx = new CryptoContext(None)
+  import ctx.{group, hash}
 
   val (privKey, pubKey) = encryption.createKeyPair.get
 
@@ -15,7 +15,7 @@ class VoterTest extends FunSuite {
     val voterId = 6
     val numberOfExperts = 6
 
-    val voter = new RegularVoter(cs, numberOfExperts, pubKey, 1)
+    val voter = new RegularVoter(ctx, numberOfExperts, pubKey, 1)
     val ballot = voter.produceVote(0, VotingOptions.Abstain)
 
     assert(voter.verifyBallot(ballot))
@@ -25,7 +25,7 @@ class VoterTest extends FunSuite {
   test("test zero knowledge proof for Expert ballot") {
     val voterId = 6
 
-    val voter = new Expert(cs, voterId, pubKey)
+    val voter = new Expert(ctx, voterId, pubKey)
     val ballot = voter.produceVote(0, VotingOptions.Abstain)
 
     assert(voter.verifyBallot(ballot))

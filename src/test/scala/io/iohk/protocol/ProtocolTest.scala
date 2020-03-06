@@ -6,8 +6,8 @@ import org.scalatest.FunSuite
 
 class ProtocolTest extends FunSuite {
 
-  def doTest(cs: CryptoContext, elections: Elections): Boolean = {
-    import cs.{group, hash}
+  def doTest(ctx: CryptoContext, elections: Elections): Boolean = {
+    import ctx.{group, hash}
 
     // Generating keypairs for every commitee member
     val keyPairs = Array.fill(10)(encryption.createKeyPair.get)
@@ -15,10 +15,10 @@ class ProtocolTest extends FunSuite {
 
     // Instantiating committee members
     //
-    val committeeMembers = keyPairs.map(k => new CommitteeMember(cs, k, committeeMembersPubKeys))
+    val committeeMembers = keyPairs.map(k => new CommitteeMember(ctx, k, committeeMembersPubKeys))
 
     // Generating shared public key by committee members (by running the DKG protocol between them)
-    val sharedPubKey = getSharedPublicKey(cs, committeeMembers)
+    val sharedPubKey = getSharedPublicKey(ctx, committeeMembers)
 
     // Running elections by specific scenario
     val ballots = elections.run(sharedPubKey)
@@ -62,9 +62,9 @@ class ProtocolTest extends FunSuite {
 
   test("test protocol") {
     val crs = CryptoContext.generateRandomCRS
-    val cs = new CryptoContext(Option(crs))
+    val ctx = new CryptoContext(Option(crs))
 
-    assert(doTest(cs, ElectionsScenario1(cs)))
-    assert(doTest(cs, ElectionsScenario2(cs)))
+    assert(doTest(ctx, ElectionsScenario1(ctx)))
+    assert(doTest(ctx, ElectionsScenario2(ctx)))
   }
 }

@@ -32,7 +32,7 @@ object SecretKeySerializer extends Serializer[SecretKey, CryptoContext] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[CryptoContext]): Try[SecretKey] = Try {
+  override def parseBytes(bytes: Array[Byte], ctxOpt: Option[CryptoContext]): Try[SecretKey] = Try {
 
     val offset = IntAccumulator(0)
 

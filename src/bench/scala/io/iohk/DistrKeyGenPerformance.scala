@@ -8,8 +8,8 @@ import io.iohk.protocol.keygen._
 class DistrKeyGenPerformance {
 
   val crs = CryptoContext.generateRandomCRS
-  val cs = new CryptoContext(Option(crs))
-  import cs.group
+  val ctx = new CryptoContext(Option(crs))
+  import ctx.group
 
   def Run(commiteeMembersNum: Int, violatorsPercentage: Int): Unit = {
 //    println("--------------------------------------------------------------------------------------")
@@ -26,7 +26,7 @@ class DistrKeyGenPerformance {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield
-      new CommitteeMember(cs, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
 
     var overallBytes = 0
 
@@ -51,7 +51,7 @@ class DistrKeyGenPerformance {
 
     overallBytes += SizeUtils.getSize(r3Data)
 
-    val r3DataPatched = patchR3Data(cs, r3Data, violatorsNum)
+    val r3DataPatched = patchR3Data(ctx, r3Data, violatorsNum)
 
     val (r4Data, timeR4) = TimeUtils.get_time_average_s(
       "Round 4:",

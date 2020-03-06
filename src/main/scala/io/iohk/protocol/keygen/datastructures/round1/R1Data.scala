@@ -58,12 +58,12 @@ object R1DataSerializer extends Serializer[R1Data, (DiscreteLogGroup, BlockCiphe
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[(DiscreteLogGroup, BlockCipher)]): Try[R1Data] = Try {
+  override def parseBytes(bytes: Array[Byte], ctxOpt: Option[(DiscreteLogGroup, BlockCipher)]): Try[R1Data] = Try {
     case class IntAccumulator(var value: Int = 0){
       def plus(i: Int): Int = {value += i; value}
     }
 
-    val cs = csOpt.get
+    val ctx = ctxOpt.get
     val offset = IntAccumulator(0)
 
     val issuerID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -80,7 +80,7 @@ object R1DataSerializer extends Serializer[R1Data, (DiscreteLogGroup, BlockCiphe
     val S_a = for (_ <- 0 until S_a_len) yield {
         val S_a_bytes_len = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
         val S_a_bytes = bytes.slice(offset.value, offset.plus(S_a_bytes_len))
-        SecretShareSerializer.parseBytes(S_a_bytes, Option(cs)).get
+        SecretShareSerializer.parseBytes(S_a_bytes, Option(ctx)).get
     }
 
     val S_b_len = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -88,7 +88,7 @@ object R1DataSerializer extends Serializer[R1Data, (DiscreteLogGroup, BlockCiphe
     val S_b = for (_ <- 0 until S_b_len) yield {
         val S_b_bytes_len = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
         val S_b_bytes = bytes.slice(offset.value, offset.plus(S_b_bytes_len))
-        SecretShareSerializer.parseBytes(S_b_bytes, Option(cs)).get
+        SecretShareSerializer.parseBytes(S_b_bytes, Option(ctx)).get
     }
 
     R1Data(issuerID, E.toArray, S_a.toArray, S_b.toArray)

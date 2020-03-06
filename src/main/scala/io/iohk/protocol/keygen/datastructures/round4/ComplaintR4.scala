@@ -34,7 +34,7 @@ object ComplaintR4Serializer extends Serializer[ComplaintR4, DiscreteLogGroup] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[DiscreteLogGroup]): Try[ComplaintR4] = Try {
+  override def parseBytes(bytes: Array[Byte], ctxOpt: Option[DiscreteLogGroup]): Try[ComplaintR4] = Try {
     case class IntAccumulator(var value: Int = 0){
       def plus(i: Int): Int = {value += i; value}
     }
@@ -51,7 +51,7 @@ object ComplaintR4Serializer extends Serializer[ComplaintR4, DiscreteLogGroup] {
 
     ComplaintR4(
       violatorID,
-      OpenedShareSerializer.parseBytes(share_a_Bytes, csOpt).get,
-      OpenedShareSerializer.parseBytes(share_b_Bytes, csOpt).get)
+      OpenedShareSerializer.parseBytes(share_a_Bytes, ctxOpt).get,
+      OpenedShareSerializer.parseBytes(share_b_Bytes, ctxOpt).get)
   }
 }

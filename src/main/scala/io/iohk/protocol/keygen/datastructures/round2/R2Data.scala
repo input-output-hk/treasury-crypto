@@ -50,12 +50,12 @@ object R2DataSerializer extends Serializer[R2Data, (DiscreteLogGroup, BlockCiphe
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], csOpt: Option[(DiscreteLogGroup, BlockCipher)]): Try[R2Data] = Try {
+  override def parseBytes(bytes: Array[Byte], ctxOpt: Option[(DiscreteLogGroup, BlockCipher)]): Try[R2Data] = Try {
     case class IntAccumulator(var value: Int = 0){
       def plus(i: Int): Int = {value += i; value}
     }
 
-    val cs = csOpt.get
+    val ctx = ctxOpt.get
     val offset = IntAccumulator(0)
 
     val issuerID = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
@@ -65,7 +65,7 @@ object R2DataSerializer extends Serializer[R2Data, (DiscreteLogGroup, BlockCiphe
     val complaints = for (_ <- 0 until complaintsLen) yield {
       val complaintBytesLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
       val complaintBytes = bytes.slice(offset.value, offset.plus(complaintBytesLen))
-      ComplaintR2Serializer.parseBytes(complaintBytes, Option(cs)).get
+      ComplaintR2Serializer.parseBytes(complaintBytes, Option(ctx)).get
     }
 
     R2Data(issuerID, complaints.toArray)
