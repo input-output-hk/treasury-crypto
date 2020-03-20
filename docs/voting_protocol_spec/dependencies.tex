@@ -1,0 +1,266 @@
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\graphicspath{ {./images/} }
+\usepackage{enumitem}
+\usepackage{url}
+\usepackage{nameref}
+
+% \usepackage{draftwatermark}
+% \SetWatermarkText{DRAFT}
+% \SetWatermarkScale{3}
+
+\usepackage[dvipsnames]{xcolor}
+\usepackage{hyperref}
+\newcommand\myshade{85}
+\colorlet{mylinkcolor}{violet}
+\colorlet{mycitecolor}{YellowOrange}
+\colorlet{myurlcolor}{Aquamarine}
+\hypersetup{
+    breaklinks=true,
+	colorlinks=true, %set true if you want colored links
+	linktoc=all,     %set to all if you want both sections and subsections linked
+    linkcolor=violet,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    citecolor=YellowOrange
+}
+
+\usepackage{amsthm}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\usepackage{geometry}
+\newgeometry{vmargin={24mm}, hmargin={28mm,28mm}}
+
+\usepackage{listings}
+\lstset{
+  language=Java,
+  aboveskip=-2mm,
+  belowskip=-2mm,
+  showstringspaces=false,
+  columns=flexible,
+  ={\small\ttfamily},
+  numbers=none,
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=4,
+  keywordstyle=\bfseries,
+  morekeywords={type, Inputs, Outputs}
+}
+
+\usepackage{titlesec}
+\usepackage{titletoc}
+\usepackage[title,titletoc]{appendix}
+\renewcommand{\appendixname}{Appendix}
+\usepackage{caption}
+\usepackage{array,tabularx}
+\newenvironment{conditions}
+  {\par\vspace{\abovedisplayskip}\noindent
+   \tabularx{\columnwidth}{>{$}l<{$} @{${}-{}$} >{\raggedright\arraybackslash}X}}
+  {\endtabularx\par\vspace{\belowdisplayskip}}
+\usepackage[skins]{tcolorbox}
+\newtcolorbox{protocolframe}[2][]{%
+  enhanced,colback=white,colframe=black,coltitle=black,
+  sharp corners,boxrule=0.4pt,
+  fonttitle=\itshape,
+  attach boxed title to top left={yshift=-0.3\baselineskip-0.4pt,xshift=2mm},
+  boxed title style={tile,size=minimal,left=0.5mm,right=0.5mm,
+    colback=white,before upper=\strut},
+  title=#2,#1
+}
+\newcommand{\subsubsubsection}[1]{\paragraph{#1}\mbox{}\\}
+\setcounter{secnumdepth}{4}
+\setcounter{tocdepth}{4}
+
+% Dependencies from the treasury paper
+
+\usepackage{amssymb,amsfonts}
+\usepackage{amsmath}
+\newcommand{\ignore}[1]{}
+\usepackage[normalem]{ulem}
+\usepackage{color}
+
+%\geometry{letterpaper,top=1.5in,bottom=1.5in,left=1in,right=1in}
+
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{example}{Example}
+\newtheorem{remark}{Remark}
+
+\newtheorem{observation}{Observation}
+\newtheorem{assumption}{Assumption}
+\newtheorem{fact}{Fact}
+
+
+\newcommand{\change}[1]{\textcolor{red}{#1}}
+\newcommand{\remove}[1]{\textcolor{red}{\sout{#1}}}
+
+\newcommand{\Com}{\mathsf{Com}}
+\newcommand{\Opt}{\mathsf{Opt}}
+
+
+% Mathematical notation
+\newcommand{\NN}        {\mathbb{N}}
+\newcommand{\ZZ}        {\mathbb{Z}}
+\newcommand{\PP}        {\mathbb{P}}
+\newcommand{\FF}        {\mathbb{F}}
+\newcommand{\abs}  [1]  {\left|#1\right|}
+\newcommand{\set}  [1]  {\left\{#1\right\}}
+\newcommand{\floor}[1]  {\lfloor #1\rfloor}
+\newcommand{\ceil} [1]  {\lceil #1\rceil}
+\newcommand{\pr}   [1]  {\Pr \left[#1\right]}
+\newcommand{\poly}      {\operatorname{poly}}
+\newcommand{\polylog}   {\operatorname{polylog}}
+\newcommand{\Oh}        {\mathcal{O}}
+\newcommand{\param}     {\mathsf{param}}
+
+% Common mathematical operators
+\newcommand{\iseq}{\stackrel{\scriptscriptstyle ?}{=}}
+\newcommand{\getsu}{\gets_{\scriptscriptstyle \hspace*{-0.7em}u\hspace*{0.1em}}}
+
+% Common symbols for sets
+\newcommand{\AAA}{\mathcal{A}}
+\newcommand{\BBB}{\mathcal{B}}
+\newcommand{\EEE}{\mathcal{E}}
+\newcommand{\FFF}{\mathcal{F}}
+\newcommand{\CCC}{\mathcal{C}}
+\newcommand{\III}{\mathcal{I}}
+\newcommand{\JJJ}{\mathcal{J}}
+\newcommand{\RRR}{\mathcal{R}}
+\newcommand{\LLL}{\mathcal{L}}
+\newcommand{\KKK}{\mathcal{K}}
+\newcommand{\PPP}{\mathcal{P}}
+\newcommand{\VVV}{\mathcal{V}}
+\newcommand{\SSS}{\mathcal{S}}
+\newcommand{\XXX}{\mathcal{X}}
+\newcommand{\ZZZ}{\mathcal{Z}}
+
+\newcommand{\ADV}  {\mathsf{Adv}}
+\newcommand{\Adv}  {\mathsf{Adv}^{\mathsf{DDH}}_{\group}}
+\newcommand{\DL}  {\mathsf{Dlog}}
+
+
+\newcommand{\Fvote}{\mathcal{F}_{\textsc{Vote}}}
+\newcommand{\Fledger}{\mathcal{G}^{Q}_{\textsc{Ledger}}}
+\newcommand{\Pivote}{\Pi_{\textsc{Vote}}}
+
+
+
+
+\newcommand{\corrupt}  {\mathsf{cor}}
+
+\newcommand{\readL}  {\textsc{Read}}
+\newcommand{\readLR}  {\textsc{ReadReturn}}
+\newcommand{\tamper}  {\textsc{Tamper}}
+\newcommand{\tick}  {\textsc{tick}}
+\newcommand{\post}  {\textsc{Post}}
+\newcommand{\postN}  {\textsc{PostNotify}}
+
+\newcommand{\honest}  {\mathsf{honest}}
+\newcommand{\data}  {\mathsf{data}}
+\newcommand{\buffer}  {\mathsf{buffer}}
+\newcommand{\online}  {\mathsf{online}}
+\newcommand{\Tally}  {\mathsf{TallyAlg}}
+\newcommand{\leak}  {\textsc{Leak}}
+\newcommand{\reveal}  {\textsc{Reveal}}
+\newcommand{\init}  {\textsc{Init}}
+\newcommand{\initN}  {\textsc{InitNotify}}
+\newcommand{\vote}  {\textsc{Vote}}
+\newcommand{\castN}  {\textsc{CastNotify}}
+\newcommand{\delegate}  {\textsc{Delegate}}
+\newcommand{\tally}  {\textsc{Tally}}
+\newcommand{\tallyN}  {\textsc{TallyNotify}}
+\newcommand{\readT}  {\textsc{ReadTally}}
+\newcommand{\readTR}  {\textsc{ReadTallyReturn}}
+
+\newcommand{\delegateN}  {\textsc{DelegateNotify}}
+\newcommand{\voteN}  {\textsc{VoteNotify}}
+
+\newcommand{\VC}{\mathsf{C}}
+\newcommand{\EXP}{\mathsf{E}}
+\newcommand{\Voter}{\mathsf{V}}
+
+\newcommand{\PoK}{\mathsf{PoK}}
+
+\newcommand{\opt}{\mathsf{opt}}
+
+\newcommand{\Enc}{\mathsf{Enc}}
+\newcommand{\Dec}{\mathsf{Dec}}
+\newcommand{\group}{\mathbb{G}}
+\newcommand{\pk}{\mathsf{pk}}
+\newcommand{\sk}{\mathsf{sk}}
+
+\newcommand{\ck}{\mathsf{ck}}
+
+\newcommand{\Gen}{\mathsf{Gen}_{\mathsf{gp}}}
+\newcommand{\Genpkc}{\mathsf{Gen}}
+
+\newcommand{\nizk}{\mathsf{NIZK}}
+
+\newcommand{\Gencom}{\mathsf{KeyGen}^{\mathsf{C}}}
+\newcommand{\Open}{\mathsf{Open}}
+\newcommand{\Verify}{\mathsf{Verify}}
+% \newcommand{\nizk}{\mathsf{NIZK}}
+% \newcommand{\validate}{\mathsf{Validate}}
+% \newcommand{\isvalidstate}{\mathsf{isvalidstate}}
+% \newcommand{\valid}{\mathsf{valid}}
+% \newcommand{\invalid}{\mathsf{invalid}}
+
+
+
+\newenvironment{boxfig}[2]{%
+	\begin{figure}[hbt!]
+		\newcommand{\FigCaption}{#1}
+		\newcommand{\FigLabel}{#2}
+		%     \vspace{-0.25cm}
+		\begin{center}
+			\begin{small}
+				\begin{tabular}{@{}|@{~~}l@{~~}|@{}}
+					\hline
+					\rule[-1.5ex]{0pt}{1ex}\begin{minipage}[b]{.95\linewidth}
+						\vspace{1ex}
+						\smallskip
+					}{%
+				\end{minipage}\\
+				\hline
+			\end{tabular}
+		\end{small}
+		%       \vspace{-0.25cm}
+		\caption{\FigCaption}
+		%       \figlab{\FigLabel}
+	\end{center}
+	\vspace{-0.5cm}
+\end{figure}
+}
+
+\newcommand{\mybox}[5]{
+    \begin{figure*}[hbt!]
+        \centering
+    \begin{tikzpicture}
+        \node[anchor=text,text width=\columnwidth-1.2cm, draw, rounded corners, line width=1pt, fill=#3, inner sep=5mm] (big) {\\#4};
+        \node[draw, rounded corners, line width=.5pt, fill=#2, anchor=west, xshift=5mm] (small) at (big.north west) {#1};
+    \end{tikzpicture}
+    \caption{#5}
+    \end{figure*}
+}
+
+\newcommand{\hash}{\mathsf{hash}}
+\newcommand{\valid}{\mathsf{valid}}
+\renewcommand{\vec} [1] {\bold{#1}}
+
+\newcommand{\myhalfbox}[5]{
+    \begin{figure}[htpb]
+        \centering
+    \begin{tikzpicture}
+        \node[anchor=text,text width=\columnwidth-1.2cm, draw, rounded corners, line width=1pt, fill=#3, inner sep=5mm] (big) {\\#4};
+        \node[draw, rounded corners, line width=.5pt, fill=#2, anchor=west, xshift=5mm] (small) at (big.north west) {#1};
+    \end{tikzpicture}
+    \caption{#5}
+    \end{figure}
+}
+
+\makeatletter
+\setlength{\@fptop}{0pt}
+\makeatother

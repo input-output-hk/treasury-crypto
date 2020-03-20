@@ -1,0 +1,34 @@
+\documentclass{article}
+\include{dependencies}
+
+\title{Treasury Voting Protocol Specification\\
+(draft, in review)}
+\author{Dmytro Kaidalov\\
+    \texttt{dmytro.kaidalov@iohk.io}\\
+    \texttt{IOHK Research}}
+\date{March 2020}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+The purpose of this document is to provide a detailed specification of the voting protocol proposed by B.~Zhang, R.~Oliynykov, and H.~Balogun in~\cite{ZOB18} and implemented in the \textit{treasury-crypto} library~\cite{treasury-crypto}. Even though the treasury paper~\cite{ZOB18} does a great job at describing a general concept and details of main components of the system, it is written mostly from the academic point of view, which in some cases complicates understanding of how it can be implemented. Moreover, some details, which are important for the implementation, were put off from the paper. This specification aims to resolve the gap between the treasury paper and real implementation.
+
+The document provides a general overview of the treasury system and then dives deeply into all parts of the voting protocol.
+
+Before reading this document it might be useful to read \cite{ZOB18}. 
+The specification is compiled from the following sources:
+\begin{itemize}
+    \item Full treasury paper: \url{https://www.lancaster.ac.uk/staff/zhangb2/treasury.pdf} \cite{ZOB18}
+    \item Implementation of the voting protocol (\textit{treasury-crypto} library):\\ \url{https://github.com/input-output-hk/treasury-crypto/} \cite{treasury-crypto}
+    \item Full-fledged prototype of the treasury on top of the Scorex framework:\\
+    \url{https://github.com/input-output-hk/TreasuryCoin/} \cite{treasurycoin}
+    \item Internal discussions and personal notes
+\end{itemize}
+
+\include{Treasury_System_Overview}
+\include{Voting_Protocol}
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}
