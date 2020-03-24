@@ -8,7 +8,9 @@ The section describes in details Voting and Tally stages. We assume that after t
     \item \textbf{Experts} $\mathcal{E}:=\{e_1,\ldots, e_m \}$.
 \end{itemize}
 
-\subsection{Basic Math}
+\subsection{Preliminaries}
+
+\subsubsection{Basic Math}
 The implementation\footnote{Implementation of all basic crypto can be found here:\\ \href{https://github.com/input-output-hk/treasury-crypto/tree/master/src/main/scala/io/iohk/core/crypto}{https://github.com/input-output-hk/treasury-crypto/../core/crypto}} of our scheme is based on elliptic curve groups for efficiency.
 Let $\sigma:=(p,a,b,g,q,\zeta)$ be the elliptic curve domain parameters over $\FF_p$, consisting of a prime $p$ specifying the finite field $\FF_p$, two elements $a,b\in\FF_p$ specifying an elliptic curve $E(\FF_p)$ defined by
 $E: y^2\equiv x^3 + ax + b \pmod p$,
@@ -405,8 +407,8 @@ After obtaining all decryption shares $D_{j,e_i}$ from all committee members $C_
     \item Compute number of delegations to each expert $E_i$ as $dlg_{i}=DLOG_g(\dfrac{d_{e_i,2}}{D_{e_i}})$, where $d_{e_i,2}$ is obtained during the Round 1 and $DLOG$ is a discrete logarithm for the resulting group element. Note that the logarithm is the number of delegations so it can be effectively found by brute force.\\
 \end{itemize}
 \textbf{Round 3 (tally results decryption):} see continuation on Fig.~\ref{fig:tally2}
-
 \end{boxfig}
+
 \begin{boxfig}{\label{fig:tally2}Tally (Rounds 3,4)}{}
 \textbf{Round 3 (tally results decryption):}
 Each qualified committee member $C_j,\ j\in\JJJ$ does the following:
@@ -444,6 +446,7 @@ After obtaining all decryption shares $R_{j,i}$ from all committee members $C_j,
 \end{itemize}
 \end{boxfig}
 
+\FloatBarrier
 \begin{boxfig}{\label{fig:DecrShareNIZK}Non-Interactive Zero Knowledge proof for correct ElGamal decryption share (note that this NIZK is basically the same as ElGamal decryption NIZK in Fig.~\ref{fig:ElgamalDecrNIZK} except slightly different interface)}{}
 \begin{center}
 $\nizk\{(\pk, C_1, D ),(\sk): D = (C_1)^{\sk} \, \wedge \, \pk = g^{\sk}\}$
@@ -470,5 +473,75 @@ $\nizk\{(\pk, C_1, D ),(\sk): D = (C_1)^{\sk} \, \wedge \, \pk = g^{\sk}\}$
     \item $g^z = h^e \cdot A_1$, and
     \item $(C_1)^{z} = D^e \cdot A_2$ 
     \end{itemize}
+\end{itemize}
+\end{boxfig}
+
+\subsection{Distributed Randomness generation}
+
+As it was previously outlined in [\nameref{sec:overview}], randomness generation is done by committee members. It is split into two phases:
+\begin{enumerate}
+	\item \textbf{Random value commitment}, and
+	\item \textbf{Randomness revealing}.
+\end{enumerate}
+
+Commitment phase is done during the post-voting stage. At this phase each qualified\footnote{By qualified we mean a committee member that has not been disqualified during any of the previous stages (DKG, Tally)} committe member generates a random value and submits its encryption (under the shared election public key) to the blockchain. No one else knows the committed random values of committee members. The commitment phase is formilized at Fig.~\ref{fig:rand_commit}.
+
+Randomness revealing phase is done during the pre-voting stage of the next treasury epoch. At this phase committe members collect all committed random values, sum them up homomorphically and preapare decryption shares for the summed result (likewise it is done for voting ballots). After all decryption shares are submitted, everyone can compute the randomness. In case some committee member failed to submit the decryption share, his secret key is reconstructed by the majority of other committee members and then everyone can reconstruct his decryption share. So if a committee member has made a committment of a random value, it will be revealed even if he aborted to do it by himself, which makes impossible to manipulate the final randomness. The revealing phase is formalized at  and Fig.~\ref{fig:rand_reveal}.
+
+\begin{boxfig}{\label{fig:rand_commit}Random value commitment}{}
+\footnotesize
+\textbf{Entities:}\\
+    \hspace*{6mm} \textbf{Committee members} $\mathcal{C}:=\{C_1,\ldots, C_l \}$.\\
+
+\textbf{Input data:}\\
+    \hspace*{6mm} $\pk$ - shared election public key, that was generated during the DKG stage\\
+
+\textbf{Random value commitment.}
+Each qualified committee member $C_j,~j\in\JJJ'$ does the following:
+\begin{itemize}
+	\item Generate a random value $r_j\in\FF_p$
+	\item Compute $R_j=\Enc_{\pk}(r_j;r')$, where $r'\in\FF_p$ is some other random value needed for the ElGamal encryption scheme
+    \item Publish $R_j$ to the blockchain
+\end{itemize}
+\end{boxfig}
+
+
+\begin{boxfig}{\label{fig:rand_reveal}Randomness revealing}{}
+\footnotesize
+\textbf{Entities:}\\
+    \hspace*{6mm} \textbf{Committee members} $\mathcal{C}:=\{C_1,\ldots, C_l \}$.\\
+
+\textbf{Input data:}\\
+    \hspace*{6mm} $\pk$ - shared election public key, that was generated during the DKG stage.\\
+    \hspace*{6mm} \textbf{Set of committed random values} $\mathcal{R}:=\{R_1,\ldots, R_n \}$.\\
+
+\textbf{Round 1 (random values revealing):}
+Each committee member $C_j,\ j\in\JJJ''$, who submitted a random value commitment $R_*$, does the following:
+\begin{itemize}
+    \item Compute the sum of all encrypted random values: $R=\prod_{i=1}^{n} R_i$
+    \item Compute a decryption share as follows:
+    \begin{itemize}
+        \item Parse $R$ to $(R_{1}, R_{2})$ (recall that $R$ is an ElGamal ciphertext, which comprises 2 group elements [\ref{sec:elgamal}])
+        \item Compute the decryption share $D_{j}=(R_{1})^{sk_j}$, where $sk_j$ is a secret key of the committee member $C_j$, and a proof $\pi_{j}$ that the share is generated correctly (see Fig.~\ref{fig:DecrShareNIZK} for NIZK description):
+        \begin{equation*}
+        \pi_{j}\leftarrow\nizk\left\{\begin{array}{l} (\pk_j, R_{1}, D_{j}),(\sk_j): \\
+         D_{j}=(R_{1})^{sk_j} \; \wedge pk_j=g^{sk_j} \; \wedge \;  (\pk_j,\sk_j)\in\RRR_{\textsc{PKE}} \end{array}\right\}
+        \end{equation*}
+    \end{itemize}
+    \item Publish $\{D_{j}, \pi_{j}\}$ to the blockchain\\
+\end{itemize}
+
+\textbf{Round 2 (randomness decryption shares recovery):}
+
+Each qualified committee member $C_i,\ i \in \JJJ''$ does the following:
+\begin{itemize}
+    \item If there such committee members $C_j,\ j \in \FFF''$, which submitted random value commitments but failed to submit valid decryption shares, then $C_i$ posts to the blockchain shares $s_{j,i},\ j \in \FFF''$ of $C_j$'s secret key obtained during the Round 1 of the DKG protocol (Figure~\ref{fig:DKG}).\\
+\end{itemize}
+
+\textbf{Randomness computation}. Everyone does the following:
+\begin{itemize}
+	\item Reconstruct secret keys of $C_j,\ j\in\FFF''$: $sk_j := \sum_{i\in[\JJJ']} \gamma_{j} \cdot s_{j,i}$, where $\gamma_{j}:= \prod_{\ell\in \JJJ''\setminus \{j\} } \frac{\ell}{\ell-j}$
+	\item Reconstruct missing decryption shares of failed committee members $C_j,\ j\in\FFF''$ as $D_{j}=(R_{1})^{sk_j}$.
+	\item After obtaining all decryption shares $D_{j}$ from all committee members $C_j,\ j\in\JJJ''$, compute randomness as follows: \[rand=H(R_1 | R_2 | .. | R_m),\] where $m$ is the number of decryption shares, which is also the number of committee members that submitted random value commitments.
 \end{itemize}
 \end{boxfig}

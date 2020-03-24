@@ -1,4 +1,4 @@
-\section{Treasury System Overview}
+\section{Treasury System Overview\label{sec:overview}}
 
 The decentralized nature of blockchain systems complicates their maintenance, further development and governance. System improvements have to be publicly proposed, approved, and funded, keeping the corresponding level of decentralization. 
 
@@ -17,20 +17,21 @@ The basic flow of a decision making process is depicted in Fig.\ref{fig:DMP}. In
 
 This process is repeated periodically. Each such period is called a treasury epoch. In our treasury system, each epoch consists of the following stages:
 \begin{enumerate}[leftmargin=5em, itemsep=0em]
-    \item \textbf{Preparation stage}.
+    \item \textbf{Pre-voting stage}.
         \subitem a) Proposals submission.
         \subitem b) Voters/Experts/Committee registration.
-        \subitem c) Random committee selection.
-    \item \textbf{Voting stage}.
+        \subitem c) Randomness revealing.
+        \subitem d) Random committee selection.
         \subitem a) Distributed voting key generation.
-        \subitem b) Ballots casting.
-    \item \textbf{Tally stage}.
-        \subitem a) Joint decryption of voting results.
-        \subitem b) Randomness generation for the next epoch.
-        \subitem c) Execution stage.
+    \item \textbf{Voting stage}.
+        \subitem a) Ballots casting.
+    \item \textbf{Post-voting stage}.
+        \subitem a) Joint decryption of tally.
+        \subitem b) Randomness commitment for the next epoch.
+        \subitem c) Execution.
 \end{enumerate}
 
-\subsection{Preparation stage}
+\subsection{Pre-voting stage}
 \textbf{Entities}. All stake holders are eligible to participate in case they registered themselves. The stake holders may have one or more of the following roles.
 \begin{itemize}[leftmargin=5em, itemsep=0em]
     \item \textbf{Project owners} $\mathcal{O}:=\{O_1,\ldots, O_k \}$, who submit proposals for funding;
@@ -64,7 +65,9 @@ where:
     sig & a signature on the whole registration transaction issued with \textit{pubKey}.
 \end{conditions}
 
-\textbf{Random Committee Selection.} To facilitate efficiency of the voting protocol a voting committee is restricted to have fixed size. Since there might be more users that wants to participate in the committee, a special random selection procedure (Fig.~\ref{committee_select}) is used to determine who will be in the committee for a particular treasury epoch\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/TreasuryCoin/blob/master/examples/src/main/scala/examples/hybrid/state/TreasuryState.scala\#L367}{https://github.com/input-output-hk/TreasuryCoin/../examples/hybrid/state/TreasuryState.scala:selectApprovedCommittee()}}.
+\textbf{Randomness revealing.} A random value is required for the committee selection procedure. This random value is generated collectively by the voting committee of the previous treasury epoch. At this stage, they just reveal previously committed randomness. It is crucial that the randomness is revealed after the registration phase, so that committee candidates cannot influence the selection procedure by adjusting their registration data.
+
+\textbf{Random Committee Selection.} To facilitate efficiency of the voting protocol, a voting committee is restricted to have fixed size. Since there might be more users wanting to participate in the committee, a special random selection procedure (Fig.~\ref{committee_select}) is used to determine who will be in the committee for a particular treasury epoch\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/TreasuryCoin/blob/master/examples/src/main/scala/examples/hybrid/state/TreasuryState.scala\#L367}{https://github.com/input-output-hk/TreasuryCoin/../examples/hybrid/state/TreasuryState.scala:selectApprovedCommittee()}}.
 
 % \begin{protocolframe}{\textbf{Committee Selection Procedure}}
 \myhalfbox{Committee Selection Procedure}{white!40}{white!10}{
@@ -78,6 +81,8 @@ where:
 % \end{protocolframe}
 }{Committee Selection Procedure\label{committee_select}}
 
+\textbf{Distributed key generation}. During the DKG phase, the elected voting committee jointly generates a shared public voting key which will be used by voters and experts to encrypt their ballots. Then, after the voting stage is finished, the committee collectively decrypt the tally and generate randomness for the next treasury epoch.
+
 \subsection{Voting stage}
 After the preparation stage there are a set of proposals $\mathcal{P}:=\{P_1,\ldots, P_k \}$ and three sets of voting participants:
 \begin{enumerate}
@@ -86,21 +91,22 @@ After the preparation stage there are a set of proposals $\mathcal{P}:=\{P_1,\ld
     \item \textbf{Committee members} $\mathcal{C}:=\{C_1,\ldots, C_l \}$. Each committee member is associated with two registered keys $pubKey_{c_i}$ and $committeePubKey_{c_i}$. The latter is used to encrypt communication with other committee members.
 \end{enumerate}
 
-The main task of the voting committee is to generate a shared public voting key which is used by voters and experts to encrypt their ballots. The distributed key generation procedure will be described in detail in the next section. Then, after the voting stage is finished, they collectively decrypt the tally.
-
 During the voting stage, voters and experts issue voting ballots where they put their choices regarding proposals. For each proposal, a voter may chose among three options: Yes, No, Abstain, or he can delegate his voting power to some expert, in which case the chose of the expert will be counted with the corresponding voting power of the voter.
 Note that each proposal is treated separately, so that a voter can delegate his voting power to different experts for different proposals.
 
-\subsection{Tally stage}
-After collecting all ballots, the voting committee collectively decrypt the tally for each proposal. Winning proposals are selected according to the following procedure:
-% \begin{protocolframe}{\textbf{Proposals selection procedure}}
+\subsection{Post-voting stage}
+
+\textbf{Joint decryption of tally}. After the voting stage, all ballots are collected and the voting committee jointly decrypt the tally for each proposal without revealing personal choices of voters and experts. Winning proposals are selected according to the procedure on Fig.~\ref{fig:proposals_select}.
+
 \myhalfbox{Proposals selection procedure}{white!40}{white!10}{
 \begin{enumerate}
     \item Filter out all proposals for which the difference between "Yes" and "No" votes is less than 10\% of the total voting power.
     \item Sort all remaining proposals according to the amount of "Yes" votes (taking into account the voting power of different voters).
     \item Top ranked proposals are funded one-by-one until the treasury budget for the epoch is exhausted. 
 \end{enumerate}
-% \end{protocolframe}
-}{Proposals selection procedure}
+}{Proposals selection procedure\label{fig:proposals_select}}
 
-Certain proportion (e.g. 20\%) of the treasury fund will be used to reward the voting committee members, voters and experts. The voting committee members receives a fixed amount of reward, while voters receive rewards proportional to their voting power. Experts receive rewards as a percentage (e.g. 5\%) of rewards for voters, which delegated to them\footnote{See implementation of payments distribution here:\\ \href{https://github.com/input-output-hk/TreasuryCoin/blob/master/examples/src/main/scala/examples/hybrid/state/TreasuryState.scala\#L537}{https://github.com/input-output-hk/TreasuryCoin/../examples/hybrid/state/TreasuryState.scala:getPayments()}}.
+\newpage
+\textbf{Randomness commitment for the next epoch}. At this stage, each committee member commits a random value that will be used to construct randomness for the next treasury epoch.
+
+\textbf{Execution}. During the execution stage treasury funds are distributed to winning proposals. Certain proportion (e.g. 20\%) of the treasury fund is used to reward the voting committee members, voters and experts. The voting committee members receive a fixed amount of reward, while voters receive rewards proportional to their voting power. Experts receive rewards as a percentage (e.g. 5\%) of rewards for voters, who delegated to them\footnote{See implementation of payments distribution here:\\ \href{https://github.com/input-output-hk/TreasuryCoin/blob/master/examples/src/main/scala/examples/hybrid/state/TreasuryState.scala\#L537}{https://github.com/input-output-hk/TreasuryCoin/../examples/hybrid/state/TreasuryState.scala:getPayments()}}.
