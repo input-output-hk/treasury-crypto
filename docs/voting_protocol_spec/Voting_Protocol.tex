@@ -30,7 +30,8 @@ We employ lifted ElGamal encryption scheme as the candidate of the additively ho
 \item $\Gen(1^\lambda)$: take input as security parameter $\lambda$, and output $\sigma:=(p,a,b,g,q,\zeta)$.
 \item $\Genpkc(\sigma)$: pick $\sk\leftarrow \ZZ_q^*$ and set $\pk:=h=g^{sk}$, and output $(\pk,\sk)$. 
 \item $\Enc_{\pk}(m;r)$: output $e:=(e_1,e_2)=(g^r,g^m h^r)$.
-\item $\Dec_{\sk}(e)$: output $\DL(e_2\cdot e_1^{-\sk})$, where $\DL(x)$ is the discrete logarithm of $x$. (Note that since $\DL(\cdot)$ is not efficient, the message space should be a small set, say $\set{0,1}^\xi$, for $\xi\leq30$.)
+\item $\Dec'_{\sk}(e)$: output $e_2\cdot e_1^{-\sk}=g^m$, which is a regular ElGamal decryption.
+\item $\Dec_{\sk}(e)$: output $m=\DL(\Dec'_{sk}(e))$, where $\DL(x)$ is the discrete logarithm of $x$. (Note that since $\DL(\cdot)$ is not efficient, the message space should be a small set, say $\set{0,1}^\xi$, for $\xi\leq30$.)
 \end{itemize}
 
 It is well known that lifted ElGamal encryption scheme is IND-CPA secure under the DDH assumption. It has additively homomorphic property: $$\Enc_{\pk}(m_1;r_1) \cdot \Enc_{\pk}(m_2;r_2) = \Enc_{\pk}(m_1 + m_2 ;r_1+ r_2 )\enspace.$$
@@ -78,9 +79,9 @@ In the second round, each committee member $\VC_j$ fetch all $e_{i,j}$ and $e'_{
 \end{itemize} 
 Members with one valid complain against them are disqualified from participating in the key generation process.\\
 
-\begin{boxfig}{\label{fig:ElgamalDecrNIZK}Non-Interactive Zero Knowledge proof for correct lifted ElGamal decryption}{}
+\begin{boxfig}{\label{fig:ElgamalDecrNIZK}Non-Interactive Zero Knowledge proof for correct ElGamal decryption}{}
 \begin{center}
-$\nizk\{(\pk, C, M ),(\sk): M = \Dec_{\sk}(C) \, \wedge \, \pk = g^{\sk}\}$
+$\nizk\{(\pk, C, M ),(\sk): M = \Dec'_{\sk}(C) \, \wedge \, \pk = g^{\sk}\}$
 \end{center}
 
 \textbf{Statement:} Public key, $\pk:=h \in\group$,  ciphertext $C: =(C_1, C_2 )$, and the plaintext $M:=g^m \in\group$
@@ -518,16 +519,13 @@ Each qualified committee member $C_j,~j\in\JJJ'$ does the following:
 \textbf{Round 1 (random values revealing):}
 Each committee member $C_j,\ j\in\JJJ''$, who submitted a random value commitment $R_*$, does the following:
 \begin{itemize}
-    \item Compute the sum of all encrypted random values: $R=\prod_{i=1}^{n} R_i$
-    \item Compute a decryption share as follows:
-    \begin{itemize}
-        \item Parse $R$ to $(R_{1}, R_{2})$ (recall that $R$ is an ElGamal ciphertext, which comprises 2 group elements [\ref{sec:elgamal}])
-        \item Compute the decryption share $D_{j}=(R_{1})^{sk_j}$, where $sk_j$ is a secret key of the committee member $C_j$, and a proof $\pi_{j}$ that the share is generated correctly (see Fig.~\ref{fig:DecrShareNIZK} for NIZK description):
-        \begin{equation*}
-        \pi_{j}\leftarrow\nizk\left\{\begin{array}{l} (\pk_j, R_{1}, D_{j}),(\sk_j): \\
-         D_{j}=(R_{1})^{sk_j} \; \wedge pk_j=g^{sk_j} \; \wedge \;  (\pk_j,\sk_j)\in\RRR_{\textsc{PKE}} \end{array}\right\}
-        \end{equation*}
-    \end{itemize}
+    \item Decrypt committed random value: $D_j=\Dec'_{\sk}(R_j)$
+    \item Compute a proof $\pi_{j}$ that the decryption is correct (see Fig.~\ref{fig:DecrShareNIZK} for NIZK description):
+    \begin{equation*}
+        \pi_{j}\leftarrow\nizk\left\{\begin{array}{l} (\pk_j, R_{j}, D_{j}),(\sk_j): \\
+         D_j=\Dec'_{\sk}(R_j) \; \wedge pk_j=g^{sk_j} \; \wedge \;  (\pk_j,\sk_j)\in\RRR_{\textsc{PKE}} \end{array}\right\}
+    \end{equation*}
+
     \item Publish $\{D_{j}, \pi_{j}\}$ to the blockchain\\
 \end{itemize}
 
@@ -541,7 +539,8 @@ Each qualified committee member $C_i,\ i \in \JJJ''$ does the following:
 \textbf{Randomness computation}. Everyone does the following:
 \begin{itemize}
 	\item Reconstruct secret keys of $C_j,\ j\in\FFF''$: $sk_j := \sum_{i\in[\JJJ']} \gamma_{j} \cdot s_{j,i}$, where $\gamma_{j}:= \prod_{\ell\in \JJJ''\setminus \{j\} } \frac{\ell}{\ell-j}$
-	\item Reconstruct missing decryption shares of failed committee members $C_j,\ j\in\FFF''$ as $D_{j}=(R_{1})^{sk_j}$.
-	\item After obtaining all decryption shares $D_{j}$ from all committee members $C_j,\ j\in\JJJ''$, compute randomness as follows: \[rand=H(R_1 | R_2 | .. | R_m),\] where $m$ is the number of decryption shares, which is also the number of committee members that submitted random value commitments.
+	\item Reconstruct missing decryptions of failed committee members $C_j,\ j\in\FFF''$ as $D_{j}=(R_{j})^{sk_j}$.
+	\item After obtaining all decryptions of random values $D_{j}$ from all committee members $C_j,\ j\in\JJJ''$, compute randomness as follows: \[rand=H(\{D_j\}_{j\in\JJJ''}),\]
+	where $\{D_j\}$ is a concatanation of values $D_j,~j\in\JJJ''$.
 \end{itemize}
 \end{boxfig}
