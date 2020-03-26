@@ -3,6 +3,7 @@ package io.iohk.protocol.keygen
 import io.iohk.core.crypto.encryption.hybrid.HybridEncryption
 import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
 import io.iohk.core.crypto.primitives.dlog.GroupElement
+import io.iohk.core.crypto.primitives.numbergenerator.{FieldElementSP800DRNG, SP800DRNG}
 import io.iohk.protocol.keygen.DistrKeyGen.{checkCommitmentR3, checkComplaintR2, checkOnCRS}
 import io.iohk.protocol.keygen.datastructures.round1.{R1Data, SecretShare}
 import io.iohk.protocol.keygen.datastructures.round2.{ComplaintR2, R2Data, ShareProof}
@@ -73,10 +74,10 @@ class DistrKeyGen(ctx:              CryptoContext, // cryptosystem, which should
     * When a data from the previous execution of this round (prevR1Data) is supplied, the check for identity of generated R1Data and prevR1Data will be performed. This check is needed for state consistency control.
     * Output of the current round execution is always cached.
     * In case if prevR1Data and newly generated R1Data are inconsistent and None is returned, the generated R1Data can be retrieved from the roundsDataCache.
-    * If this method is called more than once during the same protocol execution, the cached R1Data from the firstest method execution will be returned.
-    * If this method is called out of the supposed by the protocol order, then None will be returned.
+    * If this method is called more than once during the same protocol execution, the cached R1Data from the first method execution will be returned.
+    * If this method is called when it should not be, by the protocol order, then None will be returned.
     *
-    * @param prevR1Data optional, R1data from previous execution of this round (should be passed during internal state restoring)
+    * @param prevR1Data optional, R1data from previous execution of this round (should be passed during internal state restoration)
     * @return Some(R1Data) if success, None otherwise
     */
   def doRound1(prevR1Data: Option[R1Data] = None): Option[R1Data] = {
@@ -87,8 +88,11 @@ class DistrKeyGen(ctx:              CryptoContext, // cryptosystem, which should
       case 0 =>
     }
 
+    // TODO: verify from the security standpoint if it is ok to generate all polynomial's coefficients with a random
+    // number generator that is seeded with the secretKey. In theory, every coefficient should be randomly selected
+    val rand = new FieldElementSP800DRNG(secretKey.toByteArray, ctx.group.groupOrder).nextRand
     val poly_a = new Polynomial(ctx, secretKey, t)
-    val poly_b = new Polynomial(ctx, secretKey, t)
+    val poly_b = new Polynomial(ctx, rand, t)
 
     for(i <- A.indices)
       A(i) = g.pow(poly_a(i)).get
@@ -112,8 +116,10 @@ class DistrKeyGen(ctx:              CryptoContext, // cryptosystem, which should
 
         assert(x != 0) // avoid share for a_0 coefficient
 
-        S_a += SecretShare(recipientID, HybridEncryption.encrypt(receiverPublicKey, poly_a.evaluate(x).toByteArray, ownPrivateKey.toByteArray).get)
-        S_b += SecretShare(recipientID, HybridEncryption.encrypt(receiverPublicKey, poly_b.evaluate(x).toByteArray, ownPrivateKey.toByteArray).get)
+        val seed = (ownPrivateKey + x).toByteArray ++ receiverPublicKey.bytes ++ "SecretSharesSeed".getBytes //TODO: verify if it is secure to use this seed
+        val gen = new SP800DRNG(seed)
+        S_a += SecretShare(recipientID, HybridEncryption.encrypt(receiverPublicKey, poly_a.evaluate(x).toByteArray, gen.nextBytes(32)).get)
+        S_b += SecretShare(recipientID, HybridEncryption.encrypt(receiverPublicKey, poly_b.evaluate(x).toByteArray, gen.nextBytes(32)).get)
       }
     }
     val r1Data = R1Data(ownID, E.toArray, S_a.sortBy(_.receiverID).toArray, S_b.sortBy(_.receiverID).toArray)
@@ -138,15 +144,15 @@ class DistrKeyGen(ctx:              CryptoContext, // cryptosystem, which should
     * Executes the 2-nd round of the DKG protocol.
     *
     * Verifies 1-st round CRS commitments supplied by other members (placed in R1Data) and creates complaints on those of them, who's data is incorrect.
-    * The members, who has supplied incorrect 1-st round commitments, are listed as violators and will be ignored during the further protocol execution.
-    * In the same way the members, who hasn't supplied any commitments, are treated.
+    * The members, who have supplied incorrect 1-st round commitments, are listed as violators and will be ignored during the further protocol execution.
+    * The members, who haven't supplied any commitments at all, are also listed as violators.
     *
     * Created complaints (if any) are placed into the R2Data structure, which should be passed to all other members of the DKG protocol.
     * When a data from the previous execution of this round (prevR2Data) is supplied, the check for identity of generated R2Data and prevR2Data will be performed. This check is needed for state consistency control.
     * Output of the current round execution is always cached.
     * In case if prevR2Data and newly generated R2Data are inconsistent and None is returned, the generated R2Data can be retrieved from the roundsDataCache.
-    * If this method is called more than once during the same protocol execution, the cached R2Data from the firstest method execution will be returned.
-    * If this method is called out of the supposed by the protocol order, then None will be returned.
+    * If this method is called more than once during the same protocol execution, the cached R2Data from the first method execution will be returned.
+    * If this method is called in wrong order, None is returned.
     *
     * @param r1Data a sequence of R1Data packets of all protocol members (including the own one)
     * @param prevR2Data optional, R2data from a previous execution of this round (should be passed during internal state restoring)
