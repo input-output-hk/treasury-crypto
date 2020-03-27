@@ -6,7 +6,7 @@ To that end, it is important to provide a sustainable decentralized treasury sys
 
 The basis of the treasury system is a collaborative decision-making process which can be done through the voting. A key feature expected from the voting procedure is the absence of a centralized control over the operational process. That is, it must neither rely on trusted parties or powerfull minority, nor introduce incentives to their appearance. Ideally, all cryptocurrency stake holders are entitled to participate in the decision-making process. 
 
-The basic flow of a decision making process is depicted in Fig.\ref{fig:DMP}. In the first stage a proposal is submitted for consideration to the community (e.g. provide xxx coins from the treasury for a specific  development team to implement feature Y). The second stage is voting where corresponding participants of the system express their opinion by posting voting ballots on a blockchain. To achieve better collaborative intelligence, it is allowed to delegate a vote to a special actor called an \textit{expert}. In the third stage the system processes ballots, counts votes and concludes a decision. In the final stage the decision is executed (e.g. the coins are transferred from treasury to the development team).
+The basic flow of a decision making process is depicted in Fig.\ref{fig:DMP}. In the first stage a proposal is submitted for consideration to the community (e.g. provide xxx coins from the treasury for a specific  development team to implement feature Y). The second stage is voting where corresponding participants of the system express their opinion by posting voting ballots on a blockchain. To achieve better collaborative intelligence, it is allowed to delegate the voting power to a special actor called \textit{expert}. In the third stage the system processes ballots, counts votes and concludes a decision. In the final stage the decision is executed (e.g. the coins are transferred from treasury to the development team).
 
 \begin{figure}[htbp]
 	\centering
@@ -21,7 +21,7 @@ This process is repeated periodically. Each such period is called a treasury epo
         \subitem a) Proposals submission.
         \subitem b) Voters/Experts/Committee registration.
         \subitem c) Randomness revealing.
-        \subitem d) Random committee selection.
+        \subitem d) Randomized selection of the voting comittee.
         \subitem a) Distributed voting key generation.
     \item \textbf{Voting stage}.
         \subitem a) Ballots casting.
@@ -31,13 +31,13 @@ This process is repeated periodically. Each such period is called a treasury epo
         \subitem c) Execution.
 \end{enumerate}
 
-\subsection{Pre-voting stage}
+\subsection{Pre-voting Stage}
 \textbf{Entities}. All stake holders are eligible to participate in case they registered themselves. The stake holders may have one or more of the following roles.
 \begin{itemize}[leftmargin=5em, itemsep=0em]
     \item \textbf{Project owners} $\mathcal{O}:=\{O_1,\ldots, O_k \}$, who submit proposals for funding;
-    \item \textbf{Voting committee} $\mathcal{C}:=\{C_1,\ldots, C_l \}$ - special actors that maintain a voting procedure (e.g., generate a shared voting public key and collectively decrypt the voting result);
+    \item \textbf{Voting committee} $\mathcal{C}:=\{C_1,\ldots, C_l \}$ - special actors that maintain a decentrilized voting procedure (e.g., generate a shared voting public key and collectively decrypt the voting result);
     \item \textbf{Voters} $\mathcal{V}:=\{V_1,\ldots, V_n \}$ - a set of stake holders that lock certain amount of stake to participate in voting; the voting power is proportional to the amount of locked stake;
-    \item \textbf{Experts} $\mathcal{E}:=\{E_1,\ldots, E_m \}$ - a special type of voters that have specialist knowledge and expertise in some field; their voting power equals to the voting power of all regular voters that delegated their stake to an expert.
+    \item \textbf{Experts} $\mathcal{E}:=\{E_1,\ldots, E_m \}$ - a special type of voters that have specialist knowledge and expertise in some field; their voting power equals to the sum of voting power of all regular voters that delegated their stake to the expert.
 \end{itemize}
 Note that experts and voting committee members are also required to pledge some fixed amount of stake to register themselves. But this stake does not provide them voting power, but rather serves as a deterrence against malicious behaviour. In case they do not follow the protocol, the pledged stake will be confiscated.
 \\~\\
@@ -50,7 +50,7 @@ where:
     amount &  requested amount of funds.
 \end{conditions}
 
-Note that to prevent denial-of-service attacks it is required for the submitter to burn some constant number of coins.
+Note that to prevent denial-of-service attacks it is required for the submitter to burn some amount of coins.
 \\~\\
 \textbf{Voters/Experts registration}. In order to become a voter or expert, a stakeholder must submit the following registration transaction\footnote{See the implementation of a registration transaction here:\\ \href{https://github.com/input-output-hk/TreasuryCoin/blob/master/examples/src/main/scala/examples/hybrid/transaction/RegisterTransaction.scala}{https://github.com/input-output-hk/TreasuryCoin/.../examples/hybrid/transaction/RegisterTransaction.scala}}:
 \label{ref:reg_tx}
@@ -59,15 +59,15 @@ where:
 \begin{conditions}
     role & a role for which a stakeholder is registered (voter or expert); \\
     committeePubKey &  an optional field; in case a voter/expert also wants to participate in the voting committee, he provides an additional public key that is used for committee-specific operations; \\
-    pledgedStakeAmount &  an amount of stake that a voter wants to pledge to acquire the right to participate in the voting process; the voting power is proportional to the amount of pledged stake. In case a voter also wants to be a committee member, he pledges an additional deposit, which does not add to the voting power. In case of registration of an expert, pledged stake is a constant amount only depending on if the expert also wants to participate in the committee. Experts do not have their own voting power; \\
-    paybackAddress & an address where rewards and pledged coins should be sent after they are unlocked; \\
+    pledgedStakeAmount &  an amount of stake that a voter wants to pledge to acquire the right to participate in the voting process; the voting power is proportional to the amount of pledged stake. In case a voter also wants to be a committee member, he pledges an additional deposit, which does not  increase his voting power. In case of registration of an expert, pledged stake is a constant amount only depending on if the expert also wants to participate in the committee. Experts do not have their own voting power; \\
+    paybackAddress & an address where rewards should be sent; \\
     pubKey & a personal public key that will be used for issuing ballots; \\
     sig & a signature on the whole registration transaction issued with \textit{pubKey}.
 \end{conditions}
 
 \textbf{Randomness revealing.} A random value is required for the committee selection procedure. This random value is generated collectively by the voting committee of the previous treasury epoch. At this stage, they just reveal previously committed randomness. It is crucial that the randomness is revealed after the registration phase, so that committee candidates cannot influence the selection procedure by adjusting their registration data.
 
-\textbf{Random Committee Selection.} To facilitate efficiency of the voting protocol, a voting committee is restricted to have fixed size. Since there might be more users wanting to participate in the committee, a special random selection procedure (Fig.~\ref{committee_select}) is used to determine who will be in the committee for a particular treasury epoch\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/TreasuryCoin/blob/master/examples/src/main/scala/examples/hybrid/state/TreasuryState.scala\#L367}{https://github.com/input-output-hk/TreasuryCoin/../examples/hybrid/state/TreasuryState.scala:selectApprovedCommittee()}}.
+\textbf{Randomized selection of the voting comittee.} To facilitate efficiency of the voting protocol, a voting committee is restricted to have fixed size. Since there might be more users wanting to participate in the committee, a special random selection procedure (Fig.~\ref{committee_select}) is used to determine who will be in the committee for a particular treasury epoch\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/TreasuryCoin/blob/master/examples/src/main/scala/examples/hybrid/state/TreasuryState.scala\#L367}{https://github.com/input-output-hk/TreasuryCoin/../examples/hybrid/state/TreasuryState.scala:selectApprovedCommittee()}}.
 
 % \begin{protocolframe}{\textbf{Committee Selection Procedure}}
 \myhalfbox{Committee Selection Procedure}{white!40}{white!10}{
@@ -83,18 +83,18 @@ where:
 
 \textbf{Distributed key generation}. During the DKG phase, the elected voting committee jointly generates a shared public voting key which will be used by voters and experts to encrypt their ballots. Then, after the voting stage is finished, the committee collectively decrypt the tally and generate randomness for the next treasury epoch.
 
-\subsection{Voting stage}
+\subsection{Voting Stage}
 After the preparation stage there are a set of proposals $\mathcal{P}:=\{P_1,\ldots, P_k \}$ and three sets of voting participants:
 \begin{enumerate}
-    \item \textbf{Voters} $\mathcal{V}:=\{V_1,\ldots, V_n \}$. Each voter is associated with its registered $pubKey_{v_i}$ and voting power $vp_{v_i}$.
-    \item \textbf{Experts} $\mathcal{E}:=\{E_1,\ldots, E_m \}$. Each expert is associated with its registered $pubKey_{e_i}$ and its number $i$. 
+    \item \textbf{Voters} $\mathcal{V}:=\{V_1,\ldots, V_n \}$. Each voter is associated with his registered $pubKey_{v_i}$ and voting power $vp_{v_i}$.
+    \item \textbf{Experts} $\mathcal{E}:=\{E_1,\ldots, E_m \}$. Each expert is associated with his registered $pubKey_{e_i}$ and his number $i$. 
     \item \textbf{Committee members} $\mathcal{C}:=\{C_1,\ldots, C_l \}$. Each committee member is associated with two registered keys $pubKey_{c_i}$ and $committeePubKey_{c_i}$. The latter is used to encrypt communication with other committee members.
 \end{enumerate}
 
 During the voting stage, voters and experts issue voting ballots where they put their choices regarding proposals. For each proposal, a voter may chose among three options: Yes, No, Abstain, or he can delegate his voting power to some expert, in which case the chose of the expert will be counted with the corresponding voting power of the voter.
 Note that each proposal is treated separately, so that a voter can delegate his voting power to different experts for different proposals.
 
-\subsection{Post-voting stage}
+\subsection{Post-voting Stage}
 
 \textbf{Joint decryption of tally}. After the voting stage, all ballots are collected and the voting committee jointly decrypt the tally for each proposal without revealing personal choices of voters and experts. Winning proposals are selected according to the procedure on Fig.~\ref{fig:proposals_select}.
 
@@ -109,4 +109,4 @@ Note that each proposal is treated separately, so that a voter can delegate his 
 \newpage
 \textbf{Randomness commitment for the next epoch}. At this stage, each committee member commits a random value that will be used to construct randomness for the next treasury epoch.
 
-\textbf{Execution}. During the execution stage treasury funds are distributed to winning proposals. Certain proportion (e.g. 20\%) of the treasury fund is used to reward the voting committee members, voters and experts. The voting committee members receive a fixed amount of reward, while voters receive rewards proportional to their voting power. Experts receive rewards as a percentage (e.g. 5\%) of rewards for voters, who delegated to them\footnote{See implementation of payments distribution here:\\ \href{https://github.com/input-output-hk/TreasuryCoin/blob/master/examples/src/main/scala/examples/hybrid/state/TreasuryState.scala\#L537}{https://github.com/input-output-hk/TreasuryCoin/../examples/hybrid/state/TreasuryState.scala:getPayments()}}.
+\textbf{Execution}. During the execution stage treasury funds are distributed to winning proposals. Certain proportion (e.g. 20\%) of the treasury fund is used to reward the voting committee members, voters and experts. Voting committee members receive a fixed amount of reward, while voters receive rewards proportional to their voting power. Experts receive rewards as a percentage (e.g. 5\%) of rewards for voters, who delegated to them\footnote{See implementation of payments distribution here:\\ \href{https://github.com/input-output-hk/TreasuryCoin/blob/master/examples/src/main/scala/examples/hybrid/state/TreasuryState.scala\#L537}{https://github.com/input-output-hk/TreasuryCoin/../examples/hybrid/state/TreasuryState.scala:getPayments()}}.

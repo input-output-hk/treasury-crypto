@@ -24,21 +24,33 @@ h_1\leftarrow\group:\AAA(g,g^x,g^y,h_b)=b\\
 where $\epsilon(\cdot)$ is a negligible function.
 
 
-\subsubsection{Lifted Threshold ElGamal} \label{sec:elgamal}
-We employ lifted ElGamal encryption scheme as the candidate of the additively homomorphic public key cryptosystem in our protocol construction. It consists of the following $4$ p.p.t. algorithms:
+\subsubsection{ElGamal Encryption} \label{sec:elgamal}
+We employ lifted ElGamal encryption scheme as the candidate of the additively homomorphic public key cryptosystem in our protocol construction. It consists of the following p.p.t. algorithms:
 \begin{itemize}
 \item $\Gen(1^\lambda)$: take input as security parameter $\lambda$, and output $\sigma:=(p,a,b,g,q,\zeta)$.
 \item $\Genpkc(\sigma)$: pick $\sk\leftarrow \ZZ_q^*$ and set $\pk:=h=g^{sk}$, and output $(\pk,\sk)$. 
-\item $\Enc_{\pk}(m;r)$: output $e:=(e_1,e_2)=(g^r,g^m h^r)$.
-\item $\Dec'_{\sk}(e)$: output $e_2\cdot e_1^{-\sk}=g^m$, which is a regular ElGamal decryption.
-\item $\Dec_{\sk}(e)$: output $m=\DL(\Dec'_{sk}(e))$, where $\DL(x)$ is the discrete logarithm of $x$. (Note that since $\DL(\cdot)$ is not efficient, the message space should be a small set, say $\set{0,1}^\xi$, for $\xi\leq30$.)
+\item $\Enc'_{\pk}(n;r)$: output $e:=(e_1,e_2)=(g^r,n\cdot h^r)$ is a regular ElGamal encryption, where $n\in E(\FF_p)$ is an EC point.
+\item $\Dec'_{\sk}(e)$: output $n=e_2\cdot e_1^{-\sk}$ is a regular ElGamal decryption.
+\item $\Enc_{\pk}(m;r)$: output $e:=(e_1,e_2)=(g^r,g^m h^r)$ is a lifted ElGamal encryption, where $m\in \ZZ_q^*$ is an integer.
+\item $\Dec_{\sk}(e)$: output $m=\DL(\Dec'_{sk}(e))$, where $\DL(x)$ is a discrete logarithm of $x$. (Note that since $\DL(\cdot)$ is not efficient, the message space should be a small set, say $m\in \set{0,1}^\xi$, for $\xi\leq30$.)
 \end{itemize}
 
 It is well known that lifted ElGamal encryption scheme is IND-CPA secure under the DDH assumption. It has additively homomorphic property: $$\Enc_{\pk}(m_1;r_1) \cdot \Enc_{\pk}(m_2;r_2) = \Enc_{\pk}(m_1 + m_2 ;r_1+ r_2 )\enspace.$$
 
 Remark: The key generation and decryption algorithm of the lifted ElGamal encryption can be efficiently distributed.
 
-\subsubsection{Pedersen commitment}
+\subsubsection{Hybrid Encryption}
+We employ a hybrid symmetric/assymetric encryption scheme for long messages that can not be encrypted directly with ElGamal  scheme. The basic idea is that a message is encrypted with a block cipher with a randomly generated symmetric key, whereas the key is encrypted with ElGamal and sent along the encrypted message. The hybrid encryption consists of the following algorithms:
+\begin{itemize}
+	\item $\Genpkc(\sigma)$: pick $\sk\leftarrow \ZZ_q^*$ and set $\pk:=h=g^{sk}$, and output $(\pk,\sk)$. 
+	\item $\Genpkc^S(\sigma)$: pick $s\leftarrow \ZZ_q^*$ and set $\ck:=g^{s}$, and output $\ck$. 
+	\item $\SEnc_{\ck}(m)$: output $e:=AESEnc_{H(ck)}(m)$, where $H$ is a cryptographic hash function and $AESEnc$ is an encryption method of AES block cipher.
+	\item $\SDec_{\ck}(e)$: output $m:=AESDec_{H(ck)}(e)$, where $AESDec$ is a decryption method of AES block cipher.
+	\item $\HEnc_{\pk}(m,r,ck)$: output $e:=(e_1,e_2)=(Enc'_{\pk}(ck,r), SEnc_{\ck}(m))$ is a hybrid encryption.
+	\item $\HDec_{\sk}(e)$: output $m:=SDec_{\ck}(e_2))$, where $ck=Dec'_{\sk}(e_1)$.
+\end{itemize}
+
+\subsubsection{Pedersen Commitment}
 In the unit vector zero-knowledge proof, we use Pedersen commitment as a building block. It is perfectly hiding and computationally binding under the discrete logarithm assumption. 
 More specifically, it consists of the following $4$ PPT algorithms. Note that those algorithms (implicitly) take as input the same group parameters, $\param\leftarrow \Gen(1^{\lambda})$. 
 
@@ -58,26 +70,83 @@ $$
 Distributed key generation (DKG) is a fundamental building block of the voting process in our proposed treasury system. Ideally, the protocol termination should be guaranteed when up to $t=\ceil{\frac{n}{2}} -1$ out of $n$ committee members are corrupted.  A naive way of achieving threshold distributed key generation is as follows. Each of the voting committee members $\VC_i$ first generates a public/private key pair $(\pk_i,\sk_i)\leftarrow\Genpkc(\param)$. Each $\VC_i$ then posts $\pk_i$ to the blockchain and use $(t+1,n)$-threshold \emph{verifiable secret sharing} (VSS) to share $\sk_i$ to all the other committee members. The combined voting public key can then be defined as $\pk:= \prod_{i=1}^{n} \pk_{i}$.
 
 However, this approach is problematic in the sense that the adversary can influence the distribution of the final voting public key by letting the corrupted committee members abort selectively. Alternatively, we will adopt the distributed key generation protocol proposed by Gennaro {\em et al.}~\cite{GennaroDKG}. 
-In a nutshell, the protocol lets the committee members $\VC_i$ first posts a ``commitment'' of $\pk_i$. After sharing the corresponding $\sk_i$ via $(t+1,n)$-threshold VSS, the committee members $\VC_i$ then reveals $\pk_i$.
+In a nutshell, the protocol lets the committee members $\VC_i$ first post a ``commitment'' of $\pk_i$. After sharing the corresponding $\sk_i$ via $(t+1,n)$-threshold VSS, the committee members $\VC_i$ then reveal $\pk_i$.
 %
-We will use the blockchain to realises the broadcast channel and peer-to-peer channels. We give a full description of our distributed key generation protocol.  It is adapted from the DKG proposed by Gennaro {\em et al.} which allows us to accommodate up to $t < n/2$ malicious players in the protocol. That is, guaranteeing that with $ \floor{\frac{n}{2}}+1$ honest players, all the players should be able to agree on a uniformly random  public key $\pk$ such that no malicious players can influence the distribution of the generated public key. The corresponding secret key is shared among all the players.
+We will use the blockchain to realize the broadcast channel and peer-to-peer channels. We give a full description of our distributed key generation protocol.  It is adapted from the DKG proposed by Gennaro {\em et al.}, which allows us to accommodate up to $t < n/2$ malicious players in the protocol. That is, guaranteeing that with $ \floor{\frac{n}{2}}+1$ honest players, all the players should be able to agree on a uniformly random  public key $\pk$ such that no malicious players can influence the distribution of the generated public key. The corresponding secret key is shared among all the players.
 
 \medskip
 \noindent\textbf{Protocol description.}
-Given $(g,h)$ as the Common Reference String (CRS), Let $\VC:=\{\VC_1, \VC_2,...,\VC_k\}$ be the set of election committee members, and let $(\pk_i,\pk_i^s)$ be a pair of public keys\footnote{Note that we named these keys as \textit{committeePubKey} and \textit{pubKey} in the definition of a committee registration transaction [\ref{ref:reg_tx}]} associated with $C_i, i \in [k]$. The adversary is able to corrupt up to $t < k/2 $ committee members.\\
+Given $(g,h)$ as the common reference string (CRS), let $\VC:=\{\VC_1, \VC_2,...,\VC_k\}$ be the set of election committee members, and let $(\pk_{i},\sk_{i}),(\pk^*_{i},\sk^*_{i})$ be two pairs of public/secret keys\footnote{Note that we named public keys as \textit{pubKey} and \textit{committeePubKey} correspondingly in the definition of a committee registration transaction [\ref{ref:reg_tx}]} associated with $C_i, i \in [k]$. Note that $(\pk^*_{i},\sk^*_{i})$ is used to communicate with other committee members, while $(\pk_{i},\pk_{i})$ is used to generate a shared election key. The adversary is able to corrupt up to $t < k/2 $ committee members.\\
 
-In the first round, each committee member $C_i$ sets $a_{i,0}=\sk_i^s$, where $\sk_i^s$ is a corresponding secret key for $\pk_i^s$, and picks a random $a_{i,1},...a_{i,t} $ and random $ a'_{i,0},...,a'_{i,t}$ where t is maximum number of members that can be corrupted. Each member then define two polynomials of degree t of the form:
+In the first round, each committee member $C_i$ sets $a_{i,0}=\sk_{i}$ and picks random $a_{i,1},...a_{i,t} $ and random $ a'_{i,0},...,a'_{i,t}$ where $t$ is the maximum number of members that can be corrupted. Each member then define two polynomials of degree t of the form:
 \[ f_i(x) = a_{i,0}+a_{i,1}x+...+a_{i,t}x^t \]
 \[ f'_i(x) = a'_{i,0}+a'_{i,1}x+...+a'_{i,t}x^t \]
-Therefore, each committee member $\VC_i$ contributes $\sk_i^s = a_{i,0} = f(0)$ to the combined secret $\sk^s$.
-Furthermore, to confirm the correctness of commitments, each member $\VC_i$ posts a corresponding commitment $E_{i,l} = g^{a_{i,l}}h^{a'_{i,l}}$, $l \in [0,t]$, on the blockchain. For every other member of the election committee, each $\VC_i$ computes $s_{i,j} = f_i(j) $ and $s'_{i,j} = f'_{i}(j) $ and posts to the blockchain, the encryption of $s_{i,j}$ and $ s'_{i,j}$ under the public key $\pk_j$ of $\VC_j$ (note: $j \neq i$). That is, each member posts $e_{i,j} \leftarrow \Enc_{\pk_j}(s_{i,j})$ and $e'_{i,j} \leftarrow \Enc_{\pk_j}(s'_{i,j})$. Note that only $\VC_j$ can decrypt these commitments. This signifies the end of the first round.\\
+Therefore, each committee member $\VC_i$ contributes $\sk_{i} = a_{i,0} = f(0)$ to the combined election secret key $\sk$.
+Furthermore, to confirm the correctness of commitments, each member $\VC_i$ posts a corresponding commitment $E_{i,l} = g^{a_{i,l}}h^{a'_{i,l}}$, $l \in [0,t]$, on the blockchain. For every other member of the election committee, each $\VC_i$ computes $s_{i,j} = f_i(j) $ and $s'_{i,j} = f'_{i}(j) $ and posts to the blockchain, the encryption of $s_{i,j}$ and $ s'_{i,j}$ under the public key $\pk^*_{j}$ of $\VC_j$ (note: $j \neq i$). Note that only $\VC_j$ can decrypt these commitments. This signifies the end of the first round.\\
 
-In the second round, each committee member $\VC_j$ fetch all $e_{i,j}$ and $e'_{i,j}$ encrypted under their public key from the blockchain and decrypt them using their private key $\sk_j$ to obtain their corresponding shares $s_{i,j}$ and $ s'_{i,j}$. In order to verify that the shares they have received are valid, each committee member checks if: $g^{s_{i,j}}h^{s'_{i,j}} = \prod_{l=0}^{t}(E_{i,l})^{i^l}$ for $ i \in [k], i \neq j$.  Where this check fails, $\VC_j$ posts a complain against $\VC_i$ by revealing the evidence: 
+In the second round, each committee member $\VC_j$ fetches all $e_{i,j}$ and $e'_{i,j}$ encrypted under their public key from the blockchain and decrypt them using their private key $\sk^*_{j}$ to obtain their corresponding shares $s_{i,j}$ and $ s'_{i,j}$. In order to verify that the shares they have received are valid, each committee member checks if: $g^{s_{i,j}}h^{s'_{i,j}} = \prod_{l=0}^{t}(E_{i,l})^{i^l}$ for $i \in [k], i \neq j$.  Where this check fails, $\VC_j$ posts a complain against $\VC_i$ by revealing the decrypted shares and the evidence (in a form of a non-interactive ZK proof), that shares are decrypted correctly (see Fig.~\ref{fig:DKG} for more details).
+Members with at least one valid complain against them are disqualified from participating in the key generation process.\\
+
+In the third round, following the disqualification of some members, each qualified committee member $C_i,~i\in\JJJ$ posts $A_{i,l} := g^{a_{i,l}}$ for $ \ell \in [0,..,t] $ to the blockchain. Note that secret keys $sk_{i}$ of qualified committee members can be reconstructed as follows: $\sk_{i} := \sum_{j\in[\JJJ]} \gamma_{i} \cdot s_{i,j}$, where $\gamma_{i}:= \prod_{\ell\in \JJJ\setminus \{i\} } \frac{\ell}{\ell-i}$.\\
+
+In the fourth round, each qualified committee member $C_i$ checks  if : $g^{s_{j,i}}= \prod_{\ell=0}^{t} (A_{j,\ell})^{i^\ell}$ for $j\in\JJJ, j\neq i$. Where the check fails, $\VC_i$ posts a complaint against $\VC_j$ together with the evidence $(s_{j,i},s'_{j,i})$ on the blockchain, such that $g^{s_{j,i}}h^{s'_{j,i}}= \prod_{\ell=0}^{t} (E_{j,\ell})^{i^\ell}$ and $g^{s_{j,i}}\neq  \prod_{\ell=0}^{t} (A_{j,\ell})^{i^\ell}$. Members with at least one valid complain against them are disqualified from further participation. \\
+
+In the fifth and final round, each qualified committee member $\VC_i$ checks if complaints raised against other committee members in the fourth round are valid. For all members, against whom valid complaints in the forth round were raised, other qualified committee members post shares $s_{j,i}$ they received from them. Therefore, allowing everyone to reconstruct secret keys of failed committee members as: $\sk_{j} := \sum_{i\in[\JJJ]} \gamma_{j} \cdot s_{j,i}$, where $\gamma_{j}:= \prod_{\ell\in \JJJ\setminus \{j\} } \frac{\ell}{\ell-j}$, and redefine $A_{j,0}:= g^{\sk_{j}}$. 
+
+Finally, the shared election public key is calculated as $\pk := \prod_{j\in[\JJJ]}  A_{j,0}$. Note that since all needed data to calculate $\pk$ is posted on the blockchain, every node in the network can reconstruct $\pk$ locally.\\
+
+Note that, when implemented in a decentralized blockchain setting, it is supposed that all communications among committee members are done through the blockchain. It means that on each round they will post a transaction with relevant data that will also be checked by the whole network (where possible). At the end of the final round, every node in the network will be able to reconstruct a shared election public key without any additional messages from the committee. 
+
+The full DKG protocol is summarized in Figure~\ref{fig:DKG}.\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/treasury-crypto/tree/master/src/main/scala/io/iohk/protocol/keygen}{https://github.com/input-output-hk/treasury-crypto/.../protocol/keygen}} The NIZK used in Round 2 is described in Fig.~\ref{fig:ElgamalDecrNIZK}.\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/treasury-crypto/blob/master/src/main/scala/io/iohk/protocol/nizk/ElgamalDecrNIZK.scala}{https://github.com/input-output-hk/treasury-crypto/../protocol/nizk/ElgamalDecrNIZK.scala}}
+
+\FloatBarrier
+% \end{boxfig}
+\mybox{Distributed key generation $\Pi_{\textsc{DKG}}$}{white!40}{white!10}{
+\footnotesize
+\textbf{Round 1:}
+Each committee member $C_i$ does the following:
 \begin{itemize}
-    \item $(s_{i,j},s'_{i,j})$, and
-    \item $\pi\leftarrow\nizk\big\{(s_{i,j}, s'_{i,j}, \pk_j, e_{i,j},e'_{i,j}),(\sk_j): \allowbreak s_{i,j}=\Dec_{\sk_j}(e_{i,j}) \; \allowbreak \wedge \; s'_{i,j}=\Dec_{\sk_j}(e'_{i,j}) \; \wedge \;  (\pk_j,\sk_j)\in\RRR_{\textsc{PKE}}\big\}$\footnote{Non-interactive zero-knowledge proof (NIZK) for ElGamal decryption, that is used in this case, is formalized in Fig.~\ref{fig:ElgamalDecrNIZK}. See also implementation here:\\ \href{https://github.com/input-output-hk/treasury-crypto/blob/master/src/main/scala/io/iohk/protocol/nizk/ElgamalDecrNIZK.scala}{https://github.com/input-output-hk/treasury-crypto/.../protocol/nizk/ElgamalDecrNIZK.scala} }
-\end{itemize} 
-Members with one valid complain against them are disqualified from participating in the key generation process.\\
+\item Set $a_{i,0}=sk_{i}$
+\item Pick random $a_{i,1},a_{i,2},\ldots,a_{i,t},b_{i,0},b_{i,1},\ldots,b_{i,t} \leftarrow \ZZ_p$.
+\item Define two polynomials $f_i(x):=\sum_{\ell=0}^{t} a_{i,\ell} x^\ell$ and $f'_i(x):=\sum_{\ell=0}^{t} b_{i,\ell} x^\ell$.
+\item For $\ell\in[t]$, post $E_{i,\ell}: = g^{a_{i,\ell}} h^{b_{i,\ell}}$ on the blockchain.
+\item For every other $C_j$, $j\in[k], j\neq i$, compute $s_{i,j}:= f_i(j)$ and $s'_{i,j}:= f'_i(j)$ and post $e_{i,j}\leftarrow \HEnc_{\pk^*_j}(s_{i,j}, r, ck_{i,j})$ and $e'_{i,j}\leftarrow \HEnc_{\pk^*_j}(s'_{i,j}, r', ck'_{i,j})$ on the blockchain, where $r,r'\leftarrow \ZZ_p$, $ck_{i,j},ck'_{i,j} \leftarrow E(\FF_p)$ are randomly generated. Only $C_j$ can decrypt these shares.
+\end{itemize}
+
+\textbf{Round 2:}
+Each committee member $C_i$ does the following:
+\begin{itemize}
+\item Fetch $\{(e_{j,i}, e'_{j,i})\}_{j\in[k], j\neq i}$ from the blockchain, parse as $e_{j,i}=(e_{(j,i),1},e_{(j,i),2})$, $e'_{j,i}=(e'_{(j,i),1},e'_{(j,i),2})$, and use $\pk^*_i$ to decrypt them, obtaining the corresponding shares $\{(s_{j,i}, s'_{j,i})\}_{j\in[k], j\neq i}$.
+\item For $j\in[k], j\neq i$, check if $g^{s_{j,i}}h^{s'_{j,i}}= \prod_{\ell=0}^{t} (E_{j,\ell})^{i^\ell}$. If not, post a complaint against $C_j$ by revealing the evidence: $(s_{j,i},s'_{j,i}, e_{j,i}, e'_{j,i},ck_{j,i},ck'_{j,i},\pi,\pi')$, where $\pi,\pi'$ are zero-knowledge proofs generated as follows (see Fig.~\ref{fig:ElgamalDecrNIZK} for full NIZK description):
+\begin{equation*}
+\pi \leftarrow\nizk\left\{\begin{array}{l} (e_{(j,i),1},\ck_{j,i}, \pk^*_i),(\sk^*_i): \\
+ ck_{j,i}=\Dec'_{\sk^*_i}(e_{(j,i),1}) \wedge \pk^*_i=g^{\sk^*_i} \wedge (\pk^*_i,\sk^*_i)\in\RRR_{\textsc{PKE}} \end{array}\right\}
+\end{equation*}
+\item (One valid complain against $C_j$, $j\in[k]$ will disqualify $C_j$.)
+\end{itemize}
+
+\textbf{Round 3:} Define the indices of the qualified set of committee members as $\JJJ$. Each committee member $C_i$ does the following:
+\begin{itemize}
+\item For $\ell\in[t]$, post $A_{i,\ell} : = g^{a_{i,\ell}}$ to the blockchain.
+\item Note that a secret key $sk_{i}$ of $C_i,~i\in\JJJ,$ can be reconstructed as follows: $\sk_{i} := \sum_{j\in[\JJJ]} \gamma_{i} \cdot s_{i,j}$, where $\gamma_{i}:= \prod_{\ell\in \JJJ\setminus \{i\} } \frac{\ell}{\ell-i}$.
+\end{itemize}
+
+\textbf{Round 4:} Each committee member $C_i$ does the following:
+\begin{itemize}
+
+\item For $j\in\JJJ, j\neq i$, check if $g^{s_{j,i}}= \prod_{\ell=0}^{t} (A_{j,\ell})^{i^\ell}$. If not, post a complaint against $C_j$ together with the evidence $(s_{j,i},s'_{j,i})$ on the blockchain, such that $g^{s_{j,i}}h^{s'_{j,i}}= \prod_{\ell=0}^{t} (E_{j,\ell})^{i^\ell}$ and $g^{s_{j,i}}\neq  \prod_{\ell=0}^{t} (A_{j,\ell})^{i^\ell}$.
+\end{itemize}
+
+\textbf{Round 5:} Each committee member $C_i$ does the following:
+\begin{itemize}
+\item If there is a valid complain against $C_j$, $j\in\JJJ$, then post the share $s_{j,i}$ on the blockchain. 
+ (Everyone can reconstruct $\sk_j := \sum_{i\in[\JJJ]} \gamma_{j} \cdot s_{j,i}$, where $\gamma_{j}:= \prod_{\ell\in \JJJ\setminus \{j\} } \frac{\ell}{\ell-j}$, and calculate $A_{j,0}:= g^{\sk_j}$.)
+
+\item Return the election public key as $\pk := \prod_{j\in[\JJJ]}  A_{j,0}$.
+\end{itemize}
+	
+%\end{boxfig}
+}{Distributed key generation $\Pi_{\textsc{DKG}}$\label{fig:DKG}}
 
 \begin{boxfig}{\label{fig:ElgamalDecrNIZK}Non-Interactive Zero Knowledge proof for correct ElGamal decryption}{}
 \begin{center}
@@ -109,69 +178,10 @@ $\nizk\{(\pk, C, M ),(\sk): M = \Dec'_{\sk}(C) \, \wedge \, \pk = g^{\sk}\}$
 \end{itemize}
 \end{boxfig}
 
-In the third round, following the disqualification of some members, each qualified committee member $C_i$ posts $A_{i,l} := g^{a_{i,l}}$ for $ \ell \in [\JJJ] $, where $\JJJ$ is a set of indices of qualified members, to the blockchain. Each committee member also calculates its secret key share as $\overline{\sk}_i := \sum_{j\in[\JJJ]} \gamma_{i} \cdot s_{j,i}$, where $\gamma_{i}:= \prod_{\ell\in \JJJ\setminus \{i\} } \frac{\ell}{\ell-i}$.\\
+\FloatBarrier
+\subsection{Ballots Casting}
 
-In the fourth round, each qualified committee member $C_i$ checks  if : $g^{s_{j,i}}= \prod_{\ell=0}^{t} (A_{j,\ell})^{i^\ell}$ for $j\in\JJJ, j\neq i$. Where the check fails, $\VC_i$ posts complain against $\VC_j$ together with the evidence $(s_{j,i},s'_{j,i})$ on the blockchain, such that $g^{s_{j,i}}h^{s'_{j,i}}= \prod_{\ell=0}^{t} (E_{j,\ell})^{i^\ell}$ and $g^{s_{j,i}}\neq  \prod_{\ell=0}^{t} (A_{j,\ell})^{i^\ell}$. Members with at least one valid complain against them are disqualified from further participation. \\
-
-In the fifth and final round, each qualified committee member $\VC_i$ checks if complaints raised against other committee members in the fourth round are valid. For all members, against whom valid complaints in the forth round were raised, other qualified committee members post shares $s_{j,i}$ they received from them. Therefore, allowing everyone to reconstruct the secret share of a failed committee members as: $\overline{\sk}_j := \sum_{i\in[\JJJ]} \gamma_{j} \cdot s_{j,i}$ and re-define $A_{j,0}:= g^{\overline{\sk}_j}$, where $\gamma_{j}:= \prod_{\ell\in \JJJ\setminus \{j\} } \frac{\ell}{\ell-j}$. 
-
-Finally, the shared election public key is calculated as $\overline{\pk} := \prod_{j\in[\JJJ]}  A_{j,0}$. Note that since all needed data to calculate $\overline{\pk}$ is posted on the blockchain, every node in the network can reconstruct $\overline{\pk}$ locally.\\
-
-The full DKG protocol is summarized in Figure~\ref{fig:DKG}.\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/treasury-crypto/tree/master/src/main/scala/io/iohk/protocol/keygen}{https://github.com/input-output-hk/treasury-crypto/.../protocol/keygen}}
-
-% \end{boxfig}
-\mybox{Distributed key generation $\Pi_{\textsc{DKG}}$}{white!40}{white!10}{
-\footnotesize
-\textbf{Round 1:}
-Each committee member $C_i$ do the following:
-\begin{itemize}
-\item Set $a_{i,0}=sk_i^s$
-\item Pick random $a_{i,1},a_{i,2},\ldots,a_{i,t},b_{i,0},b_{i,1},\ldots,b_{i,t} \leftarrow \ZZ_p$.
-\item Define two polynomials $f_i(x):=\sum_{\ell=0}^{t} a_{i,\ell} x^\ell$ and $f'_i(x):=\sum_{\ell=0}^{t} b_{i,\ell} x^\ell$.
-\item For $\ell\in[t]$, post $E_{i,\ell}: = g^{a_{i,\ell}} h^{b_{i,\ell}}$ on the blockchain.
-\item For every other $C_j$, $j\in[k], j\neq i$, compute $s_{i,j}:= f_i(j)$ and $s'_{i,j}:= f'_i(j)$ and post $e_{i,j}\leftarrow \Enc_{\pk_j}(s_{i,j})$ and $e'_{i,j}\leftarrow \Enc_{\pk_j}(s'_{i,j})$ on the blockchain. (Only $C_j$ can decrypt them.)
-\end{itemize}
-
-\textbf{Round 2:}
-Each committee member $C_i$ do the following:
-\begin{itemize}
-\item Fetch $\{(e_{j,i}, e'_{j,i})\}_{j\in[k], j\neq i}$ from the blockchain, and use $\pk_i$ to decrypt them, obtaining the corresponding shares $\{(s_{j,i}, s'_{j,i})\}_{j\in[k], j\neq i}$.
-\item For $j\in[k], j\neq i$, check if $g^{s_{j,i}}h^{s'_{j,i}}= \prod_{\ell=0}^{t} (E_{j,\ell})^{i^\ell}$. If not, post complain against $C_j$ by revealing the evidence: $(s_{j,i},s'_{j,i})$ and 
-\begin{equation*}
-\pi\leftarrow\nizk\left\{\begin{array}{l} (s_{j,i},s'_{j,i}, \pk_i, e_{j,i},e'_{j,i}),(\sk_i): \\
- s_{j,i}=\Dec_{\sk_i}(e_{j,i}) \; \wedge \; s'_{j,i}=\Dec_{\sk_i}(e'_{j,i}) \; \wedge \;  (\pk_i,\sk_i)\in\RRR_{\textsc{PKE}} \end{array}\right\}
-\end{equation*}
-\item (One valid complain against $C_j$, $j\in[k]$ will disqualify $C_j$.)
-\end{itemize}
-
-\textbf{Round 3:} Define the indices of the qualified set of committee members as $\JJJ$. Each committee member $C_i$ do the following:
-\begin{itemize}
-\item For $\ell\in[t]$, post $A_{i,\ell} : = g^{a_{i,\ell}}$ to the blockchain.
-\item Calculate its secret key share as $\overline{\sk}_i := \sum_{j\in[\JJJ]} \gamma_{i} \cdot s_{j,i}$, where $\gamma_{i}:= \prod_{\ell\in \JJJ\setminus \{i\} } \frac{\ell}{\ell-i}$.
-\end{itemize}
-
-\textbf{Round 4:} Each committee member $C_i$ do the following:
-\begin{itemize}
-
-\item For $j\in\JJJ, j\neq i$, check if $g^{s_{j,i}}= \prod_{\ell=0}^{t} (A_{j,\ell})^{i^\ell}$. If not, post complain against $C_j$ together with the evidence $(s_{j,i},s'_{j,i})$ on the blockchain, such that $g^{s_{j,i}}h^{s'_{j,i}}= \prod_{\ell=0}^{t} (E_{j,\ell})^{i^\ell}$ and $g^{s_{j,i}}\neq  \prod_{\ell=0}^{t} (A_{j,\ell})^{i^\ell}$.
-\end{itemize}
-
-\textbf{Round 5:} Each committee member $C_i$ do the following:
-\begin{itemize}
-\item If there is a valid complain against $C_j$, $j\in\JJJ$, then post the share $s_{j,i}$ on the blockchain. 
- (Everyone can reconstruct $\overline{\sk}_j := \sum_{i\in[\JJJ]} \gamma_{j} \cdot s_{j,i}$ and calculate $A_{j,0}:= g^{\overline{\sk}_j}$, where $\gamma_{j}:= \prod_{\ell\in \JJJ\setminus \{j\} } \frac{\ell}{\ell-j}$.)
-
-\item Return the election public key as $\overline{\pk} := \prod_{j\in[\JJJ]}  A_{j,0}$.
-\end{itemize}
-	
-%\end{boxfig}
-}{Distributed key generation $\Pi_{\textsc{DKG}}$\label{fig:DKG}}
-
-Note that, when implemented in a decentralized blockchain setting, it is supposed that all communications among committee members are done through the blockchain. It means that on each round they will post a transaction with relevant data that will also be checked by the whole network (where possible). At the end of the final round, every node in the network will be able to reconstruct a shared election public without any additional messages from the committee. 
-
-\subsection{Ballots casting}
-
-Let $m$ be the number of experts. Let $e^{(m)}_i \in \{0,1\}^{m}$ be the unit vector where its $i$-th, $i \in [1,..,m]$, coordinate is $1$ and the rest coordinates are $0$. Similarly, let  $e^{(3)}_j \in \{0,1\}^{3}$ be the unit vector. Denote $( e^{(m)}_i , e^{(3)}_j )$ as the concatenation of $e^{(m)}_i $ and $e^{(3)}_j$.  We also abuse the notation to denote  $e^{(\ell)}_0$ as an $\ell$-vector containing all $0$'s.  
+Let $m$ be the number of experts. Let $e^{(m)}_i \in \{0,1\}^{m}$ be a unit vector, where its $i$-th, $i \in [1,..,m]$, coordinate is $1$ and the rest coordinates are $0$. Similarly, let  $e^{(3)}_j \in \{0,1\}^{3}$ be a unit vector. Denote $( e^{(m)}_i , e^{(3)}_j )$ as the concatenation of $e^{(m)}_i $ and $e^{(3)}_j$.  We also abuse the notation to denote  $e^{(\ell)}_0$ as an $\ell$-vector containing all $0$'s.  
 
 The expert's choice  is represented by one of the unit vectors $(e^{(3)}_1, e^{(3)}_2, e^{(3)}_3)$, where $e^{(3)}_1$ stands for `Abstain', $e^{(3)}_2$ stands for `Yes', and $e^{(3)}_3$ stands for `No'.
 
@@ -226,7 +236,8 @@ The protocol for ballot casting is depicted in Figure~\ref{fig:vote}.\footnote{S
 	\end{itemize}
 \end{boxfig}
 
-\subsection{Unit Vector ZK proof}\label{sec:SHVZK}
+\FloatBarrier
+\subsection{Unit Vector ZK Proof}\label{sec:SHVZK}
 We denote a unit vector of length $n$ as $\vec{e}_i^{(n)} = (e_{i,0},\ldots, e_{i,n-1})$,  where its $i$-th coordinate is $1$ and the rest coordinates are $0$. Note that in this section we diverge from the previously established notation, where $\vec{e}_0^{(n)}$ was defined as a vector of zeroes, now we do not consider zero-vectors at all and the lower index signifies the position of the "1" bit in the vector, e.g., $\vec{e}_0^{(5)}=(10000), \vec{e}_4^{(5)}=(00001)$.
 
 Conventionally, to show a vector of ElGamal ciphertexts element-wise encrypt a unit vector, Chaum-Pedersen proofs~\cite{CP92} are used to show each of the ciphertexts encrypts either $0$ or $1$ (via Sigma OR composition) and the product of all ciphertexts encrypts $1$\footnote{This approach is implemented in \href{https://github.com/input-output-hk/treasury-crypto/tree/master/src/main/scala/io/iohk/protocol/nizk/unitvectornizk}{https://github.com/input-output-hk/treasury-crypto/.../protocol/nizk/unitvectornizk}. But note that it is not used in the final protocol.}. Such kind of proof is used in many well-known voting schemes, e.g., Helios. However, the proof size is linear in the length of the unit vector, and thus the communication overhead is quite significant when the unit vector length becomes larger. 
@@ -254,7 +265,7 @@ $$
 p_j(x) = e_{i,j} x^{\log n} + \sum_{k=0}^{\log n -1} p_{j,k} x^k 
 $$
 for some $p_{j,k}$, $k\in[0,\log n -1]$. We then use batch verification to show that each of $C_j$ indeed encrypts $e_{i,j}$. More specifically, for a randomly chosen $y\leftarrow \ZZ_p$, let $E_j:=(C_j )^{x^{\log n}} \cdot \Enc(-p_j(x);0)$; the prover needs to show that $E:= \prod_{j=0}^{n-1} (E_j) ^{y^j} \cdot \prod_{k=0}^{\log n -1} (D_k) ^{x^k}$ encrypts $0$, where $D_\ell:= \Enc_{\pk}(\sum_{j=0}^{n-1} (p_{j,\ell} \cdot y^j) ; R_{\ell})$, $\ell\in[0,\log n -1]$ with fresh randomness $R_\ell\in\ZZ_p$. The construction is depicted in Fig.~\ref{fig:unit_zk_prover}. Both the prover and the verifier shares a common reference string (CRS), which is a Pedersen commitment key that can be generated using random oracle. %Let $\Com_{\ck}(m;r)$ denote the Pedersen commitment of $m\in\ZZ_p$ using randomness $r\in_ZZ_p$ under key $\ck$.
-The prover first commits to each bits of the binary representation of $i$, and the commitments are denoted as $I_\ell$, $\ell\in[\log n]$. Subsequently, it produces $B_\ell,A_\ell$ as the first move of the Sigma protocol in Sec.~2.3 of \cite{Groth2015} showing $I_\ell$ commits to $0$ or $1$. Jumping ahead, later the prover will receive a challenge $x\leftarrow \{0,1\}^\lambda$, and it then computes the third move of the Sigma protocols by producing $\{z_\ell,w_\ell,v_\ell\}_{\ell=1}^{\log n}$. To enable batch verification, before that, the prover is given another challenge $y\leftarrow \{0,1\}^\lambda$ in the second move. 
+The prover first commits to each bits of the binary representation of $i$, and the commitments are denoted as $I_\ell$, $\ell\in[\log n]$. Subsequently, it produces $B_\ell,A_\ell$ as the first move of the Sigma protocol in Sec.~2.3 of \cite{Groth2015} showing $I_\ell$ commits to $0$ or $1$. Jumping ahead, later the prover will receive a challenge $x\leftarrow \{0,1\}^\lambda$, and then it computes the third move of the Sigma protocols by producing $\{z_\ell,w_\ell,v_\ell\}_{\ell=1}^{\log n}$. To enable batch verification, before that, the prover is given another challenge $y\leftarrow \{0,1\}^\lambda$ in the second move. 
 
 The verification consists of two parts (Fig.~\ref{fig:unit_zk_verifier}). In the first part, the verifier checks the following equations to ensure that $I_\ell$ commits to $0$ or $1$.
 \begin{itemize}
@@ -269,7 +280,7 @@ is encryption of $0$ by asking the prover to reveal the randomness.
 
 \mybox{Unit vector ZK argument (Prover)}{white!40}{white!10}{
 \footnotesize
-\textbf{CRS:} the commitment key $\ck=hash(\pk\ |\ \{C_l\}_{\ell=0}^{m-1})$
+\textbf{CRS:} the commitment key $\ck=hash(\pk)$
 
 \textbf{Statement:} the public key $\pk$ and the ciphertexts $C_0:=  \Enc_{\pk}(e_{i,0};r_0),\ldots, C_{m-1}:=\Enc_{\pk}(e_{i,m-1};r_{m-1})$
 
@@ -326,7 +337,7 @@ A polynomials $p_j(x)$ can be constructed using the following procedure:
 
 \mybox{Unit vector ZK argument (Verifier)}{white!40}{white!10}{
 \footnotesize
-\textbf{CRS:} the commitment key $\ck=hash(\pk\ |\ \{C_l\}_{\ell=0}^{m-1})$
+\textbf{CRS:} the commitment key $\ck=hash(\pk)$
 
 \textbf{Statement:} the public key $\pk$ and the ciphertexts $C_0:=  \Enc_{\pk}(e_{i,0};r_0),\ldots, C_{m-1}:=\Enc_{\pk}(e_{i,m-1};r_{m-1})$
 
@@ -349,13 +360,14 @@ A polynomials $p_j(x)$ can be constructed using the following procedure:
 \end{itemize}	
 }{Unit vector ZK argument: proof verification  \label{fig:unit_zk_verifier}}
 
-\subsection{Tally protocol}
+\FloatBarrier
+\subsection{Tally Protocol}
 
 At the tally stage, committee members jointly decrypt the results of the voting without revealing personal choices of experts and voters. 
 
 Let denote as $\BBB^E:=\{B^E_1,\ldots, B^E_m \}$ a set of ballots received from experts and as $\BBB^V:=\{B^V_1,\ldots, B^V_n \}$ a set of ballots received from voters. Recall that a ballot contains encrypted unit vectors with choices (one unit vector for each proposal). Unit vectors of experts are $3$-bits long, while unit vectors of voters are $(m+3)$-bits long, where $m$ is the number of registered experts.
 
-Without loss of generality, let assume that we have only one proposal, so that a ballot contains only one encrypted unit vector. Let denote bit-wise encryptions of a unit vector of a voter $V_i$ as $c_{v_i,j},\ j\in [0,..,m+2]$ and an encrypted unit vector of an expert $E_i$ as $c_{e_i,j},\ j\in [0,..2]$. Note that $c_{v_i,j},\ j\in [0,..,m-1]$ encrypt bits of a voter's unit vector that signify his delegation choice, while the rest of encrypted bits $c_{v_i,j},j\ \in [m,..,m+2]$ signify his voting choice ("Abstain","Yes","No").
+Without loss of generality, let assume that we have only one proposal, so that a ballot contains only one encrypted unit vector. Let denote bit-wise encryptions of a unit vector of a voter $V_i$ as $c_{v_i,j},\ j\in [0,..,m+2]$ and an encrypted unit vector of an expert $E_i$ as $c_{e_i,j},\ j\in [0,..2]$. Note that $c_{v_i,j},\ j\in [0,..,m-1]$ encrypt bits of a voter's unit vector that signify his delegation choice, while the rest of encrypted bits $c_{v_i,j},j\ \in [m,m+1,m+2]$ signify his voting choice ("Abstain","Yes","No").
 
 Joint decryption is accomplished in two steps. At the first step, the number of delegations is calculated and jointly decrypted. To do so, the number of delegations for each expert is calculated homomorphically by summing up delegations part of voter's unit vectors (i.e., first $m$ bits). Then each committe member produces a decryption share with his secret key, that was used to generate shared election public key. Given decryption shares from all members, the number of delegations to each expert can be decrypted.
 
@@ -366,7 +378,7 @@ The full protocol is described in Fig.~\ref{fig:tally1} and Fig.~\ref{fig:tally2
 \begin{boxfig}{\label{fig:tally1}Tally (Rounds 1,2)}{}
 \footnotesize
 \textbf{Entities:}\\
-    \hspace*{6mm} \textbf{Committee members} $\mathcal{C}:=\{C_1,\ldots, C_l \}$.\\
+    \hspace*{6mm} \textbf{Committee members} $\mathcal{C}:=\{C_1,\ldots, C_l \}$. Note that here we refer to the members that were qualified after the DKG stage.\\
     \hspace*{6mm} \textbf{Voters} $\mathcal{V}:=\{V_1,\ldots, V_n \}$.\\
     \hspace*{6mm} \textbf{Experts} $\mathcal{E}:=\{E_1,\ldots, E_m \}$\\
 
@@ -385,7 +397,7 @@ Each committee member $C_j$ does the following:
         \item Parse $d_{e_i}$ to $(d_{e_i,1}, d_{e_i,2})$ (recall that $c_{e_i}$ and, correspondingly, $d_{e_i}$ are ElGamal ciphertexts, which comprise of 2 group elements [\ref{sec:elgamal}])
         \item Compute $D_{j,e_i}=(d_{e_i,1})^{sk_j}$, where $sk_j$ is a secret key\footnote{Here we refer to the secret key $sk_j$ that was used to generate shared election public key and for which a corresponding $pk_j$ was registered by $C_j$.} of the committee member $C_j$, and a proof $\pi_i$ that the share is generated correctly (see Fig.~\ref{fig:DecrShareNIZK} for NIZK description):
         \begin{equation*}
-        \pi_i\leftarrow\nizk\left\{\begin{array}{l} (\pk_j, d_{e_i,1}, D_{j,e_i}),(\sk_j): \\
+        \pi_{j,i}\leftarrow\nizk\left\{\begin{array}{l} (\pk_j, d_{e_i,1}, D_{j,e_i}),(\sk_j): \\
          D_{j,e_i}=(d_{e_i,1})^{sk_j} \; \wedge pk_j=g^{sk_j} \; \wedge \;  (\pk_j,\sk_j)\in\RRR_{\textsc{PKE}} \end{array}\right\}
         \end{equation*}
     \end{itemize}
@@ -397,7 +409,7 @@ Committee members $C_j, j \in \FFF$, that failed to submit decryption shares are
 \textbf{Round 2 (delegation decryption shares recovery):}\\
 Each qualified committee member $C_i,\ i \in \JJJ$ does the following:
 \begin{itemize}
-    \item If there such committee members $C_j,\ j \in \FFF$, which failed to post valid decryption shares, then $C_i$ posts to the blockchain shares $s_{j,i},\ j \in \FFF$ of $C_j$'s secret key obtained during the Round 1 of the DKG protocol (Figure~\ref{fig:DKG}).
+    \item If there are such committee members $C_j,\ j \in \FFF$, who failed to post valid decryption shares, then $C_i$ posts to the blockchain shares $s_{j,i},\ j \in \FFF$ of $C_j$'s secret key obtained during the Round 1 of the DKG protocol (Figure~\ref{fig:DKG}).
     \item Everyone can reconstruct a secret key\footnote{Note that there should be more than $l/2$ shares, where $l$ is the number of committee members, to be able to reconstruct the secret key} of $C_j$: $sk_j := \sum_{i\in[\JJJ]} \gamma_{j} \cdot s_{j,i}$, where $\gamma_{j}:= \prod_{\ell\in \JJJ\setminus \{j\} } \frac{\ell}{\ell-j}$,\\
     and reconstruct his decryption shares $D_{j,e_i}$.
 \end{itemize}
@@ -435,7 +447,7 @@ Committee members $C_j, j \in \FFF'$, that failed to submit decryption shares ar
 
 Each qualified committee member $C_i,\ i \in \JJJ'$ does the following:
 \begin{itemize}
-    \item If there such committee members $C_j,\ j \in \FFF'$, which failed to post valid decryption shares, then $C_i$ posts to the blockchain shares $s_{j,i},\ j \in \FFF'$ of $C_j$'s secret key obtained during the Round 1 of the DKG protocol (Figure~\ref{fig:DKG}).
+    \item If there are such committee members $C_j,\ j \in \FFF'$, who failed to post valid decryption shares, then $C_i$ posts to the blockchain shares $s_{j,i},\ j \in \FFF'$ of $C_j$'s secret key obtained during the Round 1 of the DKG protocol (Figure~\ref{fig:DKG}).
 \end{itemize}
 
 Everyone can reconstruct a secret key of $C_j,\ j\in\FFF'$: $sk_j := \sum_{i\in[\JJJ']} \gamma_{j} \cdot s_{j,i}$, where $\gamma_{j}:= \prod_{\ell\in \JJJ'\setminus \{j\} } \frac{\ell}{\ell-j}$\\\\
@@ -450,7 +462,7 @@ After obtaining all decryption shares $R_{j,i}$ from all committee members $C_j,
 \FloatBarrier
 \begin{boxfig}{\label{fig:DecrShareNIZK}Non-Interactive Zero Knowledge proof for correct ElGamal decryption share (note that this NIZK is basically the same as ElGamal decryption NIZK in Fig.~\ref{fig:ElgamalDecrNIZK} except slightly different interface)}{}
 \begin{center}
-$\nizk\{(\pk, C_1, D ),(\sk): D = (C_1)^{\sk} \, \wedge \, \pk = g^{\sk}\}$
+$\nizk\{(\pk, C, D ),(\sk): D = (C_1)^{\sk} \, \wedge \, \pk = g^{\sk}\}$
 \end{center}
 
 \textbf{Statement:} Public key, $\pk:=h \in\group$,  ciphertext $C: =(C_1, C_2 )$, and the decryption share $D:=(C_1)^{sk} \in\group$
@@ -468,6 +480,7 @@ $\nizk\{(\pk, C_1, D ),(\sk): D = (C_1)^{\sk} \, \wedge \, \pk = g^{\sk}\}$
 
 \textbf{Verifier:}
 \begin{itemize}
+\item Compute $d$
 \item Compute $e = \hash(C,D,A_1,A_2)$
 \item Verify that:
     \begin{itemize}
@@ -477,7 +490,7 @@ $\nizk\{(\pk, C_1, D ),(\sk): D = (C_1)^{\sk} \, \wedge \, \pk = g^{\sk}\}$
 \end{itemize}
 \end{boxfig}
 
-\subsection{Distributed Randomness generation}
+\subsection{Distributed Randomness Generation}
 
 As it was previously outlined in [\nameref{sec:overview}], randomness generation is done by committee members. It is split into two phases:
 \begin{enumerate}
@@ -485,23 +498,20 @@ As it was previously outlined in [\nameref{sec:overview}], randomness generation
 	\item \textbf{Randomness revealing}.
 \end{enumerate}
 
-Commitment phase is done during the post-voting stage. At this phase each qualified\footnote{By qualified we mean a committee member that has not been disqualified during any of the previous stages (DKG, Tally)} committe member generates a random value and submits its encryption (under the shared election public key) to the blockchain. No one else knows the committed random values of committee members. The commitment phase is formilized at Fig.~\ref{fig:rand_commit}.
+Commitment phase is done during the post-voting stage. At this phase each qualified\footnote{By qualified we mean a committee member that has not been disqualified during any of the previous stages (DKG, Tally)} committe member generates a random value and submits its encryption (under his private key) to the blockchain. No one else knows the committed random values of committee members. The commitment phase is formilized at Fig.~\ref{fig:rand_commit}.\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/treasury-crypto/blob/master/src/main/scala/io/iohk/protocol/decryption/RandomnessGenManager.scala}{https://github.com/input-output-hk/treasury-crypto/../protocol/decryption/RandomnessGenManager.scala}}
 
-Randomness revealing phase is done during the pre-voting stage of the next treasury epoch. At this phase committe members collect all committed random values, sum them up homomorphically and preapare decryption shares for the summed result (likewise it is done for voting ballots). After all decryption shares are submitted, everyone can compute the randomness. In case some committee member failed to submit the decryption share, his secret key is reconstructed by the majority of other committee members and then everyone can reconstruct his decryption share. So if a committee member has made a committment of a random value, it will be revealed even if he aborted to do it by himself, which makes impossible to manipulate the final randomness. The revealing phase is formalized at  and Fig.~\ref{fig:rand_reveal}.
+Randomness revealing phase is done during the pre-voting stage of the next treasury epoch. At this phase committe members reveal their random values together with a proof of their relevance with the commitment. In case some committee member failed to reveal the random value, his secret key is jointly reconstructed by other committee members and then everyone can decrypt the random value. So if a committee member has made a committment of a random value, it will be revealed even if he aborted to do it by himself, which makes impossible to manipulate the final randomness. The revealing phase is formalized at and Fig.~\ref{fig:rand_reveal}.
 
 \begin{boxfig}{\label{fig:rand_commit}Random value commitment}{}
 \footnotesize
 \textbf{Entities:}\\
     \hspace*{6mm} \textbf{Committee members} $\mathcal{C}:=\{C_1,\ldots, C_l \}$.\\
 
-\textbf{Input data:}\\
-    \hspace*{6mm} $\pk$ - shared election public key, that was generated during the DKG stage\\
-
 \textbf{Random value commitment.}
 Each qualified committee member $C_j,~j\in\JJJ'$ does the following:
 \begin{itemize}
 	\item Generate a random value $r_j\in\FF_p$
-	\item Compute $R_j=\Enc_{\pk}(r_j;r')$, where $r'\in\FF_p$ is some other random value needed for the ElGamal encryption scheme
+	\item Compute $R_j=\Enc_{\pk_j}(r_j;r')$, where $r'\in\FF_p$ is some other random value needed for the ElGamal encryption scheme
     \item Publish $R_j$ to the blockchain
 \end{itemize}
 \end{boxfig}
@@ -512,18 +522,14 @@ Each qualified committee member $C_j,~j\in\JJJ'$ does the following:
 \textbf{Entities:}\\
     \hspace*{6mm} \textbf{Committee members} $\mathcal{C}:=\{C_1,\ldots, C_l \}$.\\
 
-\textbf{Input data:}\\
-    \hspace*{6mm} $\pk$ - shared election public key, that was generated during the DKG stage.\\
-    \hspace*{6mm} \textbf{Set of committed random values} $\mathcal{R}:=\{R_1,\ldots, R_n \}$.\\
-
 \textbf{Round 1 (random values revealing):}
-Each committee member $C_j,\ j\in\JJJ''$, who submitted a random value commitment $R_*$, does the following:
+Each committee member $C_j,\ j\in\JJJ''$, who submitted a random value commitment $R_j$, does the following:
 \begin{itemize}
-    \item Decrypt committed random value: $D_j=\Dec'_{\sk}(R_j)$
-    \item Compute a proof $\pi_{j}$ that the decryption is correct (see Fig.~\ref{fig:DecrShareNIZK} for NIZK description):
+    \item Decrypt committed random value: $D_j=\Dec'_{\sk_j}(R_j)$
+    \item Compute a proof $\pi_{j}$ that the decryption is correct (see Fig.~\ref{fig:ElgamalDecrNIZK} for NIZK description):
     \begin{equation*}
         \pi_{j}\leftarrow\nizk\left\{\begin{array}{l} (\pk_j, R_{j}, D_{j}),(\sk_j): \\
-         D_j=\Dec'_{\sk}(R_j) \; \wedge pk_j=g^{sk_j} \; \wedge \;  (\pk_j,\sk_j)\in\RRR_{\textsc{PKE}} \end{array}\right\}
+         D_j=\Dec'_{\sk_j}(R_j) \; \wedge pk_j=g^{sk_j} \; \wedge \;  (\pk_j,\sk_j)\in\RRR_{\textsc{PKE}} \end{array}\right\}
     \end{equation*}
 
     \item Publish $\{D_{j}, \pi_{j}\}$ to the blockchain\\
@@ -533,14 +539,14 @@ Each committee member $C_j,\ j\in\JJJ''$, who submitted a random value commitmen
 
 Each qualified committee member $C_i,\ i \in \JJJ''$ does the following:
 \begin{itemize}
-    \item If there such committee members $C_j,\ j \in \FFF''$, which submitted random value commitments but failed to submit valid decryption shares, then $C_i$ posts to the blockchain shares $s_{j,i},\ j \in \FFF''$ of $C_j$'s secret key obtained during the Round 1 of the DKG protocol (Figure~\ref{fig:DKG}).\\
+    \item If there are such committee members $C_j,\ j \in \FFF''$, which submitted commitments to random value but failed to reveal them, then $C_i$ posts to the blockchain shares $s_{j,i},\ j \in \FFF''$ of $C_j$'s secret key obtained during the Round 1 of the DKG protocol (Figure~\ref{fig:DKG}).\\
 \end{itemize}
 
 \textbf{Randomness computation}. Everyone does the following:
 \begin{itemize}
 	\item Reconstruct secret keys of $C_j,\ j\in\FFF''$: $sk_j := \sum_{i\in[\JJJ']} \gamma_{j} \cdot s_{j,i}$, where $\gamma_{j}:= \prod_{\ell\in \JJJ''\setminus \{j\} } \frac{\ell}{\ell-j}$
-	\item Reconstruct missing decryptions of failed committee members $C_j,\ j\in\FFF''$ as $D_{j}=(R_{j})^{sk_j}$.
-	\item After obtaining all decryptions of random values $D_{j}$ from all committee members $C_j,\ j\in\JJJ''$, compute randomness as follows: \[rand=H(\{D_j\}_{j\in\JJJ''}),\]
-	where $\{D_j\}$ is a concatanation of values $D_j,~j\in\JJJ''$.
+	\item Decrypt missing random values of failed committee members $C_j,\ j\in\FFF''$ as $D_{j}=\Dec'_{\sk_j}(R_j)$.
+	\item After obtaining all random values $D_{j}$ from all committee members $C_j,\ j\in\JJJ''$, compute randomness as follows: \[rand=H(\{D_j\}_{j\in\JJJ''}),\]
+	where $\{D_j\}$ is a concatanation of $D_j,~j\in\JJJ''$.
 \end{itemize}
 \end{boxfig}
