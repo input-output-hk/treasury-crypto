@@ -36,10 +36,12 @@ This process is repeated periodically. Each such period is called a treasury epo
 \begin{itemize}[leftmargin=5em, itemsep=0em]
     \item \textbf{Project owners} $\mathcal{O}:=\{O_1,\ldots, O_k \}$, who submit proposals for funding;
     \item \textbf{Voting committee} $\mathcal{C}:=\{C_1,\ldots, C_l \}$ - special actors that maintain a decentrilized voting procedure (e.g., generate a shared voting public key and collectively decrypt the voting result);
-    \item \textbf{Voters} $\mathcal{V}:=\{V_1,\ldots, V_n \}$ - a set of stake holders that lock certain amount of stake to participate in voting; the voting power is proportional to the amount of locked stake;
+    \item \textbf{Voters} $\mathcal{V}:=\{V_1,\ldots, V_n \}$ - a set of stake holders that deposited a certain amount of stake to participate in voting; the voting power is proportional to the amount of deposited stake;
     \item \textbf{Experts} $\mathcal{E}:=\{E_1,\ldots, E_m \}$ - a special type of voters that have specialist knowledge and expertise in some field; their voting power equals to the sum of voting power of all regular voters that delegated their stake to the expert.
 \end{itemize}
-Note that experts and voting committee members are also required to pledge some fixed amount of stake to register themselves. But this stake does not provide them voting power, but rather serves as a deterrence against malicious behaviour. In case they do not follow the protocol, the pledged stake will be confiscated.
+Note that experts and voting committee members are also required to deposit some fixed amount of stake to register themselves. But this stake does not provide them voting power, but rather serves as a deterrence against malicious behaviour. In case they do not follow the protocol, the deposit is confiscated.
+	
+The deposited stake of all entities is locked for a certain amount of time (e.g., several epochs) to incentivize prudent behaviour.
 \\~\\
 \textbf{Proposal submission}. In order to submit a proposal for funding, a project owner submits a special proposal transaction\footnote{See the implementation of a proposal transaction here:\\ \href{https://github.com/input-output-hk/TreasuryCoin/blob/master/examples/src/main/scala/examples/hybrid/transaction/ProposalTransaction.scala}{https://github.com/input-output-hk/TreasuryCoin/.../examples/hybrid/transaction/ProposalTransaction.scala}} to the blockchain:
 \[Proposal_{TX}\ \stackrel{\mathrm{def}}{=}\ (projectID,\ recipientAddr,\ amount),\]
@@ -54,12 +56,12 @@ Note that to prevent denial-of-service attacks it is required for the submitter 
 \\~\\
 \textbf{Voters/Experts registration}. In order to become a voter or expert, a stakeholder must submit the following registration transaction\footnote{See the implementation of a registration transaction here:\\ \href{https://github.com/input-output-hk/TreasuryCoin/blob/master/examples/src/main/scala/examples/hybrid/transaction/RegisterTransaction.scala}{https://github.com/input-output-hk/TreasuryCoin/.../examples/hybrid/transaction/RegisterTransaction.scala}}:
 \label{ref:reg_tx}
-\[Reg_{TX}\ \stackrel{\mathrm{def}}{=}\ (role,\ Option[committeePubKey],\ pubKey,\ pledgedStakeAmount,\ sig),\]
+\[Reg_{TX}\ \stackrel{\mathrm{def}}{=}\ (role,\ Option[committeePubKey],\ pubKey,\ depositAmount,\ sig),\]
 where:
 \begin{conditions}
     role & a role for which a stakeholder is registered (voter or expert); \\
     committeePubKey &  an optional field; in case a voter/expert also wants to participate in the voting committee, he provides an additional public key that is used for committee-specific operations; \\
-    pledgedStakeAmount &  an amount of stake that a voter wants to pledge to acquire the right to participate in the voting process; the voting power is proportional to the amount of pledged stake. In case a voter also wants to be a committee member, he pledges an additional deposit, which does not  increase his voting power. In case of registration of an expert, pledged stake is a constant amount only depending on if the expert also wants to participate in the committee. Experts do not have their own voting power; \\
+    depositAmount &  an amount of stake that a voter wants to deposit to acquire the right to participate in the voting process; the voting power is proportional to the amount of deposited stake. In case a voter also wants to be a committee member, he deposits an additional fixed amount of stake, which does not increase his voting power. In case registering an expert, deposited stake is a fixed amount only depending on if the expert also wants to participate in the committee. Experts do not have their own voting power; \\
     paybackAddress & an address where rewards should be sent; \\
     pubKey & a personal public key that will be used for issuing ballots; \\
     sig & a signature on the whole registration transaction issued with \textit{pubKey}.
@@ -109,4 +111,23 @@ Note that each proposal is treated separately, so that a voter can delegate his 
 \newpage
 \textbf{Randomness commitment for the next epoch}. At this stage, each committee member commits a random value that will be used to construct randomness for the next treasury epoch.
 
-\textbf{Execution}. During the execution stage treasury funds are distributed to winning proposals. Certain proportion (e.g. 20\%) of the treasury fund is used to reward the voting committee members, voters and experts. Voting committee members receive a fixed amount of reward, while voters receive rewards proportional to their voting power. Experts receive rewards as a percentage (e.g. 5\%) of rewards for voters, who delegated to them\footnote{See implementation of payments distribution here:\\ \href{https://github.com/input-output-hk/TreasuryCoin/blob/master/examples/src/main/scala/examples/hybrid/state/TreasuryState.scala\#L537}{https://github.com/input-output-hk/TreasuryCoin/../examples/hybrid/state/TreasuryState.scala:getPayments()}}.
+\textbf{Execution}. During the execution stage treasury funds are distributed to winning proposals. Certain proportion (e.g. 20\%) of the treasury fund is used to reward the voting committee members, voters and experts.
+
+\subsection{Incentives}
+
+There are three main factors to incentivize treasury participants:
+\begin{enumerate}
+	\item Rewards.
+	\item Deposit lock.
+	\item Deposit confiscation.
+\end{enumerate}
+
+\textbf{Rewards}. The cornestone of the incentive scheme is the rewards paid for participating in the treasury protocol. All entities are eligible for rewards according to their roles. The rewards fund is a fixed portion (e.g., 20\%) of the overall treasury fund, which is divided between committe members and voters. Voting committee members receive a fixed amount of reward, while voters receive rewards proportional to their voting power. Experts receive rewards as a percentage (e.g. 5\%) of rewards for voters, who delegated to them\footnote{See implementation of payments distribution here:\\ \href{https://github.com/input-output-hk/TreasuryCoin/blob/master/examples/src/main/scala/examples/hybrid/state/TreasuryState.scala\#L537}{https://github.com/input-output-hk/TreasuryCoin/../examples/hybrid/state/TreasuryState.scala:getPayments()}}.
+
+The rewards are paid only if an entity follows the protocol correctly. For voters and experts it means that they issue correctly formed voting ballots in time; for committee members it means that they follow the protocol and issue all required transactions in time.
+
+\textbf{Deposit lock}. All entities are required to deposit certain amount of stake depending on their roles. This deposit is locked for a prolonged period of time (e.g., 3 treasury epochs). The basic idea behind it is to establish an incentive for voters to make sensible decisions that will benefit long-term prospects of the system. Given that their stake is locked they are incentivized to make decisions that will increase value of their stake.
+
+\textbf{Deposit confiscation}. Deposit confiscation is applied to experts and committee members in case they do not behave as expected. Given that experts are responsible to make decisions for voters delegating to them, their refusal to participate in a voting (i.e., not issuing a ballot) is considered as malicious behaviour that is punished by deposit confiscation.
+
+Committee members are responsible for managing the voting procedure. Even though the protocol is robust against failure of up to 50\% of members, a committee member is punished by deposit confiscation in case of not following the protocol.

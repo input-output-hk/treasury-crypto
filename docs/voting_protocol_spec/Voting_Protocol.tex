@@ -391,7 +391,7 @@ Each committee member $C_j$ does the following:
 \begin{itemize}
     \item For $i = 1,\ldots, m$ compute homomorphically the number of delegations $d_{e_i}$ for each expert $E_i$:
     \[d_{e_i}=\prod_{l=0}^{n-1} (c_{v_l,i})^{\alpha_l},\]
-    where $\alpha_l$ is a voting power of the voter $V_l$ (amount of pledged stake). 
+    where $\alpha_l$ is a voting power of the voter $V_l$ (amount of deposited stake). 
     \item For $i = 1,\ldots, m$ compute decryption shares for delegation sums as follows:
     \begin{itemize}
         \item Parse $d_{e_i}$ to $(d_{e_i,1}, d_{e_i,2})$ (recall that $c_{e_i}$ and, correspondingly, $d_{e_i}$ are ElGamal ciphertexts, which comprise of 2 group elements [\ref{sec:elgamal}])
@@ -429,7 +429,7 @@ Each qualified committee member $C_j,\ j\in\JJJ$ does the following:
     \item For $i = 0,..,2$ compute homomorphically the tally result $r_i$ for each choice $i\in\{0,1,2\}$ ("Abstain","Yes","No" correspondingly) as follows:
     \[r_i^E=\prod_{j=1}^{m} (c_{e_j,m+i})^{dlg_j},\hspace*{3mm} r_i^V=\prod_{j=1}^{n} (c_{v_j,m+i})^{\alpha_j}\]
     \[r_i=r_i^E \cdot r_i^V\]
-    where $dlg_j$ is a delegated voting power to the expert $E_j$ and $\alpha_j$ is a voting power of the voter $V_j$ (amount of pledged stake). 
+    where $dlg_j$ is a delegated voting power to the expert $E_j$ and $\alpha_j$ is a voting power of the voter $V_j$ (amount of deposited stake). 
     \item For $i = 0,.., 2$ compute decryption shares for tally results as follows:
     \begin{itemize}
         \item Parse $r_i$ to $(r_{i,1}, r_{i,2})$ (recall that $r_{i}$ is an ElGamal ciphertext, which comprises 2 group elements [\ref{sec:elgamal}])
