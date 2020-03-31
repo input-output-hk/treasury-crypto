@@ -3,6 +3,7 @@ package io.iohk.protocol.keygen.math
 import java.security.SecureRandom
 
 import io.iohk.core.crypto.encryption.hybrid.HybridPlaintext
+import io.iohk.core.crypto.primitives.numbergenerator.FieldElementSP800DRNG
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen.datastructures.round4.OpenedShare
 
@@ -40,8 +41,10 @@ object LagrangeInterpolation {
   }
 
   def testInterpolation(ctx: CryptoContext, degree: Int): Boolean = {
-    val secret = BigInt(ctx.group.groupOrder.bitLength, new SecureRandom()).mod(ctx.group.groupOrder)
-    val poly = new Polynomial(ctx, secret, degree)
+    val drng = new FieldElementSP800DRNG(ctx.group.createRandomNumber.toByteArray, ctx.group.groupOrder)
+    val secret = drng.nextRand
+
+    val poly = new Polynomial(ctx, degree, secret, drng)
 
     val sharesNum = degree * 2 // ratio specific for voting protocol, as assumed t = n / 2, i.e. degree = sharesNum / 2
     var shares = for(x <- 0 until sharesNum) yield {OpenedShare(x, HybridPlaintext(ctx.group.groupIdentity, poly.evaluate(x+1).toByteArray))}

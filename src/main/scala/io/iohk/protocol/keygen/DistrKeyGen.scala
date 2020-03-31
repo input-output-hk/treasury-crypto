@@ -88,11 +88,11 @@ class DistrKeyGen(ctx:              CryptoContext, // cryptosystem, which should
       case 0 =>
     }
 
-    // TODO: verify from the security standpoint if it is ok to generate all polynomial's coefficients with a random
-    // number generator that is seeded with the secretKey. In theory, every coefficient should be randomly selected
-    val rand = new FieldElementSP800DRNG(secretKey.toByteArray, ctx.group.groupOrder).nextRand
-    val poly_a = new Polynomial(ctx, secretKey, t)
-    val poly_b = new Polynomial(ctx, rand, t)
+    // we set a_0 to be the secretKey and generate all other coefficients with an RNG seeded with transportSecretKey
+    // TODO: verify it is ok to do it this way
+    val drng = new FieldElementSP800DRNG(ownPrivateKey.toByteArray ++ "Polynomials".getBytes, ctx.group.groupOrder)
+    val poly_a = new Polynomial(ctx, t, secretKey, drng)
+    val poly_b = new Polynomial(ctx, t, drng.nextRand, drng)
 
     for(i <- A.indices)
       A(i) = g.pow(poly_a(i)).get
