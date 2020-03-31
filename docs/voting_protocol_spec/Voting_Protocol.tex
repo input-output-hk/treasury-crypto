@@ -550,3 +550,17 @@ Each qualified committee member $C_i,\ i \in \JJJ''$ does the following:
 	where $\{D_j\}$ is a concatanation of $D_j,~j\in\JJJ''$.
 \end{itemize}
 \end{boxfig}
+
+\FloatBarrier
+\section{Treasury Epoch: Overall Timeline}
+
+Fig.\ref{fig:timeline} summarizes the timeline of a treasury epoch. Note that the time in a blockchain setting can be represented as block periods. Each phase of the protocol takes certain amount of blocks to be executed. During these periods, corresponding transactions should be submitted (e.g., registration transaction, ballot transaction, etc.).
+
+The time required for each phase should be evaluated experimentally to assure robust protocol execution. We expect that the voting phase takes most of the epoch time as it requires actions from all voters. Registration phase may also take substantial timeframe as it requres submitting transactions from all participants. On the other hand, all other phases, that involves only committee members, can be relatively short as they are strictly technical and we expect committee members to be well-prepared to perform these phases efficiently.
+
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[trim={0.5cm 9.5cm 1.5cm 0cm}, clip,width=1\columnwidth] {treasury_epoch_timeline.pdf}
+	\caption{Treasury epoch timeline}
+	\label{fig:timeline}
+\end{figure}
