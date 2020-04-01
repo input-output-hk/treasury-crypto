@@ -342,7 +342,8 @@ class DistrKeyGenTest  extends FunSuite {
 
     val sharedPubKey = {
       Try {
-        new DistrKeyGen(ctx, keyPairs(memberIndex), committeeMembers(memberIndex).secretKey, committeeMembersPubKeys, new CommitteeIdentifier(committeeMembersPubKeys), roundsData)
+        val seed = ctx.hash.hash(keyPairs(memberIndex)._1.toByteArray ++ "DKG Seed".getBytes)
+        new DistrKeyGen(ctx, keyPairs(memberIndex), committeeMembers(memberIndex).secretKey, seed, committeeMembersPubKeys, new CommitteeIdentifier(committeeMembersPubKeys), roundsData)
       } match {
         case Success(dkg) =>
           dkg.roundsDataCache.r5_2Data.headOption match {
@@ -463,7 +464,8 @@ class DistrKeyGenTest  extends FunSuite {
 
     val sharedPubKey = {
       Try {
-        new DistrKeyGen(ctx, keyPairs(memberIndex), committeeMembers(memberIndex).secretKey, committeeMembersPubKeys, new CommitteeIdentifier(committeeMembersPubKeys), roundsData)
+        val seed = ctx.hash.hash(keyPairs(memberIndex)._1.toByteArray ++ "DKG Seed".getBytes)
+        new DistrKeyGen(ctx, keyPairs(memberIndex), committeeMembers(memberIndex).secretKey, seed, committeeMembersPubKeys, new CommitteeIdentifier(committeeMembersPubKeys), roundsData)
       } match {
         case Success(dkg) =>
           dkg.roundsDataCache.r5_2Data.headOption match {

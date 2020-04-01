@@ -1,6 +1,5 @@
 package io.iohk.protocol
 
-import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.core.crypto.primitives.dlog.GroupElement
 import io.iohk.core.utils.HasSize
 import io.iohk.protocol.keygen.datastructures.round1.{R1Data, SecretShare}
@@ -11,7 +10,6 @@ import io.iohk.protocol.keygen.datastructures.round5_1.R5_1Data
 import io.iohk.protocol.keygen.datastructures.round5_2.R5_2Data
 
 import scala.collection.mutable.ArrayBuffer
-import scala.util.Random
 
 package object keygen {
 

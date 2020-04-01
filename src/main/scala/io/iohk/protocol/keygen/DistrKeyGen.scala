@@ -18,15 +18,42 @@ import io.iohk.protocol.{CryptoContext, Identifier}
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
-// Distributed Key Generation, based on Elliptic Curves
-//
-class DistrKeyGen(ctx:              CryptoContext, // cryptosystem, which should be used for protocol running
-                  transportKeyPair: KeyPair, // key pair for shares encryption/decryption
-                  secretKey:        PrivKey, // secret key (own private key), which will be used for generation of the shared public key
-                  membersPubKeys:   Seq[PubKey], // public keys of all protocol members, including own public key from transportKeyPair
-                  memberIdentifier: Identifier[Int], // generator of members identifiers, based on the list of members public keys (membersPubKeys)
-                  roundsData:       RoundsData // data of all protocol members for all rounds, which has been already executed
-                 )
+/**
+  *   DistrKeyGen encapsulates the logic of generating a shared public key that will be used to encrypt voters ballots.
+  * It is used by committee members to perform their duties and by all other entities to verify messages from committee members.
+  * Each committee member creates an instance of DistrKeyGen, which is set up with his own keys.
+  *   According to the protocol each committee member has two pairs of keys, the one is used for generating a shared public key
+  * and another one is used for sending encrypted messages among committee members.
+  *   The distributed key generation protocol consists of 5 rounds executing sequentially. At each round a committee member is
+  * supposed to create and publish certain messages based on what was an outcome of the previous round. After executing each
+  * round the internal state of the DistrKeyGen is updated.
+  *
+  * @param ctx  CryptoContext
+  * @param transportKeyPair a key pair for ElGamal encryption scheme that is used for encrypted communication among committee members.
+  *                         The transport public key serves also as an identifier of a committee member.
+  * @param secretKey a secret key for ElGamal encryption scheme that is used for generating shared public key
+  * @param secretSeed a secret seed used to generate random values required for certain parts of the protocol (Note that
+  *                   in some cases, it might be plausible to derive the seed from the transport secret key. It is not
+  *                   recommended to derive the seed from the secretKey, as it is not guaranteed to be safe according to the
+  *                   current security model)
+  * @param membersPubKeys An array of transport public keys of all committee members participating in the DKG protocol
+  *                       (including own transport public key from transportKeyPair)
+  * @param memberIdentifier an instance of Identifier, that deterministically maps a set of committee transport public keys
+  *                         to integer indices [0,...,n-1], where n is the number of keys in the set. Note that it should be
+  *                         correctly preloaded with keys from membersPublicKeys.
+  * @param roundsData contains outcomes of DKG rounds that have been already executed (by an outcome of a round means a set
+  *                   of messages from all committee members generated during this round). It is needed to be able to restore
+  *                   the state to a certain point (e.g., if we already have outcomes of Rounds 1 and 2, we set up
+  *                   the DistrKeyGen with this data, so that it can continue with Round 3 immediately)
+  *
+  */
+class DistrKeyGen(ctx:              CryptoContext,
+                  transportKeyPair: KeyPair,
+                  secretKey:        PrivKey,
+                  secretSeed:       Array[Byte],
+                  membersPubKeys:   Seq[PubKey],
+                  memberIdentifier: Identifier[Int],
+                  roundsData:       RoundsData)
 {
   import ctx.{blockCipher, group, hash}
 
@@ -44,10 +71,10 @@ class DistrKeyGen(ctx:              CryptoContext, // cryptosystem, which should
   private val crs = ctx.commonReferenceString.get
   private val g = group.groupGenerator
 
-  private val ownPrivateKey = transportKeyPair._1
-  private val ownPublicKey  = transportKeyPair._2
+  private val ownTransportPrivateKey = transportKeyPair._1
+  private val ownTransportPublicKey  = transportKeyPair._2
   private val allMembersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
-          val ownID: Int = memberIdentifier.getId(ownPublicKey).get
+          val ownID: Int = memberIdentifier.getId(ownTransportPublicKey).get
 
           val roundsDataCache = RoundsData()
   private var roundsPassed: Int = 0
@@ -88,9 +115,8 @@ class DistrKeyGen(ctx:              CryptoContext, // cryptosystem, which should
       case 0 =>
     }
 
-    // we set a_0 to be the secretKey and generate all other coefficients with an RNG seeded with transportSecretKey
-    // TODO: verify it is ok to do it this way
-    val drng = new FieldElementSP800DRNG(ownPrivateKey.toByteArray ++ "Polynomials".getBytes, ctx.group.groupOrder)
+    // we set a_0 to be the secretKey and generate all other coefficients with an RNG seeded with secretSeed
+    val drng = new FieldElementSP800DRNG(secretSeed ++ "Polynomials".getBytes, ctx.group.groupOrder)
     val poly_a = new Polynomial(ctx, t, secretKey, drng)
     val poly_b = new Polynomial(ctx, t, drng.nextRand, drng)
 
@@ -109,14 +135,14 @@ class DistrKeyGen(ctx:              CryptoContext, // cryptosystem, which should
     {
       val receiverPublicKey = membersPubKeys(i)
 
-      if(receiverPublicKey != ownPublicKey)
+      if(receiverPublicKey != ownTransportPublicKey)
       {
         val recipientID = memberIdentifier.getId(receiverPublicKey).get
         val x = recipientID + 1
 
         assert(x != 0) // avoid share for a_0 coefficient
 
-        val seed = (ownPrivateKey + x).toByteArray ++ receiverPublicKey.bytes ++ "SecretSharesSeed".getBytes //TODO: verify if it is secure to use this seed
+        val seed = secretSeed ++ BigInt(x).toByteArray ++ receiverPublicKey.bytes ++ "SecretSharesSeed".getBytes //TODO: verify if it is secure to use this seed
         val gen = new SP800DRNG(seed)
         S_a += SecretShare(recipientID, HybridEncryption.encrypt(receiverPublicKey, poly_a.evaluate(x).toByteArray, gen.nextBytes(32)).get)
         S_b += SecretShare(recipientID, HybridEncryption.encrypt(receiverPublicKey, poly_b.evaluate(x).toByteArray, gen.nextBytes(32)).get)
@@ -176,8 +202,8 @@ class DistrKeyGen(ctx:              CryptoContext, // cryptosystem, which should
           val secretShare_a = r1Data(i).S_a(j)
           val secretShare_b = r1Data(i).S_b(j)
 
-          val openedShare_a = OpenedShare(secretShare_a.receiverID, HybridEncryption.decrypt(ownPrivateKey, secretShare_a.S).get)
-          val openedShare_b = OpenedShare(secretShare_b.receiverID, HybridEncryption.decrypt(ownPrivateKey, secretShare_b.S).get)
+          val openedShare_a = OpenedShare(secretShare_a.receiverID, HybridEncryption.decrypt(ownTransportPrivateKey, secretShare_a.S).get)
+          val openedShare_b = OpenedShare(secretShare_b.receiverID, HybridEncryption.decrypt(ownTransportPrivateKey, secretShare_b.S).get)
 
           if(checkOnCRS(ctx, openedShare_a, openedShare_b, r1Data(i).E)) {
             secretShares += ShareEncrypted(r1Data(i).issuerID, secretShare_a, secretShare_b)
@@ -185,12 +211,12 @@ class DistrKeyGen(ctx:              CryptoContext, // cryptosystem, which should
             CRS_commitments += CRS_commitment(r1Data(i).issuerID, r1Data(i).E.map(x => group.reconstructGroupElement(x).get))
           }
           else {
-            val proof_a = ElgamalDecrNIZK.produceNIZK(secretShare_a.S.encryptedSymmetricKey, ownPrivateKey).get
-            val proof_b = ElgamalDecrNIZK.produceNIZK(secretShare_b.S.encryptedSymmetricKey, ownPrivateKey).get
+            val proof_a = ElgamalDecrNIZK.produceNIZK(secretShare_a.S.encryptedSymmetricKey, ownTransportPrivateKey).get
+            val proof_b = ElgamalDecrNIZK.produceNIZK(secretShare_b.S.encryptedSymmetricKey, ownTransportPrivateKey).get
 
             complaints += ComplaintR2(
               r1Data(i).issuerID,
-              ownPublicKey,
+              ownTransportPublicKey,
               ShareProof(secretShare_a.S, openedShare_a.S, proof_a),
               ShareProof(secretShare_b.S, openedShare_b.S, proof_b))
 
@@ -252,7 +278,7 @@ class DistrKeyGen(ctx:              CryptoContext, // cryptosystem, which should
 
       def checkEncryption(proof: ShareProof): Boolean = {
         val ciphertext = HybridEncryption.encrypt(
-          ownPublicKey,                         // for this verification no matter what public key is used
+          ownTransportPublicKey,                         // for this verification no matter what public key is used
           proof.decryptedShare.decryptedMessage,
           proof.decryptedShare.decryptedKey).get
 
