@@ -1,6 +1,7 @@
 package io.iohk.protocol.tally
 
 import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
+import io.iohk.core.crypto.primitives.dlog.GroupElement
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
 import io.iohk.protocol.tally.datastructures._
@@ -15,14 +16,21 @@ object TallyPhases extends Enumeration {
 
 class TallyNew(ctx: CryptoContext,
                cmIdentifier: Identifier[Int],
+               numberOfExperts: Int,
                disqualifiedCommitteeMembers: Map[PubKey, PrivKey]) {
   import ctx.{group, hash}
 
   private var currentRound = TallyPhases.Init
   private val allCommitteeIds = cmIdentifier.pubKeys.map(cmIdentifier.getId(_).get).toSet
-  private var disqualifiedCommitteeIds = disqualifiedCommitteeMembers.keySet.map(cmIdentifier.getId(_).get)
-  private var delegationsSum = Option(None)
+  private var disqualifiedBeforeTallyCommitteeIds = disqualifiedCommitteeMembers.keySet.map(cmIdentifier.getId(_).get)
+  private var disqualifiedOnTallyR1CommitteeIds = Set[Int]()
+  private var disqualifiedOnTallyR3CommitteeIds = Set[Int]()
 
+  private var delegationsSharesSum = Map[Int, Array[GroupElement]]()
+  def getDelegationsSharesSum = delegationsSharesSum
+
+  def getAllDisqualifiedCommitteeIds = disqualifiedBeforeTallyCommitteeIds ++ getDisqualifiedOnTallyCommitteeIds
+  def getDisqualifiedOnTallyCommitteeIds = disqualifiedOnTallyR1CommitteeIds ++ disqualifiedOnTallyR3CommitteeIds
 
   def getCurrentPhase = currentRound
 
@@ -66,7 +74,7 @@ class TallyNew(ctx: CryptoContext,
     val committeID = cmIdentifier.getId(committePubKey).get
 
     require(r1Data.issuerID == committeID, "Committee identifier in R1Data is invalid")
-    require(!disqualifiedCommitteeIds.contains(r1Data.issuerID), "Committee member was disqualified")
+    require(!getAllDisqualifiedCommitteeIds.contains(r1Data.issuerID), "Committee member was disqualified")
     require(r1Data.decryptionShares.keySet.equals(proposalIds), "Not all decryption shares are provided")
 
     r1Data.decryptionShares.foreach { case (proposalId, s) =>
@@ -84,13 +92,38 @@ class TallyNew(ctx: CryptoContext,
     * @return
     */
   def executeRound1(summator: BallotsSummator, r1DataAll: Seq[TallyR1Data]): Try[TallyNew] = Try {
-    val submittedCommitteeIds = r1DataAll.map(_.issuerID).toSet
-    require(submittedCommitteeIds.size == r1DataAll.size, "There is a TallyR1Data from the same committee member")
+    if (currentRound != TallyPhases.Init)
+      throw new IllegalStateException("Unexpected state! Round 1 should be executed only in the Init state.")
 
-    val expectedCommitteeIds = allCommitteeIds.diff(disqualifiedCommitteeIds)
+    if (numberOfExperts <= 0 || summator.getDelegationsSum.isEmpty) {
+      // there is nothing to do on Round 1 if there are no experts or no proposals
+      currentRound = TallyPhases.TallyR1
+      return Try(this)
+    }
+
+    val submittedCommitteeIds = r1DataAll.map(_.issuerID).toSet
+    require(submittedCommitteeIds.size == r1DataAll.size, "More than one TallyR1Data from the same committee member is not allowed")
+    require(submittedCommitteeIds.intersect(getAllDisqualifiedCommitteeIds).isEmpty, "Disqualified members are not allowed to submit r1Data!")
+
+    val expectedCommitteeIds = allCommitteeIds.diff(getAllDisqualifiedCommitteeIds)
     val failedCommitteeIds = expectedCommitteeIds.diff(submittedCommitteeIds)
 
-    //TODO: maybe compute decryptionSharesSum
+    val uvDelegationsSum = summator.getDelegationsSum
+    val proposalIds = uvDelegationsSum.keys
+
+    delegationsSharesSum = r1DataAll.foldLeft(Map[Int,Array[GroupElement]]()) { (acc, r1Data) =>
+      proposalIds.foldLeft(acc) { (acc2, proposalId) =>
+        val decryptionSharesSum = acc2.getOrElse(proposalId, Array.fill(numberOfExperts)(group.groupIdentity))
+        val decryptionShare = r1Data.decryptionShares(proposalId).decryptedC1.map(_._1)
+        require(decryptionSharesSum.size == decryptionShare.size)
+
+        val newSum = decryptionSharesSum.zip(decryptionShare).map(s => s._1.multiply(s._2).get)
+        acc2 + (proposalId -> newSum)
+      }
+    }
+
+    disqualifiedOnTallyR1CommitteeIds = failedCommitteeIds
+    currentRound = TallyPhases.TallyR1
     this
   }
 
