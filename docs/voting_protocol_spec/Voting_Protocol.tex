@@ -47,7 +47,7 @@ We employ a hybrid symmetric/assymetric encryption scheme for long messages that
 	\item $\SEnc_{\ck}(m)$: output $e:=AESEnc_{H(ck)}(m)$, where $H$ is a cryptographic hash function and $AESEnc$ is an encryption method of AES block cipher.
 	\item $\SDec_{\ck}(e)$: output $m:=AESDec_{H(ck)}(e)$, where $AESDec$ is a decryption method of AES block cipher.
 	\item $\HEnc_{\pk}(m,r,ck)$: output $e:=(e_1,e_2)=(Enc'_{\pk}(ck,r), SEnc_{\ck}(m))$ is a hybrid encryption.
-	\item $\HDec_{\sk}(e)$: output $m:=SDec_{\ck}(e_2))$, where $ck=Dec'_{\sk}(e_1)$.
+	\item $\HDec_{\sk}(e)$: output $m:=SDec_{\ck}(e_2)$, where $ck=Dec'_{\sk}(e_1)$.
 \end{itemize}
 
 \subsubsection{Pedersen Commitment}
@@ -168,7 +168,7 @@ $\nizk\{(\pk, C, M ),(\sk): M = \Dec'_{\sk}(C) \, \wedge \, \pk = g^{\sk}\}$
 
 \textbf{Verifier:}
 \begin{itemize}
-\item Compute $D=\frac{C_2}{M}$
+\item Compute $D=C_2 \cdot M^{-1}$
 \item Compute $e = \hash(C,D,A_1,A_2)$
 \item Verify that:
     \begin{itemize}
@@ -417,7 +417,7 @@ Each qualified committee member $C_i,\ i \in \JJJ$ does the following:
 After obtaining all decryption shares $D_{j,e_i}$ from all committee members $C_j,\ j\in[1,..,l]$, everyone can decrypt delegation results as follows:
 \begin{itemize}
     \item For $i = 1,\ldots, m$, where $m$ is the number of experts compute $D_{e_i}=\prod_{j=1}^{l} D_{j,e_i}$, where $l$ is the number of committee members.
-    \item Compute number of delegations to each expert $E_i$ as $dlg_{i}=DLOG_g(\dfrac{d_{e_i,2}}{D_{e_i}})$, where $d_{e_i,2}$ is obtained during the Round 1 and $DLOG$ is a discrete logarithm for the resulting group element. Note that the logarithm is the number of delegations so it can be effectively found by brute force.\\
+    \item Compute number of delegations to each expert $E_i$ as $dlg_{i}=DLOG_g(d_{e_i,2} \cdot (D_{e_i})^{-1})$, where $d_{e_i,2}$ is obtained during the Round 1 and $DLOG$ is a discrete logarithm for the resulting group element. Note that the logarithm is the number of delegations so it can be effectively found by brute force.\\
 \end{itemize}
 \textbf{Round 3 (tally results decryption):} see continuation on Fig.~\ref{fig:tally2}
 \end{boxfig}
@@ -455,7 +455,7 @@ Everyone reconstructs missing decryption shares of disqualified committee member
 After obtaining all decryption shares $R_{j,i}$ from all committee members $C_j,\ j\in[1,..,l]$, everyone can decrypt tally results as follows:
 \begin{itemize}
     \item For $i = 0,.., 2$ compute $R_i=\prod_{j=1}^{l} R_{j,i}$, where $l$ is the number of committee members.
-    \item Compute number of votes for each choice $i\in\{0,1,2\}$ as $res_{i}=DLOG_g(\dfrac{r_{i,2}}{R_i})$, where $r_{i,2}$ is computed as in Round 3 and $DLOG$ is a discrete logarithm for the resulting group element. Note that the logarithm is the number of votes so it can be effectively found by brute force.\\
+    \item Compute number of votes for each choice $i\in\{0,1,2\}$ as $res_{i}=DLOG_g(r_{i,2} \cdot (R_i)^{-1})$, where $r_{i,2}$ is computed as in Round 3 and $DLOG$ is a discrete logarithm for the resulting group element. Note that the logarithm is the number of votes so it can be effectively found by brute force.\\
 \end{itemize}
 \end{boxfig}
 
@@ -546,8 +546,8 @@ Each qualified committee member $C_i,\ i \in \JJJ''$ does the following:
 \begin{itemize}
 	\item Reconstruct secret keys of $C_j,\ j\in\FFF''$: $sk_j := \sum_{i\in[\JJJ']} \gamma_{j} \cdot s_{j,i}$, where $\gamma_{j}:= \prod_{\ell\in \JJJ''\setminus \{j\} } \frac{\ell}{\ell-j}$
 	\item Decrypt missing random values of failed committee members $C_j,\ j\in\FFF''$ as $D_{j}=\Dec'_{\sk_j}(R_j)$.
-	\item After obtaining all random values $D_{j}$ from all committee members $C_j,\ j\in\JJJ''$, compute randomness as follows: \[rand=H(\{D_j\}_{j\in\JJJ''}),\]
-	where $\{D_j\}$ is a concatanation of $D_j,~j\in\JJJ''$.
+	\item After obtaining all random values $D_{j}$ from all committee members $C_j,\ j\in\JJJ''$, compute randomness as follows: \[rand=H(\mathbin\Vert_{j\in\JJJ''} D_j),\]
+	where $\mathbin\Vert_{j\in\JJJ''} D_j$ denotes a concatanation of $D_j,~j\in\JJJ''$.
 \end{itemize}
 \end{boxfig}
 
