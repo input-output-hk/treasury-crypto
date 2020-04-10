@@ -3,6 +3,8 @@ package io.iohk.protocol.tally
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.KeyPair
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
+import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
+import io.iohk.protocol.keygen.DistrKeyGen
 import io.iohk.protocol.tally.datastructures.DecryptionShare
 import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
 import io.iohk.protocol.voting.{RegularVoter, VotingOptions}
@@ -12,21 +14,13 @@ class TallyTest extends FunSuite {
   val ctx = new CryptoContext(None)
   import ctx.group
 
-  def generateCommitteeKeys(committeeSize: Int): Seq[KeyPair] = {
-    for (i <- 0 until committeeSize) yield {
-      val privKey = group.createRandomNumber
-      (privKey -> group.groupGenerator.pow(privKey).get)
-    }
-  }
-
-
   test("generate TallyR1Data") {
     val numberOfExperts = 6
     val numberOfVoters = 10
     val numberOfProposals = 3
     val stake = 3
 
-    val (privKey, pubKey) = generateCommitteeKeys(1).head
+    val (privKey, pubKey) = TallyTest.generateCommitteeKeys(1).head
     val committeeIdentifier = new CommitteeIdentifier(Seq(pubKey))
     val voter = new RegularVoter(ctx, numberOfExperts, pubKey, stake)
     val summator = new BallotsSummator(ctx, numberOfExperts)
@@ -56,7 +50,7 @@ class TallyTest extends FunSuite {
     val numberOfProposals = 3
     val stake = 3
 
-    val (privKey, pubKey) = generateCommitteeKeys(1).head
+    val (privKey, pubKey) = TallyTest.generateCommitteeKeys(1).head
     val committeeIdentifier = new CommitteeIdentifier(Seq(pubKey))
     val voter = new RegularVoter(ctx, numberOfExperts, pubKey, stake)
     val summator = new BallotsSummator(ctx, numberOfExperts)
@@ -98,7 +92,7 @@ class TallyTest extends FunSuite {
     val numberOfProposals = 3
     val stake = 3
 
-    val committeeMembersKeys = generateCommitteeKeys(5)
+    val committeeMembersKeys = TallyTest.generateCommitteeKeys(5)
 
     // create shared voting key by summing up public keys of committee members
     val sharedVotingKey = committeeMembersKeys.foldLeft(group.groupIdentity)( (acc,key) => acc.multiply(key._2).get)
@@ -141,7 +135,7 @@ class TallyTest extends FunSuite {
     val numberOfVoters = 5
     val numberOfProposals = 3
 
-    val (privKey, pubKey) = generateCommitteeKeys(1).head
+    val (privKey, pubKey) = TallyTest.generateCommitteeKeys(1).head
     val committeeIdentifier = new CommitteeIdentifier(Seq(pubKey))
     val voter = new RegularVoter(ctx, numberOfExperts, pubKey, 2)
     val summator = new BallotsSummator(ctx, numberOfExperts)
@@ -162,7 +156,7 @@ class TallyTest extends FunSuite {
   test("executeRound1 should do nothing in case there is no ballots") {
     val numberOfExperts = 5
 
-    val (privKey, pubKey) = generateCommitteeKeys(1).head
+    val (privKey, pubKey) = TallyTest.generateCommitteeKeys(1).head
     val committeeIdentifier = new CommitteeIdentifier(Seq(pubKey))
     val summator = new BallotsSummator(ctx, numberOfExperts)
 
@@ -178,7 +172,7 @@ class TallyTest extends FunSuite {
     val numberOfVoters = 2
     val numberOfProposals = 2
 
-    val committeeKeys = generateCommitteeKeys(5)
+    val committeeKeys = TallyTest.generateCommitteeKeys(5)
     val sharedVotingKey = committeeKeys.foldLeft(group.groupIdentity)( (acc,key) => acc.multiply(key._2).get)
 
     val committeeIdentifier = new CommitteeIdentifier(committeeKeys.map(_._2))
@@ -204,14 +198,14 @@ class TallyTest extends FunSuite {
     require(tally2.getDisqualifiedOnTallyCommitteeIds.isEmpty)
 
     // test 1 previously disqualified
-    val tally3 = new TallyNew(ctx, committeeIdentifier, numberOfExperts, Map(committeeKeys.head._2 -> committeeKeys.head._1))
+    val tally3 = new TallyNew(ctx, committeeIdentifier, numberOfExperts, Map(committeeKeys.head._2 -> None))
     require(tally3.executeRound1(summator, r1DataAll).isFailure) // we provided r1Data of disqualified member
     require(tally3.executeRound1(summator, r1DataAll.tail).isSuccess) // now execution should succeed
     require(tally3.getDisqualifiedOnTallyCommitteeIds.isEmpty)
     require(tally3.getAllDisqualifiedCommitteeIds.size == 1)
 
     // test 1 previously disqualified and 1 new
-    val tally4 = new TallyNew(ctx, committeeIdentifier, numberOfExperts, Map(committeeKeys.head._2 -> committeeKeys.head._1))
+    val tally4 = new TallyNew(ctx, committeeIdentifier, numberOfExperts, Map(committeeKeys.head._2 -> None))
     require(tally4.executeRound1(summator, r1DataAll.drop(2)).isSuccess)
     require(tally4.getDisqualifiedOnTallyCommitteeIds.size == 1
       && tally4.getDisqualifiedOnTallyCommitteeIds.head == committeeIdentifier.getId(committeeKeys(1)._2).get)
@@ -223,7 +217,7 @@ class TallyTest extends FunSuite {
     val numberOfVoters = 5
     val numberOfProposals = 3
 
-    val (privKey, pubKey) = generateCommitteeKeys(1).head
+    val (privKey, pubKey) = TallyTest.generateCommitteeKeys(1).head
     val committeeIdentifier = new CommitteeIdentifier(Seq(pubKey))
     val voter = new RegularVoter(ctx, numberOfExperts, pubKey, 2)
     val summator = new BallotsSummator(ctx, numberOfExperts)
@@ -235,26 +229,36 @@ class TallyTest extends FunSuite {
     }
 
     val tally = new TallyNew(ctx, committeeIdentifier, numberOfExperts, Map())
-    require(tally.getCurrentPhase == TallyPhases.Init)
+    require(tally.getCurrentRound == TallyPhases.Init)
     val r1Data = tally.generateR1Data(summator, (privKey, pubKey)).get
     require(tally.executeRound1(summator, Seq(r1Data)).isSuccess)
     require(tally.executeRound1(summator, Seq(r1Data)).isFailure) // repeated execution should fail
-    require(tally.getCurrentPhase == TallyPhases.TallyR1)
+    require(tally.getCurrentRound == TallyPhases.TallyR1)
 
     val tally2 = new TallyNew(ctx, committeeIdentifier, numberOfExperts, Map())
     require(tally2.executeRound1(summator, Seq()).isSuccess) // our single member failed to submit r1Data, but that's fine
-    require(tally2.getCurrentPhase == TallyPhases.TallyR1) // executeRound1 failed so the phase should not be upcated
+    require(tally2.getCurrentRound == TallyPhases.TallyR1) // executeRound1 failed so the phase should not be upcated
 
     val tally3 = new TallyNew(ctx, committeeIdentifier, 0, Map())
     require(tally3.executeRound1(summator, Seq()).isSuccess) // we don't expect r1Data in case there is no experts
-    require(tally3.getCurrentPhase == TallyPhases.TallyR1)
+    require(tally3.getCurrentRound == TallyPhases.TallyR1)
 
-    val tally4 = new TallyNew(ctx, committeeIdentifier, 0, Map(pubKey -> privKey))
+    val tally4 = new TallyNew(ctx, committeeIdentifier, 0, Map(pubKey -> None))
     require(tally4.executeRound1(summator, Seq()).isSuccess) // our single member was disqualified so we don't expect r1Data
-    require(tally4.getCurrentPhase == TallyPhases.TallyR1)
+    require(tally4.getCurrentRound == TallyPhases.TallyR1)
 
     val tally5 = new TallyNew(ctx, committeeIdentifier, numberOfExperts, Map())
     require(tally5.executeRound1(summator, Seq(r1Data, r1Data)).isFailure) // we duplicated r1Data, execution should fail
-    require(tally5.getCurrentPhase == TallyPhases.Init) // executeRound1 failed so the phase should not be updated
+    require(tally5.getCurrentRound == TallyPhases.Init) // executeRound1 failed so the phase should not be updated
+  }
+}
+
+object TallyTest {
+
+  def generateCommitteeKeys(committeeSize: Int)(implicit group: DiscreteLogGroup): Seq[KeyPair] = {
+    for (i <- 0 until committeeSize) yield {
+      val privKey = group.createRandomNumber
+      (privKey -> group.groupGenerator.pow(privKey).get)
+    }
   }
 }
