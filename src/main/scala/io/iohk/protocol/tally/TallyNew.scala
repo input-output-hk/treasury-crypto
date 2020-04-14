@@ -37,15 +37,16 @@ class TallyNew(ctx: CryptoContext,
   // here we will collect restored secret keys of committee members
   private var allDisqualifiedCommitteeKeys = disqualifiedAfterDKGCommitteeKeys.filter(_._2.isDefined).mapValues(_.get)
 
-  private var delegationsSharesSum = Map[Int, Array[GroupElement]]()
-  private var delegations = Map[Int, Array[BigInt]]()
+  private var delegationsSharesSum = Map[Int, Vector[GroupElement]]()
+  private var delegations = Map[Int, Vector[BigInt]]()
   def getDelegationsSharesSum = delegationsSharesSum
   def getDelegations = delegations
 
-  private var choicesSum = Map[Int, Array[ElGamalCiphertext]]()
-  private var choicesSharesSum = Map[Int, Array[GroupElement]]()
+  private var choicesSum = Map[Int, Vector[ElGamalCiphertext]]()
+  private var choicesSharesSum = Map[Int, Vector[GroupElement]]()
   private var choices = Map[Int, TallyResult]()
   def getChoicesSum = choicesSum
+  def getChoicesSharesSum = choicesSharesSum
   def getChoices = choices
 
   def getAllDisqualifiedCommitteeIds = disqualifiedBeforeTallyCommitteeIds ++ getDisqualifiedOnTallyCommitteeIds
@@ -115,19 +116,9 @@ class TallyNew(ctx: CryptoContext,
     val expectedCommitteeIds = allCommitteeIds.diff(getAllDisqualifiedCommitteeIds)
     val failedCommitteeIds = expectedCommitteeIds.diff(submittedCommitteeIds)
 
-    val uvDelegationsSum = summator.getDelegationsSum
-    val proposalIds = uvDelegationsSum.keys
+    val proposalIds = summator.getDelegationsSum.keys.toSeq
 
-    delegationsSharesSum = r1DataAll.foldLeft(Map[Int,Array[GroupElement]]()) { (acc, r1Data) =>
-      proposalIds.foldLeft(acc) { (acc2, proposalId) =>
-        val decryptionSharesSum = acc2.getOrElse(proposalId, Array.fill(numberOfExperts)(group.groupIdentity))
-        val decryptionShare = r1Data.decryptionShares(proposalId).decryptedC1.map(_._1)
-        require(decryptionSharesSum.size == decryptionShare.size)
-
-        val newSum = decryptionSharesSum.zip(decryptionShare).map(s => s._1.multiply(s._2).get)
-        acc2 + (proposalId -> newSum)
-      }
-    }
+    delegationsSharesSum = TallyNew.sumUpDecryptionShares(r1DataAll, numberOfExperts, proposalIds)
 
     disqualifiedOnTallyR1CommitteeIds = failedCommitteeIds
     currentRound = TallyPhases.TallyR1
@@ -226,17 +217,19 @@ class TallyNew(ctx: CryptoContext,
     }
 
     // Step 4: sum up choices part of the encrypted unit vectors by adding expert ballots weighted by delegations
-    choicesSum = expertBallots.foldLeft(summator.getChoicesSum) { (choicesSum, ballot) =>
+    val init = summator.getChoicesSum.mapValues(_.toArray)
+    choicesSum = expertBallots.foldLeft(init) { (acc, ballot) =>
       val proposalId = ballot.proposalId
-      val updatedChoices = choicesSum.getOrElse(proposalId,
+      val updatedChoices = acc.getOrElse(proposalId,
         Array.fill(VotingOptions.values.size)(ElGamalCiphertext(group.groupIdentity, group.groupIdentity)))
+      val delegatedStake = delegationsDecrypted.get(proposalId).map(v => v(ballot.expertId)).getOrElse(BigInt(0))
+
       for (i <- 0 until updatedChoices.size) {
-        val delegatedStake = delegationsDecrypted.get(proposalId).map(v => v(ballot.expertId)).getOrElse(BigInt(0))
         val weightedVote = ballot.uvChoice(i).pow(delegatedStake).get
         updatedChoices(i) = updatedChoices(i).multiply(weightedVote).get
       }
-      choicesSum + (proposalId -> updatedChoices)
-    }
+      acc + (proposalId -> updatedChoices)
+    }.mapValues(_.toVector)
 
     // if we reached this point execution was successful, so update state variables
     allDisqualifiedCommitteeKeys = updatedAllDisqualifiedCommitteeKeys
@@ -270,7 +263,32 @@ class TallyNew(ctx: CryptoContext,
     }
   }
 
-  def executeRound3(r3DataAll: Seq[TallyR1Data]): Try[TallyR1Data] = ???
+  def executeRound3(r3DataAll: Seq[TallyR3Data]): Try[TallyNew] = Try {
+    if (currentRound != TallyPhases.TallyR2)
+      throw new IllegalStateException("Unexpected state! Round 3 should be executed only in the TallyR2 state.")
+
+    if (choicesSum.isEmpty) {
+      // there is nothing to do on Round 3 if there is nothing to decrypt
+      currentRound = TallyPhases.TallyR3
+      return Try(this)
+    }
+
+    val submittedCommitteeIds = r3DataAll.map(_.issuerID).toSet
+    require(submittedCommitteeIds.size == r3DataAll.size, "More than one TallyR1Data from the same committee member is not allowed")
+    require(submittedCommitteeIds.intersect(getAllDisqualifiedCommitteeIds).isEmpty, "Disqualified members are not allowed to submit r1Data!")
+
+    val expectedCommitteeIds = allCommitteeIds.diff(getAllDisqualifiedCommitteeIds)
+    val failedCommitteeIds = expectedCommitteeIds.diff(submittedCommitteeIds)
+
+    val proposalIds = choicesSum.keys.toSeq
+
+    choicesSharesSum = TallyNew.sumUpDecryptionShares(r3DataAll, VotingOptions.values.size, proposalIds)
+
+    disqualifiedOnTallyR3CommitteeIds = failedCommitteeIds
+    currentRound = TallyPhases.TallyR3
+
+    this
+  }
 
   def generateR4Data(committePrivateKey: PrivKey): Try[TallyR4Data] = ???
   def verifyRound4Data(committePubKey: PubKey, r4Data: TallyR4Data): Boolean = ???
@@ -280,7 +298,7 @@ class TallyNew(ctx: CryptoContext,
 object TallyNew {
   type Delegations = Seq[BigInt] // a sequence with the number of delegated coins to each expert
 
-  def generateDecryptionShares(encryptedUnitVectors: Map[Int, Array[ElGamalCiphertext]], privKey: PrivKey)
+  def generateDecryptionShares(encryptedUnitVectors: Map[Int, Vector[ElGamalCiphertext]], privKey: PrivKey)
                               (implicit group: DiscreteLogGroup, hash: CryptographicHash): Map[Int, DecryptionShare] = {
     encryptedUnitVectors.map { case (proposalID,v) =>
       val decryptedC1Shares = v.map { unit =>
@@ -289,6 +307,23 @@ object TallyNew {
         (decryptedC1, proof)
       }
       proposalID -> DecryptionShare(proposalID, decryptedC1Shares.toSeq)
+    }
+  }
+
+  def sumUpDecryptionShares(dataAll: Seq[TallyR1Data],
+                            vectorSize: Int,
+                            proposalIds: Seq[Int])
+                           (implicit group: DiscreteLogGroup): Map[Int, Vector[GroupElement]] = {
+
+    dataAll.foldLeft(Map[Int,Vector[GroupElement]]()) { (acc, data) =>
+      proposalIds.foldLeft(acc) { (acc2, proposalId) =>
+        val decryptionSharesSum = acc2.getOrElse(proposalId, Vector.fill(vectorSize)(group.groupIdentity))
+        val decryptionShare = data.decryptionShares(proposalId).decryptedC1.map(_._1)
+        require(decryptionSharesSum.size == decryptionShare.size)
+
+        val newSum = decryptionSharesSum.zip(decryptionShare).map(s => s._1.multiply(s._2).get)
+        acc2 + (proposalId -> newSum)
+      }
     }
   }
 }
