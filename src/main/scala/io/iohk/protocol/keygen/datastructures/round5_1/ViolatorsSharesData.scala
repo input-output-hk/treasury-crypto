@@ -9,7 +9,7 @@ import io.iohk.protocol.keygen.datastructures.round4.{OpenedShare, OpenedShareSe
 import scala.util.Try
 
 class ViolatorsSharesData(val issuerID:        Int,
-                          val violatorsShares: Array[(Int, OpenedShare)] // decrypted share from violator to issuer of this message
+                          val violatorsShares: Seq[(Int, OpenedShare)] // decrypted share from violator to issuer of this message
                          )
   extends HasSize with BytesSerializable {
 
@@ -68,7 +68,7 @@ object ViolatorsSharesDataSerializer extends Serializer[ViolatorsSharesData, Dis
       (violatorID, OpenedShareSerializer.parseBytes(violatorsShareBytes, ctxOpt).get)
     }
 
-    new ViolatorsSharesData(issuerID, violatorsShares.toArray)
+    new ViolatorsSharesData(issuerID, violatorsShares)
   }
 }
 

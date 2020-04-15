@@ -15,7 +15,7 @@ import scala.util.Try
   * @param violatorsShares
   */
 case class TallyR2Data(override val issuerID:        Int,
-                       override val violatorsShares: Array[(Int, OpenedShare)]
+                       override val violatorsShares: Seq[(Int, OpenedShare)]
                       ) extends ViolatorsSharesData(issuerID, violatorsShares)
 
 

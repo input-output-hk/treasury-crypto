@@ -6,6 +6,7 @@ import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHash
 import io.iohk.protocol.keygen.DistrKeyGen
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
+import io.iohk.protocol.keygen.datastructures.round4.OpenedShare
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
 import io.iohk.protocol.tally.datastructures._
 import io.iohk.protocol.voting.VotingOptions
@@ -136,20 +137,7 @@ class TallyNew(ctx: CryptoContext,
     if (currentRound != TallyPhases.TallyR1)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
 
-    val myId = cmIdentifier.getId(committeeMemberKey._2).get
-
-    if (disqualifiedOnTallyR1CommitteeIds.nonEmpty) {
-      // we need to act only if there are committee members that failed during Tally Round 1
-      val recoveryShares = disqualifiedOnTallyR1CommitteeIds.toArray.map { id =>
-        val recoveryShare = DistrKeyGen.generateRecoveryKeyShare(ctx, cmIdentifier,
-          committeeMemberKey, cmIdentifier.getPubKey(id).get, dkgR1DataAll).get
-        (id, recoveryShare)
-      }
-      TallyR2Data(myId, recoveryShares)
-    } else {
-      // there are no failed memebers, so nothing to add
-      TallyR2Data(myId, Array())
-    }
+    prepareRecoverySharesData(committeeMemberKey, disqualifiedOnTallyR1CommitteeIds, dkgR1DataAll).get
   }
 
   def verifyRound2Data(committePubKey: PubKey, r2Data: TallyR2Data, dkgR1DataAll: Seq[R1Data]): Try[Unit] = Try {
@@ -199,7 +187,7 @@ class TallyNew(ctx: CryptoContext,
       assert(delegationsSum.size == shares.size)
       val updatedShares = updatedAllDisqualifiedCommitteeKeys.foldLeft(shares) { (acc, keys) =>
         val decryptedC1 = delegationsSum.map(_.c1.pow(keys._2).get)
-        shares.zip(decryptedC1).map(x => x._1.multiply(x._2).get)
+        acc.zip(decryptedC1).map(x => x._1.multiply(x._2).get)
       }
       (proposalId -> updatedShares)
     }
@@ -290,9 +278,102 @@ class TallyNew(ctx: CryptoContext,
     this
   }
 
-  def generateR4Data(committePrivateKey: PrivKey): Try[TallyR4Data] = ???
-  def verifyRound4Data(committePubKey: PubKey, r4Data: TallyR4Data): Boolean = ???
-  def executeRound4(r4DataAll: Seq[TallyR4Data]): Try[TallyR4Data] = ???
+  def generateR4Data(committeeMemberKey: KeyPair, dkgR1DataAll: Seq[R1Data]): Try[TallyR4Data] = Try {
+    if (currentRound != TallyPhases.TallyR3)
+      throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
+
+    prepareRecoverySharesData(committeeMemberKey, disqualifiedOnTallyR3CommitteeIds, dkgR1DataAll).get
+  }
+
+  def verifyRound4Data(committePubKey: PubKey, r4Data: TallyR4Data, dkgR1DataAll: Seq[R1Data]): Try[Unit] = Try {
+    if (currentRound != TallyPhases.TallyR3)
+      throw new IllegalStateException("Unexpected state! Round 4 should be executed only in the TallyR3 state.")
+
+    require(verifyRecoverySharesData(committePubKey, r4Data, disqualifiedOnTallyR3CommitteeIds, dkgR1DataAll).isSuccess)
+  }
+
+  def executeRound4(r4DataAll: Seq[TallyR4Data]): Try[TallyNew] = Try {
+    if (currentRound != TallyPhases.TallyR3)
+      throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
+
+    // Step 1: restore private keys of failed committee members
+    val restoredKeys = restorePrivateKeys(disqualifiedOnTallyR3CommitteeIds, r4DataAll).get
+    val updatedAllDisqualifiedCommitteeKeys = allDisqualifiedCommitteeKeys ++ restoredKeys
+
+    // Step 2: calculate decryption shares of disqualified committee members and at the same sum them up with already accumulated shares
+    val updatedChoicesSharesSum = choicesSharesSum.map { case (proposalId, shares) =>
+      val choices = choicesSum(proposalId)
+      assert(choices.size == shares.size)
+      val updatedShares = updatedAllDisqualifiedCommitteeKeys.foldLeft(shares) { (acc, keys) =>
+        val decryptedC1 = choices.map(_.c1.pow(keys._2).get)
+        acc.zip(decryptedC1).map(x => x._1.multiply(x._2).get)
+      }
+      (proposalId -> updatedShares)
+    }
+
+    // Step 3: decrypt final result for each proposal
+    choices = choicesSum.map { case (proposalId, encryptedChoices) =>
+      val decryptionSharesSum = updatedChoicesSharesSum.get(proposalId).get
+      assert(decryptionSharesSum.size == encryptedChoices.size)
+      val choices = encryptedChoices.zip(decryptionSharesSum).map { case (encr,decr) =>
+        LiftedElGamalEnc.discreteLog(encr.c2.divide(decr).get).get
+      }
+      (proposalId -> TallyResult(choices(0), choices(1), choices(2)))
+    }
+
+    // if we reached this point execution was successful, so update state variables
+    allDisqualifiedCommitteeKeys = updatedAllDisqualifiedCommitteeKeys
+    choicesSharesSum = updatedChoicesSharesSum
+    currentRound = TallyPhases.TallyR4
+    this
+  }
+
+  private def restorePrivateKeys(disqualifiedCommitteeIds: Set[Int],
+                                 r4DataAll: Seq[TallyR4Data]): Try[Map[PubKey, PrivKey]] = Try {
+    val restoredKeys = disqualifiedCommitteeIds.map{ id =>
+      val pubKey = cmIdentifier.getPubKey(id).get
+      val recoveryShares = r4DataAll.map(_.violatorsShares.find(_._1 == id).map(_._2)).flatten
+
+      // note that there should be at least t/2 recovery shares, where t is the size of the committee, otherwise recovery will fail
+      val privKey = DistrKeyGen.recoverPrivateKeyByOpenedShares(ctx, cmIdentifier.pubKeys.size, recoveryShares, Some(pubKey)).get
+      (pubKey -> privKey)
+    }.toMap
+
+    restoredKeys
+  }
+
+  private def prepareRecoverySharesData(committeeMemberKey: KeyPair,
+                                        disqualifiedCommitteeIds: Set[Int],
+                                        dkgR1DataAll: Seq[R1Data]): Try[TallyR2Data] = Try {
+
+    val myId = cmIdentifier.getId(committeeMemberKey._2).get
+    if (disqualifiedCommitteeIds.nonEmpty) {
+      // we need to act only if there are committee members that failed during Tally Round 1
+      val recoveryShares = disqualifiedCommitteeIds.toSeq.map { id =>
+        val recoveryShare = DistrKeyGen.generateRecoveryKeyShare(ctx, cmIdentifier,
+          committeeMemberKey, cmIdentifier.getPubKey(id).get, dkgR1DataAll).get
+        (id, recoveryShare)
+      }
+      TallyR2Data(myId, recoveryShares)
+    } else {
+      // there are no failed memebers, so nothing to add
+      TallyR2Data(myId, Seq())
+    }
+  }
+
+  private def verifyRecoverySharesData(committePubKey: PubKey,
+                                       r2Data: TallyR2Data,
+                                       disqualifiedCommitteeIds: Set[Int],
+                                       dkgR1DataAll: Seq[R1Data]): Try[Unit] = Try {
+    val committeID = cmIdentifier.getId (committePubKey).get
+    require (r2Data.issuerID == committeID, "Committee identifier in TallyR2Data is invalid")
+    require (r2Data.violatorsShares.map (_._1).toSet == disqualifiedCommitteeIds, "Unexpected set of recovery shares")
+
+    r2Data.violatorsShares.foreach { s =>
+      val violatorPubKey = cmIdentifier.getPubKey (s._1).get
+      require (DistrKeyGen.validateRecoveryKeyShare (ctx, cmIdentifier, committePubKey, violatorPubKey, dkgR1DataAll, s._2).isSuccess)
+    }
+  }
 }
 
 object TallyNew {

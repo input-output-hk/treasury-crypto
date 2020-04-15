@@ -13,7 +13,7 @@ import scala.util.Try
   * @param violatorsShares
   */
 case class R5_1Data(override val issuerID: Int,
-                    override val violatorsShares: Array[(Int, OpenedShare)]
+                    override val violatorsShares: Seq[(Int, OpenedShare)]
                    ) extends ViolatorsSharesData(issuerID, violatorsShares)
 
 object R5_1DataSerializer extends Serializer[R5_1Data, DiscreteLogGroup] {

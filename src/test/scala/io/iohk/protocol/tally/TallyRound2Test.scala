@@ -1,42 +1,8 @@
 package io.iohk.protocol.tally
 
-import io.iohk.core.crypto.encryption.KeyPair
-import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
-import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, DiscreteLogGroupFactory}
-import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
-import io.iohk.protocol.keygen.{DistrKeyGen, RoundsData}
 import io.iohk.protocol.tally.datastructures.TallyR2Data
-import io.iohk.protocol.voting.{Expert, RegularVoter, VotingOptions}
-import org.scalatest.FunSuite
 
-private class TallyRound2Test extends FunSuite {
-  val g = DiscreteLogGroupFactory.constructDlogGroup(AvailableGroups.BC_secp256r1).get
-  val ctx = new CryptoContext(Some(g.createRandomGroupElement.get), Some(g))
-
-  import ctx.group
-
-  val numberOfExperts = 5
-  val numberOfVoters = 3
-  val committeeKeys = TallyTest.generateCommitteeKeys(5)
-  val cmIdentifier = new CommitteeIdentifier(committeeKeys.map(_._2))
-  val sharedVotingKey = committeeKeys.foldLeft(group.groupIdentity)((acc, key) => acc.multiply(key._2).get)
-
-  val voter = new RegularVoter(ctx, numberOfExperts, sharedVotingKey, 1)
-  val summator = new BallotsSummator(ctx, numberOfExperts)
-  for (i <- 0 until numberOfVoters)
-    for (j <- 0 until 3) {
-      summator.addVoterBallot(voter.produceVote(j, VotingOptions.Yes))
-      summator.addVoterBallot(voter.produceDelegatedVote(j, 0, false))
-    }
-  val expertBallots = for (i <- 0 until numberOfExperts; j <- 0 until 3) yield {
-    new Expert(ctx, i, sharedVotingKey).produceVote(j, VotingOptions.Yes, false)
-  }
-
-  val dkgR1DataAll = committeeKeys.map { keys =>
-    val dkg = new DistrKeyGen(ctx, keys, keys._1, keys._1.toByteArray, committeeKeys.map(_._2), cmIdentifier, RoundsData())
-    dkg.doRound1().get
-  }
-
+private class TallyRound2Test extends TallyTest {
 
   test("generate TallyR2Data when there are no failed members") {
     val tally = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())
@@ -77,7 +43,7 @@ private class TallyRound2Test extends FunSuite {
     }
 
     val key = committeeKeys.tail.head._2
-    val badR2Data = TallyR2Data(cmIdentifier.getId(key).get, Array())
+    val badR2Data = TallyR2Data(cmIdentifier.getId(key).get, Seq())
     require(tally.verifyRound2Data(key, badR2Data, dkgR1DataAll).isFailure)
 
     // failed member identifier is used with valid payload
@@ -91,7 +57,7 @@ private class TallyRound2Test extends FunSuite {
     // bad share
     val validR2Data = tallyR2DataAll.head
     val validShare = validR2Data.violatorsShares.head
-    val badR2Data4 = TallyR2Data(validR2Data.issuerID, Array((validShare._1 + 1, validShare._2)))
+    val badR2Data4 = TallyR2Data(validR2Data.issuerID, Seq((validShare._1 + 1, validShare._2)))
     require(tally.verifyRound2Data(key, badR2Data4, dkgR1DataAll).isFailure)
   }
 
@@ -123,10 +89,10 @@ private class TallyRound2Test extends FunSuite {
 
   test("execution Round 2 key recovery") {
     val tally = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())
-    val tallyR1DataAll = committeeKeys.tail.map(keys => tally.generateR1Data(summator, keys).get)
-    tally.executeRound1(summator, tallyR1DataAll).get //simulate that only 1 member submitted R1Data
+    val tallyR1DataAll = committeeKeys.drop(2).map(keys => tally.generateR1Data(summator, keys).get)
+    tally.executeRound1(summator, tallyR1DataAll).get
 
-    val tallyR2DataAll = committeeKeys.tail.map(keys => tally.generateR2Data(keys, dkgR1DataAll).get)
+    val tallyR2DataAll = committeeKeys.drop(2).map(keys => tally.generateR2Data(keys, dkgR1DataAll).get)
     require(tally.executeRound2(summator, tallyR2DataAll, expertBallots).isSuccess)
 
     tally.getDelegations.foreach { case (proposalId, delegations) =>
@@ -134,8 +100,9 @@ private class TallyRound2Test extends FunSuite {
       delegations.tail.foreach(d => require(d == 0))
     }
 
-    require(tally.getAllDisqualifiedCommitteeIds.size == 1)
-    require(tally.getAllDisqualifiedCommitteeIds.head == cmIdentifier.getId(committeeKeys.head._2).get)
+    require(tally.getAllDisqualifiedCommitteeIds.size == 2)
+    require(tally.getAllDisqualifiedCommitteeIds.contains(cmIdentifier.getId(committeeKeys(0)._2).get))
+    require(tally.getAllDisqualifiedCommitteeIds.contains(cmIdentifier.getId(committeeKeys(1)._2).get))
     require(tally.getCurrentRound == TallyPhases.TallyR2)
   }
 
