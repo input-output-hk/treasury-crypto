@@ -1,6 +1,7 @@
 package io.iohk.protocol.tally
 
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
+import io.iohk.protocol.tally.TallyNew.Stages
 
 class TallyRound3Test extends TallyTest {
   import ctx.group
@@ -11,7 +12,7 @@ class TallyRound3Test extends TallyTest {
     tally.executeRound1(summator, tallyR1DataAll).get
 
     val tallyR2DataAll = committeeKeys.map(keys => tally.generateR2Data(keys, dkgR1DataAll).get)
-    tally.executeRound2(summator, tallyR2DataAll, expertBallots).get
+    tally.executeRound2(tallyR2DataAll, expertBallots).get
 
     val tallyR3DataAll = committeeKeys.map(keys => tally.generateR3Data(keys).get)
 
@@ -33,7 +34,7 @@ class TallyRound3Test extends TallyTest {
     tally.executeRound1(summator, tallyR1DataAll).get
 
     val tallyR2DataAll = committeeKeys.map(keys => tally.generateR2Data(keys, dkgR1DataAll).get)
-    tally.executeRound2(summator, tallyR2DataAll, expertBallots).get
+    tally.executeRound2(tallyR2DataAll, expertBallots).get
 
     // verification with correct data and key should succeed
     val tallyR3DataAll = committeeKeys.map(keys => tally.generateR3Data(keys).get)
@@ -64,12 +65,12 @@ class TallyRound3Test extends TallyTest {
     tally.executeRound1(summator, tallyR1DataAll).get
 
     val tallyR2DataAll = committeeKeys.map(keys => tally.generateR2Data(keys, dkgR1DataAll).get)
-    tally.executeRound2(summator, tallyR2DataAll, expertBallots).get
+    tally.executeRound2(tallyR2DataAll, expertBallots).get
 
     val tallyR3DataAll = committeeKeys.map(keys => tally.generateR3Data(keys).get)
     require(tally.executeRound3(tallyR3DataAll).isSuccess)
     require(tally.getDisqualifiedOnTallyCommitteeIds.isEmpty)
-    require(tally.getCurrentRound == TallyPhases.TallyR3)
+    require(tally.getCurrentRound == Stages.TallyR3)
 
     // at this point we should be able to decrypt choices
     val choices = tally.getChoicesSharesSum.map { case (proposalId, decryptionShare) =>
@@ -95,13 +96,13 @@ class TallyRound3Test extends TallyTest {
     tally.executeRound1(summator, tallyR1DataAll).get
 
     val tallyR2DataAll = committeeKeys.map(keys => tally.generateR2Data(keys, dkgR1DataAll).get)
-    tally.executeRound2(summator, tallyR2DataAll, Seq()).get
+    tally.executeRound2(tallyR2DataAll, Seq()).get
 
     val tallyR3DataAll = committeeKeys.map(keys => tally.generateR3Data(keys).get)
     require(tally.executeRound3(tallyR3DataAll).isSuccess)
     require(tally.getChoicesSum.isEmpty)
     require(tally.getChoicesSharesSum.isEmpty)
-    require(tally.getCurrentRound == TallyPhases.TallyR3)
+    require(tally.getCurrentRound == Stages.TallyR3)
   }
 
   test("executeRound3 should detect failed committee members and disqualify them") {
@@ -112,7 +113,7 @@ class TallyRound3Test extends TallyTest {
     tally.executeRound1(summator, tallyR1DataAll).get
 
     val tallyR2DataAll = committeeKeys.map(keys => tally.generateR2Data(keys, dkgR1DataAll).get)
-    tally.executeRound2(summator, tallyR2DataAll, expertBallots).get
+    tally.executeRound2(tallyR2DataAll, expertBallots).get
 
     val tallyR3DataAll = committeeKeys.map(keys => tally.generateR3Data(keys).get)
     tally.executeRound3(tallyR3DataAll.tail).get

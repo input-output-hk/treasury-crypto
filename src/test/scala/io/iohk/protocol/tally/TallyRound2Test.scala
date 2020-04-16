@@ -1,5 +1,6 @@
 package io.iohk.protocol.tally
 
+import io.iohk.protocol.tally.TallyNew.Stages
 import io.iohk.protocol.tally.datastructures.TallyR2Data
 
 private class TallyRound2Test extends TallyTest {
@@ -67,7 +68,7 @@ private class TallyRound2Test extends TallyTest {
     tally.executeRound1(summator, tallyR1DataAll).get
 
     val tallyR2DataAll = committeeKeys.map(keys => tally.generateR2Data(keys, dkgR1DataAll).get)
-    require(tally.executeRound2(summator, tallyR2DataAll, expertBallots).isSuccess)
+    require(tally.executeRound2(tallyR2DataAll, expertBallots).isSuccess)
 
     tally.getDelegations.foreach { case (proposalId, delegations) =>
       require(delegations(0) == numberOfVoters)
@@ -75,7 +76,7 @@ private class TallyRound2Test extends TallyTest {
     }
 
     require(tally.getAllDisqualifiedCommitteeIds.isEmpty)
-    require(tally.getCurrentRound == TallyPhases.TallyR2)
+    require(tally.getCurrentRound == Stages.TallyR2)
   }
 
   test("execution Round 2 when there are not enough decryption shares") {
@@ -83,8 +84,8 @@ private class TallyRound2Test extends TallyTest {
     val tallyR1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, Seq(tallyR1DataAll.head)).get //simulate that only 1 member submitted R1Data
 
-    require(tally.executeRound2(summator, Seq(), expertBallots).isFailure)
-    require(tally.getCurrentRound == TallyPhases.TallyR1) // should not be updated
+    require(tally.executeRound2(Seq(), expertBallots).isFailure)
+    require(tally.getCurrentRound == Stages.TallyR1) // should not be updated
   }
 
   test("execution Round 2 key recovery") {
@@ -93,7 +94,7 @@ private class TallyRound2Test extends TallyTest {
     tally.executeRound1(summator, tallyR1DataAll).get
 
     val tallyR2DataAll = committeeKeys.drop(2).map(keys => tally.generateR2Data(keys, dkgR1DataAll).get)
-    require(tally.executeRound2(summator, tallyR2DataAll, expertBallots).isSuccess)
+    require(tally.executeRound2(tallyR2DataAll, expertBallots).isSuccess)
 
     tally.getDelegations.foreach { case (proposalId, delegations) =>
       require(delegations(0) == numberOfVoters)
@@ -103,7 +104,7 @@ private class TallyRound2Test extends TallyTest {
     require(tally.getAllDisqualifiedCommitteeIds.size == 2)
     require(tally.getAllDisqualifiedCommitteeIds.contains(cmIdentifier.getId(committeeKeys(0)._2).get))
     require(tally.getAllDisqualifiedCommitteeIds.contains(cmIdentifier.getId(committeeKeys(1)._2).get))
-    require(tally.getCurrentRound == TallyPhases.TallyR2)
+    require(tally.getCurrentRound == Stages.TallyR2)
   }
 
   test("execution Round 2 when there are no voter ballots") {
@@ -113,10 +114,10 @@ private class TallyRound2Test extends TallyTest {
     tally.executeRound1(summator, tallyR1DataAll).get //simulate that only 1 member submitted R1Data
 
     val tallyR2DataAll = committeeKeys.tail.map(keys => tally.generateR2Data(keys, dkgR1DataAll).get)
-    require(tally.executeRound2(summator, tallyR2DataAll, expertBallots).isSuccess)
+    require(tally.executeRound2(tallyR2DataAll, expertBallots).isSuccess)
 
     require(tally.getDelegations.isEmpty)
-    require(tally.getCurrentRound == TallyPhases.TallyR2)
+    require(tally.getCurrentRound == Stages.TallyR2)
   }
 
   test("execution Round 2 when there are no expert ballots") {
@@ -125,13 +126,13 @@ private class TallyRound2Test extends TallyTest {
     tally.executeRound1(summator, tallyR1DataAll).get //simulate that only 1 member submitted R1Data
 
     val tallyR2DataAll = committeeKeys.tail.map(keys => tally.generateR2Data(keys, dkgR1DataAll).get)
-    require(tally.executeRound2(summator, tallyR2DataAll, Seq()).isSuccess)
+    require(tally.executeRound2(tallyR2DataAll, Seq()).isSuccess)
 
     tally.getDelegations.foreach { case (proposalId, delegations) =>
       require(delegations(0) == numberOfVoters)
       delegations.tail.foreach(d => require(d == 0))
     }
-    require(tally.getCurrentRound == TallyPhases.TallyR2)
+    require(tally.getCurrentRound == Stages.TallyR2)
   }
 
 }

@@ -65,7 +65,7 @@ class TallyTest extends FunSuite {
 
     // Everyone in the system executes Round 2 with a set of verified TallyR2Data from committee members
     // After this round we will now how much stake were delegated to each expert
-    tally.executeRound2(summator, verifiedTallyR2DataAll, expertBallots).get
+    tally.executeRound2(verifiedTallyR2DataAll, expertBallots).get
 
     // Each committee member generates TallyR3Data
     val tallyR3DataAll = committeeKeys.map(keys => tally.generateR3Data(keys).get)

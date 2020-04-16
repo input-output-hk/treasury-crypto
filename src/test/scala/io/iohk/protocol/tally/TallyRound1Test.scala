@@ -2,6 +2,7 @@ package io.iohk.protocol.tally
 
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.protocol.CommitteeIdentifier
+import io.iohk.protocol.tally.TallyNew.Stages
 import io.iohk.protocol.tally.datastructures.DecryptionShare
 import io.iohk.protocol.voting.{RegularVoter, VotingOptions}
 
@@ -137,26 +138,26 @@ class TallyRound1Test extends TallyTest {
 
   test("executeRound1 should update tally phase properly") {
     val tally = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())
-    require(tally.getCurrentRound == TallyPhases.Init)
+    require(tally.getCurrentRound == Stages.Init)
     val r1Data = tally.generateR1Data(summator, committeeKeys.head).get
     require(tally.executeRound1(summator, Seq(r1Data)).isSuccess)
     require(tally.executeRound1(summator, Seq(r1Data)).isFailure) // repeated execution should fail
-    require(tally.getCurrentRound == TallyPhases.TallyR1)
+    require(tally.getCurrentRound == Stages.TallyR1)
 
     val tally2 = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())
     require(tally2.executeRound1(summator, Seq()).isSuccess) // our single member failed to submit r1Data, but that's fine
-    require(tally2.getCurrentRound == TallyPhases.TallyR1) // executeRound1 failed so the phase should not be upcated
+    require(tally2.getCurrentRound == Stages.TallyR1) // executeRound1 failed so the phase should not be upcated
 
     val tally3 = new TallyNew(ctx, cmIdentifier, 0, Map())
     require(tally3.executeRound1(summator, Seq()).isSuccess) // we don't expect r1Data in case there is no experts
-    require(tally3.getCurrentRound == TallyPhases.TallyR1)
+    require(tally3.getCurrentRound == Stages.TallyR1)
 
     val tally4 = new TallyNew(ctx, cmIdentifier, 0, committeeKeys.map(x => (x._2 -> Some(x._1))).toMap)
     require(tally4.executeRound1(summator, Seq()).isSuccess) // all our members were disqualified so we don't expect r1Data
-    require(tally4.getCurrentRound == TallyPhases.TallyR1)
+    require(tally4.getCurrentRound == Stages.TallyR1)
 
     val tally5 = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())
     require(tally5.executeRound1(summator, Seq(r1Data, r1Data)).isFailure) // we duplicated r1Data, execution should fail
-    require(tally5.getCurrentRound == TallyPhases.Init) // executeRound1 failed so the phase should not be updated
+    require(tally5.getCurrentRound == Stages.Init) // executeRound1 failed so the phase should not be updated
   }
 }

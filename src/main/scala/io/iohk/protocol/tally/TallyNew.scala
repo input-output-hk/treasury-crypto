@@ -6,63 +6,87 @@ import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHash
 import io.iohk.protocol.keygen.DistrKeyGen
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
-import io.iohk.protocol.keygen.datastructures.round4.OpenedShare
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
+import io.iohk.protocol.tally.TallyNew.{Result, Stages}
 import io.iohk.protocol.tally.datastructures._
 import io.iohk.protocol.voting.VotingOptions
 import io.iohk.protocol.voting.ballots.ExpertBallot
 import io.iohk.protocol.{CryptoContext, Identifier}
 
-import scala.util.{Success, Try}
+import scala.util.Try
 
-object TallyPhases extends Enumeration {
-  val Init, TallyR1, TallyR2, TallyR3, TallyR4 = Value
-}
-
-case class TallyResult(yes: BigInt, no: BigInt, abstain: BigInt)
-
+/**
+  * Tally class encapsulates the 4-round tally protocol.
+  * Recall that during the first round committee members submit decryption shares needed to decrypt the amount of
+  * delegated stake to each expert for each proposal.
+  * During the second round committee members submit recovery shares needed to restore secret keys of those members
+  * who failed to submit valid decryption shares in the first round, so that given restored keys everyone can
+  * reconstruct missing decryption shares.
+  * On the third round committee members submit decryption shares needed to decrypt the voting result for each proposal.
+  * On the fourth round committee members submit recovery shares needed to restore secret keys of those members who failed to submit
+  * valid decryption shares in the third round, so that given restored keys everyone can reconstruct missing decryption shares.
+  *
+  * See details of the protocol on Fig. 11 in the spec: treasury-crypto/docs/voting_protocol_spec/Treasury_voting_protocol_spec.pdf
+  *
+  * The Tally class is supposed to be used both by committee members, who participate in the protocol, and regular observers,
+  * who are able to verify each message and calculate the tally result for each proposal.
+  *
+  * The interface is the following, each round is represented by 3 functions (X is a round number):
+  *   - generateRXData    - is used by a committee member to generate a round-specific data;
+  *   - verifyRXData      - is used by everyone who follows the tally protocol to verify a round-specific data produced
+  *                         by a committee member (e.g., in a blockchain setting, if a round-specific data is submitted as
+  *                         a transaction, verifyRXData will be used by every node to verify such transaction);
+  *   - executeRoundX     - is used by everyone to update the state according to the provided set of round-specific data
+  *                         from committee members. Note that it is responsibility of the caller to verify the data provided
+  *                         to the "executeRoundX";
+  * Note that Tally is a stateful class. Each successful call to the "executeRoundX" function updates internal variables. On the
+  * other hand, calls to "generateRXData" and "verifyRXData" don't produce any side-effects.
+  * Also note that "executeRoundX" should be called sequentially one after another, otherwise they will return error.
+  *
+  * @param ctx                                  CryptoContext
+  * @param cmIdentifier                         Identifier object that maps public keys of committee members to their integer identifiers
+  * @param numberOfExperts                      number of registered experts in the system (recall that the number of
+  *                                             experts defines the size of voter's unit vectors)
+  * @param disqualifiedBeforeTallyCommitteeKeys some committee members can be disqualified during the DKG stage before
+  *                                             Tally begins. In this case their keys might already been
+  *                                             restored (depending on what round of DKG they were disqualified). They
+  *                                             are passed here because they will be needed for generating decryption shares.
+  */
 class TallyNew(ctx: CryptoContext,
                cmIdentifier: Identifier[Int],
                numberOfExperts: Int,
-               disqualifiedAfterDKGCommitteeKeys: Map[PubKey, Option[PrivKey]]) {
+               disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]]) {
   import ctx.{group, hash}
 
-  private var currentRound = TallyPhases.Init
+  private var currentRound = Stages.Init
   def getCurrentRound = currentRound
 
   private val allCommitteeIds = cmIdentifier.pubKeys.map(cmIdentifier.getId(_).get).toSet
-  private var disqualifiedBeforeTallyCommitteeIds = disqualifiedAfterDKGCommitteeKeys.keySet.map(cmIdentifier.getId(_).get)
+  private val disqualifiedBeforeTallyCommitteeIds = disqualifiedBeforeTallyCommitteeKeys.keySet.map(cmIdentifier.getId(_).get)
   private var disqualifiedOnTallyR1CommitteeIds = Set[Int]()
   private var disqualifiedOnTallyR3CommitteeIds = Set[Int]()
+  def getDisqualifiedOnTallyCommitteeIds = disqualifiedOnTallyR1CommitteeIds ++ disqualifiedOnTallyR3CommitteeIds
+  def getAllDisqualifiedCommitteeIds = disqualifiedBeforeTallyCommitteeIds ++ getDisqualifiedOnTallyCommitteeIds
 
-  // here we will collect restored secret keys of committee members
-  private var allDisqualifiedCommitteeKeys = disqualifiedAfterDKGCommitteeKeys.filter(_._2.isDefined).mapValues(_.get)
+  // here we will collect restored secret keys of committee members, for now initialize it with the restored keys provided in the constructor
+  private var allDisqualifiedCommitteeKeys = disqualifiedBeforeTallyCommitteeKeys.filter(_._2.isDefined).mapValues(_.get)
 
-  private var delegationsSharesSum = Map[Int, Vector[GroupElement]]()
-  private var delegations = Map[Int, Vector[BigInt]]()
+  private var delegationsSum = Map[Int, Vector[ElGamalCiphertext]]()    // For each proposal holds the summation of delegation parts of voter's encrypted unit vectors.
+  private var delegationsSharesSum = Map[Int, Vector[GroupElement]]()   // For each proposal holds the summation of decryption shares of committee members. Will be used to decrypt delegationsSum.
+  private var delegations = Map[Int, Vector[BigInt]]()                  // For each proposal holds a vector of decrypted delegations. Each element of the vector is an amount of delegated stake.
   def getDelegationsSharesSum = delegationsSharesSum
   def getDelegations = delegations
 
-  private var choicesSum = Map[Int, Vector[ElGamalCiphertext]]()
-  private var choicesSharesSum = Map[Int, Vector[GroupElement]]()
-  private var choices = Map[Int, TallyResult]()
+  private var choicesSum = Map[Int, Vector[ElGamalCiphertext]]()        // For each proposal holds the summation of choices parts of encrypted unit vectors of voters and experts.
+  private var choicesSharesSum = Map[Int, Vector[GroupElement]]()       // For each proposal holds the summation of decryption shares of committee members that are used to decrypt choicesSum.
+  private var choices = Map[Int, Result]()                              // For each proposal holds a voting result, i.e. number of Yes, No and Abstain votes.
   def getChoicesSum = choicesSum
   def getChoicesSharesSum = choicesSharesSum
   def getChoices = choices
 
-  def getAllDisqualifiedCommitteeIds = disqualifiedBeforeTallyCommitteeIds ++ getDisqualifiedOnTallyCommitteeIds
-  def getDisqualifiedOnTallyCommitteeIds = disqualifiedOnTallyR1CommitteeIds ++ disqualifiedOnTallyR3CommitteeIds
 
 //  def recoverState(phase: TallyPhases.Value, storage: RoundsDataStorage)
 
-  /**
-    * Generates TallyR1Data that should be submitted by a committee member. It contains decryption shares for the
-    * delegation part of the unit vector obtained by summing up all voters unit vectors.
-    *
-    * @param summator contains the result of summation of delegation parts of voter's encrypted unit vectors
-    * @param committeeMemberKey key pair of a committee member that generates R1Data
-    * @return
-    */
   def generateR1Data(summator: BallotsSummator, committeeMemberKey: KeyPair): Try[TallyR1Data] = Try {
     val (privKey, pubKey) = committeeMemberKey
     val decryptionShares = TallyNew.generateDecryptionShares(summator.getDelegationsSum, privKey)
@@ -70,13 +94,6 @@ class TallyNew(ctx: CryptoContext,
     TallyR1Data(committeeId, decryptionShares)
   }
 
-  /**
-    *
-    * @param summator
-    * @param committePubKey
-    * @param r1Data
-    * @return Try[Success] if r1Data is valid
-    */
   def verifyRound1Data(summator: BallotsSummator, committePubKey: PubKey, r1Data: TallyR1Data): Try[Unit] = Try {
     val uvDelegationsSum = summator.getDelegationsSum
     val proposalIds = uvDelegationsSum.keySet
@@ -92,21 +109,13 @@ class TallyNew(ctx: CryptoContext,
     }
   }
 
-  /**
-    * executeRound1 should be called after all committee members submitted their TallyR1Data. It updates the tally state.
-    * It is assumed that the data in r1DataAll has already been verified.
-    *
-    * @param summator
-    * @param r1DataAll
-    * @return
-    */
   def executeRound1(summator: BallotsSummator, r1DataAll: Seq[TallyR1Data]): Try[TallyNew] = Try {
-    if (currentRound != TallyPhases.Init)
+    if (currentRound != Stages.Init)
       throw new IllegalStateException("Unexpected state! Round 1 should be executed only in the Init state.")
 
     if (numberOfExperts <= 0 || summator.getDelegationsSum.isEmpty) {
       // there is nothing to do on Round 1 if there are no experts or no proposals
-      currentRound = TallyPhases.TallyR1
+      currentRound = Stages.TallyR1
       return Try(this)
     }
 
@@ -122,26 +131,25 @@ class TallyNew(ctx: CryptoContext,
     delegationsSharesSum = TallyNew.sumUpDecryptionShares(r1DataAll, numberOfExperts, proposalIds)
 
     disqualifiedOnTallyR1CommitteeIds = failedCommitteeIds
-    currentRound = TallyPhases.TallyR1
+    delegationsSum = summator.getDelegationsSum
+    choicesSum = summator.getChoicesSum
+    currentRound = Stages.TallyR1
     this
   }
 
   /**
-    * In the case some committee members haven't submitted decryption shares on Tally Round 1, they are considered
-    * failed and all other committee members should jointly reconstruct their secret keys. At Round 2, each qualified committee
-    * member submits his share of a secret key of a failed committee member (for all failed CMs).
-    *
-    * TODO: R1Data should be taken from RoundsDataStorage
+    * The DKG Round 1 data is needed in case we need to restore private keys of disqualified committee members
+    * It should be provided by DistrKeyGen object
     */
   def generateR2Data(committeeMemberKey: KeyPair, dkgR1DataAll: Seq[R1Data]): Try[TallyR2Data] = Try {
-    if (currentRound != TallyPhases.TallyR1)
+    if (currentRound != Stages.TallyR1)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
 
     prepareRecoverySharesData(committeeMemberKey, disqualifiedOnTallyR1CommitteeIds, dkgR1DataAll).get
   }
 
   def verifyRound2Data(committePubKey: PubKey, r2Data: TallyR2Data, dkgR1DataAll: Seq[R1Data]): Try[Unit] = Try {
-    if (currentRound != TallyPhases.TallyR1)
+    if (currentRound != Stages.TallyR1)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
 
     val committeID = cmIdentifier.getId(committePubKey).get
@@ -157,13 +165,9 @@ class TallyNew(ctx: CryptoContext,
   /**
     * At the end of the Round 2, all decryption shares should be available and, thus, the delegations can be decrypted.
     * Given that delegations are available we can sum up all the experts ballot weighted by delegated voting power.
-    *
-    * @param r2DataAll
-    * @param expertBallots
-    * @return
     */
-  def executeRound2(summator: BallotsSummator, r2DataAll: Seq[TallyR2Data], expertBallots: Seq[ExpertBallot]): Try[TallyNew] = Try {
-    if (currentRound != TallyPhases.TallyR1)
+  def executeRound2(r2DataAll: Seq[TallyR2Data], expertBallots: Seq[ExpertBallot]): Try[TallyNew] = Try {
+    if (currentRound != Stages.TallyR1)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
     expertBallots.foreach(b => assert(b.expertId >= 0 && b.expertId < numberOfExperts))
 
@@ -183,10 +187,10 @@ class TallyNew(ctx: CryptoContext,
 
     // Step 2: calculate decryption shares of failed committee members and at the same sum them up with already accumulated shares
     val updatedDelegationsSharesSum = delegationsSharesSum.map { case (proposalId, shares) =>
-      val delegationsSum = summator.getDelegationsSum(proposalId)
-      assert(delegationsSum.size == shares.size)
+      val delegationsSumVector = delegationsSum(proposalId)
+      assert(delegationsSumVector.size == shares.size)
       val updatedShares = updatedAllDisqualifiedCommitteeKeys.foldLeft(shares) { (acc, keys) =>
-        val decryptedC1 = delegationsSum.map(_.c1.pow(keys._2).get)
+        val decryptedC1 = delegationsSumVector.map(_.c1.pow(keys._2).get)
         acc.zip(decryptedC1).map(x => x._1.multiply(x._2).get)
       }
       (proposalId -> updatedShares)
@@ -194,7 +198,6 @@ class TallyNew(ctx: CryptoContext,
 
     // Step 3: decrypt delegations. For each proposal we will have a vector of integers, which signifies how much stake
     // was delegated to each expert
-    val delegationsSum = summator.getDelegationsSum
     val delegationsDecrypted = delegationsSum.map { case (proposalId, encryptedDelegations) =>
       val decryptionSharesSum = updatedDelegationsSharesSum.get(proposalId).get
       assert(decryptionSharesSum.size == encryptedDelegations.size)
@@ -205,7 +208,7 @@ class TallyNew(ctx: CryptoContext,
     }
 
     // Step 4: sum up choices part of the encrypted unit vectors by adding expert ballots weighted by delegations
-    val init = summator.getChoicesSum.mapValues(_.toArray)
+    val init = choicesSum.mapValues(_.toArray) // we already have summed up voters choices
     choicesSum = expertBallots.foldLeft(init) { (acc, ballot) =>
       val proposalId = ballot.proposalId
       val updatedChoices = acc.getOrElse(proposalId,
@@ -223,12 +226,12 @@ class TallyNew(ctx: CryptoContext,
     allDisqualifiedCommitteeKeys = updatedAllDisqualifiedCommitteeKeys
     delegationsSharesSum = updatedDelegationsSharesSum
     delegations = delegationsDecrypted
-    currentRound = TallyPhases.TallyR2
+    currentRound = Stages.TallyR2
     this
   }
 
   def generateR3Data(committeeMemberKey: KeyPair): Try[TallyR3Data] = Try {
-    if (currentRound != TallyPhases.TallyR2)
+    if (currentRound != Stages.TallyR2)
       throw new IllegalStateException("Unexpected state! Round 3 should be executed only in the TallyR2 state.")
 
     val (privKey, pubKey) = committeeMemberKey
@@ -252,12 +255,12 @@ class TallyNew(ctx: CryptoContext,
   }
 
   def executeRound3(r3DataAll: Seq[TallyR3Data]): Try[TallyNew] = Try {
-    if (currentRound != TallyPhases.TallyR2)
+    if (currentRound != Stages.TallyR2)
       throw new IllegalStateException("Unexpected state! Round 3 should be executed only in the TallyR2 state.")
 
     if (choicesSum.isEmpty) {
       // there is nothing to do on Round 3 if there is nothing to decrypt
-      currentRound = TallyPhases.TallyR3
+      currentRound = Stages.TallyR3
       return Try(this)
     }
 
@@ -273,27 +276,27 @@ class TallyNew(ctx: CryptoContext,
     choicesSharesSum = TallyNew.sumUpDecryptionShares(r3DataAll, VotingOptions.values.size, proposalIds)
 
     disqualifiedOnTallyR3CommitteeIds = failedCommitteeIds
-    currentRound = TallyPhases.TallyR3
+    currentRound = Stages.TallyR3
 
     this
   }
 
   def generateR4Data(committeeMemberKey: KeyPair, dkgR1DataAll: Seq[R1Data]): Try[TallyR4Data] = Try {
-    if (currentRound != TallyPhases.TallyR3)
+    if (currentRound != Stages.TallyR3)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
 
     prepareRecoverySharesData(committeeMemberKey, disqualifiedOnTallyR3CommitteeIds, dkgR1DataAll).get
   }
 
   def verifyRound4Data(committePubKey: PubKey, r4Data: TallyR4Data, dkgR1DataAll: Seq[R1Data]): Try[Unit] = Try {
-    if (currentRound != TallyPhases.TallyR3)
+    if (currentRound != Stages.TallyR3)
       throw new IllegalStateException("Unexpected state! Round 4 should be executed only in the TallyR3 state.")
 
     require(verifyRecoverySharesData(committePubKey, r4Data, disqualifiedOnTallyR3CommitteeIds, dkgR1DataAll).isSuccess)
   }
 
   def executeRound4(r4DataAll: Seq[TallyR4Data]): Try[TallyNew] = Try {
-    if (currentRound != TallyPhases.TallyR3)
+    if (currentRound != Stages.TallyR3)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
 
     // Step 1: restore private keys of failed committee members
@@ -318,13 +321,13 @@ class TallyNew(ctx: CryptoContext,
       val choices = encryptedChoices.zip(decryptionSharesSum).map { case (encr,decr) =>
         LiftedElGamalEnc.discreteLog(encr.c2.divide(decr).get).get
       }
-      (proposalId -> TallyResult(choices(0), choices(1), choices(2)))
+      (proposalId -> Result(choices(0), choices(1), choices(2)))
     }
 
     // if we reached this point execution was successful, so update state variables
     allDisqualifiedCommitteeKeys = updatedAllDisqualifiedCommitteeKeys
     choicesSharesSum = updatedChoicesSharesSum
-    currentRound = TallyPhases.TallyR4
+    currentRound = Stages.TallyR4
     this
   }
 
@@ -378,6 +381,12 @@ class TallyNew(ctx: CryptoContext,
 
 object TallyNew {
   type Delegations = Seq[BigInt] // a sequence with the number of delegated coins to each expert
+
+  object Stages extends Enumeration {
+    val Init, TallyR1, TallyR2, TallyR3, TallyR4 = Value
+  }
+
+  case class Result(yes: BigInt, no: BigInt, abstain: BigInt)
 
   def generateDecryptionShares(encryptedUnitVectors: Map[Int, Vector[ElGamalCiphertext]], privKey: PrivKey)
                               (implicit group: DiscreteLogGroup, hash: CryptographicHash): Map[Int, DecryptionShare] = {
