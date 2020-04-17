@@ -7,7 +7,13 @@ import io.iohk.protocol.voting.ballots.{ExpertBallot, VoterBallot}
 
 import scala.util.Try
 
-
+/**
+  * BallotsSummator is used to sum up ballots for their further processing. It is convenient to sum up
+  * ballots one by one instead of accumulating them in memory and sum up all at once.
+  *
+  * @param ctx
+  * @param numberOfExperts
+  */
 class BallotsSummator(ctx: CryptoContext,
                       numberOfExperts: Int) {
   import ctx.group
@@ -43,7 +49,7 @@ class BallotsSummator(ctx: CryptoContext,
     choicesSums = choicesSums + (ballot.proposalId -> updatedChoicesVector)
     this
   }
-
+  
   def addExpertBallot(ballot: ExpertBallot, delegatedVotingPower: BigInt): Try[BallotsSummator] = Try {
     require(ballot.uvChoice.length == VotingOptions.values.size, "Invalid expert ballot: invalid number of choice bits in the unit vector")
     require(delegatedVotingPower > 0, "Invalid expert ballot: inconsistent voting power")
@@ -62,8 +68,6 @@ class BallotsSummator(ctx: CryptoContext,
 
   /**
     * Returns a map of summed up encrypted unit vectors from voter's and expert's ballots for different proposals.
-    *
-    * @return a map (proposalId -> UnitVectorSum)
     */
   def getDelegationsSum: Map[Int, Vector[ElGamalCiphertext]] = delegationsSums
   def getChoicesSum: Map[Int, Vector[ElGamalCiphertext]] = choicesSums

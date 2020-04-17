@@ -2,8 +2,9 @@ package io.iohk.protocol.tally
 
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.protocol.tally.TallyNew.Stages
+import org.scalatest.FunSuite
 
-class TallyRound3Test extends TallyTest {
+class TallyRound3Test extends FunSuite with TallyTestSetup {
   import ctx.group
 
   test("generate TallyR3Data") {

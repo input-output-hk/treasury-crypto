@@ -2,8 +2,9 @@ package io.iohk.protocol.tally
 
 import io.iohk.protocol.tally.TallyNew.Stages
 import io.iohk.protocol.tally.datastructures.TallyR2Data
+import org.scalatest.FunSuite
 
-private class TallyRound2Test extends TallyTest {
+private class TallyRound2Test extends FunSuite with TallyTestSetup {
 
   test("generate TallyR2Data when there are no failed members") {
     val tally = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())

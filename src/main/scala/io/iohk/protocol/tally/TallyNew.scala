@@ -7,12 +7,14 @@ import io.iohk.core.crypto.primitives.hash.CryptographicHash
 import io.iohk.protocol.keygen.DistrKeyGen
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
+import io.iohk.protocol.storage.RoundsDataStorage
 import io.iohk.protocol.tally.TallyNew.{Result, Stages}
 import io.iohk.protocol.tally.datastructures._
 import io.iohk.protocol.voting.VotingOptions
 import io.iohk.protocol.voting.ballots.ExpertBallot
 import io.iohk.protocol.{CryptoContext, Identifier}
 
+import scala.annotation.tailrec
 import scala.util.Try
 
 /**
@@ -84,8 +86,6 @@ class TallyNew(ctx: CryptoContext,
   def getChoicesSharesSum = choicesSharesSum
   def getChoices = choices
 
-
-//  def recoverState(phase: TallyPhases.Value, storage: RoundsDataStorage)
 
   def generateR1Data(summator: BallotsSummator, committeeMemberKey: KeyPair): Try[TallyR1Data] = Try {
     val (privKey, pubKey) = committeeMemberKey
@@ -387,6 +387,30 @@ object TallyNew {
   }
 
   case class Result(yes: BigInt, no: BigInt, abstain: BigInt)
+
+  def recoverState(ctx: CryptoContext,
+                   cmIdentifier: Identifier[Int],
+                   numberOfExperts: Int,
+                   disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]],
+                   stage: Stages.Value,
+                   storage: RoundsDataStorage,
+                   summator: BallotsSummator): Try[TallyNew] = Try {
+
+    val tally = new TallyNew(ctx, cmIdentifier, numberOfExperts, disqualifiedBeforeTallyCommitteeKeys)
+    if (stage > Stages.Init) {
+      tally.executeRound1(summator, storage.getTallyR1).get
+      if (stage > Stages.TallyR1) {
+        tally.executeRound2(storage.getTallyR2, storage.getExpertBallots).get
+        if (stage > Stages.TallyR2) {
+          tally.executeRound3(storage.getTallyR3).get
+          if (stage > Stages.TallyR3) {
+            tally.executeRound4(storage.getTallyR4).get
+          }
+        }
+      }
+    }
+    tally
+  }
 
   def generateDecryptionShares(encryptedUnitVectors: Map[Int, Vector[ElGamalCiphertext]], privKey: PrivKey)
                               (implicit group: DiscreteLogGroup, hash: CryptographicHash): Map[Int, DecryptionShare] = {

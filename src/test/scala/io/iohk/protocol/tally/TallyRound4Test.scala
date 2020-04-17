@@ -1,8 +1,9 @@
 package io.iohk.protocol.tally
 
 import io.iohk.protocol.tally.TallyNew.Stages
+import org.scalatest.FunSuite
 
-class TallyRound4Test extends TallyTest {
+class TallyRound4Test extends FunSuite with TallyTestSetup {
 
   // prepare tally initialized to Round 2
   def prepareTallyRound2() = {

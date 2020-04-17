@@ -5,8 +5,9 @@ import io.iohk.protocol.CommitteeIdentifier
 import io.iohk.protocol.tally.TallyNew.Stages
 import io.iohk.protocol.tally.datastructures.DecryptionShare
 import io.iohk.protocol.voting.{RegularVoter, VotingOptions}
+import org.scalatest.FunSuite
 
-class TallyRound1Test extends TallyTest {
+class TallyRound1Test extends FunSuite with TallyTestSetup {
   import ctx.group
 
   test("generate TallyR1Data") {
