@@ -1,23 +1,26 @@
-package io.iohk
+package io.iohk.protocol
 
-import io.iohk.common.VotingSimulator
 import io.iohk.core.utils.TimeUtils
-import io.iohk.protocol.voting.VotingOptions
+import io.iohk.protocol.voting.{Expert, RegularVoter, VotingOptions}
 
 /* Benchmarking ballot creation */
 class BallotCreationPerformance {
+
+  val ctx = new CryptoContext(None)
+  val pubKey = ctx.group.createRandomGroupElement.get
 
   def run() = {
     val numberOfExperts = (50 to 250).by(50)
 
     for (experts <- numberOfExperts) {
-      val simulator = new VotingSimulator(1, experts, 1, 1, true)
-
       println("Running test for " + experts + " experts ...")
 
-      TimeUtils.accurate_time("\tVoter ballot creation: ", simulator.createVoterBallot(1, 1, 1, VotingOptions.Yes))
+      val voter = new RegularVoter(ctx, experts, pubKey, 1)
+      val expert = new Expert(ctx, 0, pubKey)
 
-      val ballot = simulator.createVoterBallot(1, 1, 1, VotingOptions.Yes)
+      TimeUtils.accurate_time("\tVoter ballot creation: ", voter.produceVote(0, VotingOptions.Yes))
+
+      val ballot = voter.produceVote(0, VotingOptions.Yes)
       val ballotSize = ballot.unitVector.foldLeft(0) {
         (acc, c) => acc + c.bytes.size
       }
@@ -25,9 +28,9 @@ class BallotCreationPerformance {
       println("\tVoter ballot size: " + ballotSize + " bytes")
       println("\tVoter ballot proof size: " + ballot.proof.size + " bytes")
 
-      TimeUtils.accurate_time("\tExpert ballot creation: ", simulator.createExpertBallot(1, 1, VotingOptions.Yes))
+      TimeUtils.accurate_time("\tExpert ballot creation: ", expert.produceVote(0, VotingOptions.Yes))
 
-      val exballot = simulator.createExpertBallot(1, 1, VotingOptions.Yes)
+      val exballot = expert.produceVote(0, VotingOptions.Yes)
       val exballotSize = exballot.unitVector.foldLeft(0) {
         (acc, c) => acc + c.bytes.size
       }

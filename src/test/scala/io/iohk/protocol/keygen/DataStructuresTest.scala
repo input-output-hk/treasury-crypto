@@ -1,9 +1,7 @@
 package io.iohk.protocol.keygen
 
-import io.iohk.common.VotingSimulator
 import io.iohk.core.crypto.encryption
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.keygen.datastructures.C1ShareSerializer
 import io.iohk.protocol.keygen.datastructures.round1.R1DataSerializer
 import io.iohk.protocol.keygen.datastructures.round2.R2DataSerializer
 import io.iohk.protocol.keygen.datastructures.round3.R3DataSerializer
@@ -18,17 +16,18 @@ class DataStructuresTest extends FunSuite {
 
     val crs = CryptoContext.generateRandomCRS
     val ctx = new CryptoContext(Option(crs))
-    import ctx.{group, hash}
+    val numberOfExperts = 5
+    import ctx.group
 
     val keyPairs = for(id <- 1 to 10) yield encryption.createKeyPair.get
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys, numberOfExperts)
     }
 
     val r1Data = for (i <- committeeMembersPubKeys.indices) yield {
-      committeeMembers(i).setKeyR1()
+      committeeMembers(i).doDKGRound1().get
     }
 
 //    val r1Data1 = r1Data(0)
@@ -39,35 +38,35 @@ class DataStructuresTest extends FunSuite {
     assert(r1DataRestored.sameElements(r1Data))
 
     val r2Data = for (i <- committeeMembersPubKeys.indices) yield {
-      committeeMembers(i).setKeyR2(r1DataRestored)
+      committeeMembers(i).doDKGRound2(r1DataRestored).get
     }
 
     val r2DataRestored = r2Data.map(d => R2DataSerializer.parseBytes(d.bytes, Option(ctx.group, ctx.blockCipher)).get).toArray
     assert(r2DataRestored.sameElements(r2Data))
 
     val r3Data = for (i <- committeeMembersPubKeys.indices) yield {
-      committeeMembers(i).setKeyR3(r2Data)
+      committeeMembers(i).doDKGRound3(r2Data).get
     }
 
     val r3DataRestored = r3Data.map(d => R3DataSerializer.parseBytes(d.bytes, Option(ctx)).get).toArray
     assert(r3DataRestored.sameElements(r3Data))
 
     val r4Data = for (i <- committeeMembersPubKeys.indices) yield {
-      committeeMembers(i).setKeyR4(r3Data)
+      committeeMembers(i).doDKGRound4(r3Data).get
     }
 
     val r4DataRestored = r4Data.map(d => R4DataSerializer.parseBytes(d.bytes, Option(ctx.group)).get).toArray
     assert(r4DataRestored.sameElements(r4Data))
 
     val r5_1Data = for (i <- committeeMembersPubKeys.indices) yield {
-      committeeMembers(i).setKeyR5_1(r4Data)
+      committeeMembers(i).doDKGRound5_1(r4Data).get
     }
 
     val r5_1DataRestored = r5_1Data.map(d => R5_1DataSerializer.parseBytes(d.bytes, Option(ctx.group)).get).toArray
     assert(r5_1DataRestored.sameElements(r5_1Data))
 
     val r5_2Data = for (i <- committeeMembersPubKeys.indices) yield {
-      (committeeMembers(i).ownId, committeeMembers(i).setKeyR5_2(r5_1Data))
+      (committeeMembers(i).ownId, committeeMembers(i).doDKGRound5_2(r5_1Data).get)
     }
 
     val r5_2DataRestored = r5_2Data.map(d => R5_2DataSerializer.parseBytes(d._2.bytes, Option(ctx)).get).toArray
@@ -83,28 +82,5 @@ class DataStructuresTest extends FunSuite {
 
     assert(publicKeysSum.equals(sharedPublicKeys(0)))
 
-  }
-
-  test("C1Share serialization") {
-    val committee = 1
-    val voters = 5
-    val experts = 5
-    val voterStake = 1
-
-    val simulator = new VotingSimulator(committee, experts, voters, voterStake)
-    val ballots = simulator.prepareVotersBallots((1, 1), voters - 1, 0, 0) ++ simulator.prepareExpertBallots(0, experts, 0)
-
-    val decryptionSharesBytes = simulator.prepareDecryptionShares(ballots).map { case (deleg, choices) =>
-      ((deleg._1, deleg._2.bytes), (choices._1, choices._2.bytes))
-    }
-
-    val decryptionShares = decryptionSharesBytes.map { case (deleg, choices) =>
-      ((deleg._1, C1ShareSerializer.parseBytes(deleg._2, Option(simulator.ctx.group)).get),
-        (choices._1, C1ShareSerializer.parseBytes(choices._2, Option(simulator.ctx.group)).get))
-    }
-
-    val verified = simulator.verifyDecryptionShares(ballots, decryptionShares)
-
-    assert(verified)
   }
 }

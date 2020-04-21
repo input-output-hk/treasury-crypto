@@ -33,14 +33,14 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys, 0)
     }
 
     val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
     val roundsData = RoundsData()
 
     val r1Data = for (i <- committeeMembersPubKeys.indices) yield {
-      committeeMembers(i).setKeyR1()
+      committeeMembers(i).doDKGRound1().get
     }
 
     // Changing commitments of some committee members to get complain on them
@@ -69,7 +69,7 @@ class DistrKeyGenTest  extends FunSuite {
     roundsData.r1Data = r1Data
 
     val r2Data = for (i <- committeeMembersPubKeys.indices) yield {
-      committeeMembers(i).setKeyR2(r1Data)
+      committeeMembers(i).doDKGRound2(r1Data).get
     }
 
     r2Data.foreach{
@@ -83,7 +83,7 @@ class DistrKeyGenTest  extends FunSuite {
     roundsData.r2Data = r2Data
 
     val r3Data = for (i <- committeeMembersPubKeys.indices) yield {
-      committeeMembers(i).setKeyR3(r2Data)
+      committeeMembers(i).doDKGRound3(r2Data).get
     }
 
     // Changing commitments of some committee members to get complain on them
@@ -112,7 +112,7 @@ class DistrKeyGenTest  extends FunSuite {
     roundsData.r3Data = r3Data
 
     val r4Data = for (i <- committeeMembersPubKeys.indices) yield {
-      committeeMembers(i).setKeyR4(r3Data)
+      committeeMembers(i).doDKGRound4(r3Data).get
     }
 
     r4Data.foreach{
@@ -126,7 +126,7 @@ class DistrKeyGenTest  extends FunSuite {
     roundsData.r4Data = r4Data
 
     val r5_1Data = for (i <- committeeMembersPubKeys.indices) yield {
-      committeeMembers(i).setKeyR5_1(r4Data)
+      committeeMembers(i).doDKGRound5_1(r4Data).get
     }
 
     r5_1Data.foreach{
@@ -140,7 +140,7 @@ class DistrKeyGenTest  extends FunSuite {
     roundsData.r5_1Data = r5_1Data
 
     val r5_2Data = for (i <- committeeMembersPubKeys.indices) yield {
-      (committeeMembers(i).ownId, committeeMembers(i).setKeyR5_2(r5_1Data))
+      (committeeMembers(i).ownId, committeeMembers(i).doDKGRound5_2(r5_1Data).get)
     }
 
     //---------------------------------------------------------------
@@ -189,7 +189,7 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = (for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys, 0)
     }).toBuffer
 
     val roundsData = RoundsData()
@@ -200,7 +200,7 @@ class DistrKeyGenTest  extends FunSuite {
     committeeMembers.remove(absenteeIndex)
 
     val r1Data = for (i <- committeeMembers.indices) yield {
-      committeeMembers(i).setKeyR1()
+      committeeMembers(i).doDKGRound1().get
     }
 
     roundsData.r1Data = r1Data
@@ -209,7 +209,7 @@ class DistrKeyGenTest  extends FunSuite {
     committeeMembers.remove(absenteeIndex)
 
     val r2Data = for (i <- committeeMembers.indices) yield {
-      committeeMembers(i).setKeyR2(r1Data)
+      committeeMembers(i).doDKGRound2(r1Data).get
     }
 
     roundsData.r2Data = r2Data
@@ -218,7 +218,7 @@ class DistrKeyGenTest  extends FunSuite {
     committeeMembers.remove(absenteeIndex)
 
     val r3Data = for (i <- committeeMembers.indices) yield {
-      committeeMembers(i).setKeyR3(r2Data)
+      committeeMembers(i).doDKGRound3(r2Data).get
     }
 
     absenteesPublicKeys += Tuple2(committeeMembers(absenteeIndex).ownId, group.groupGenerator.pow(committeeMembers(absenteeIndex).secretKey).get)
@@ -230,7 +230,7 @@ class DistrKeyGenTest  extends FunSuite {
     roundsData.r3Data = r3Data
 
     val r4Data = for (i <- committeeMembers.indices) yield {
-      committeeMembers(i).setKeyR4(r3Data)
+      committeeMembers(i).doDKGRound4(r3Data).get
     }
 
     roundsData.r4Data = r4Data
@@ -239,13 +239,13 @@ class DistrKeyGenTest  extends FunSuite {
     committeeMembers.remove(absenteeIndex)
 
     val r5_1Data = for (i <- committeeMembers.indices) yield {
-      committeeMembers(i).setKeyR5_1(r4Data)
+      committeeMembers(i).doDKGRound5_1(r4Data).get
     }
 
     roundsData.r5_1Data = r5_1Data
 
     val r5_2Data = for (i <- committeeMembers.indices) yield {
-      (committeeMembers(i).ownId, committeeMembers(i).setKeyR5_2(r5_1Data))
+      (committeeMembers(i).ownId, committeeMembers(i).doDKGRound5_2(r5_1Data).get)
     }
 
     //--------------------------------------------------------------------------------
@@ -278,16 +278,16 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = (for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys, 0)
     }).toBuffer
 
     def reCreateMember(memberIndex: Int, roundsData: RoundsData){
-      committeeMembers(memberIndex) = new CommitteeMember(ctx, keyPairs(memberIndex), committeeMembersPubKeys, roundsData)
+      committeeMembers(memberIndex) = new CommitteeMember(ctx, keyPairs(memberIndex), committeeMembersPubKeys, 0, roundsData)
     }
     val roundsData = RoundsData()
 
     val r1Data = for (i <- committeeMembers.indices) yield {
-      committeeMembers(i).setKeyR1()
+      committeeMembers(i).doDKGRound1().get
     }
 
     val violatorIndex = committeeMembers.length - 1
@@ -298,14 +298,14 @@ class DistrKeyGenTest  extends FunSuite {
     reCreateMember(0, roundsData)
 
     val r2Data = for (i <- committeeMembers.indices) yield {
-      committeeMembers(i).setKeyR2(r1Data)
+      committeeMembers(i).doDKGRound2(r1Data).get
     }
 
     roundsData.r2Data = r2Data
     reCreateMember(1, roundsData)
 
     val r3Data = for (i <- committeeMembers.indices) yield {
-      committeeMembers(i).setKeyR3(r2Data)
+      committeeMembers(i).doDKGRound3(r2Data).get
     }
 
     // change commitment of the member with id = 0
@@ -315,21 +315,21 @@ class DistrKeyGenTest  extends FunSuite {
     reCreateMember(2, roundsData)
 
     val r4Data = for (i <- committeeMembers.indices) yield {
-      committeeMembers(i).setKeyR4(r3Data)
+      committeeMembers(i).doDKGRound4(r3Data).get
     }
 
     roundsData.r4Data = r4Data
     reCreateMember(3, roundsData)
 
     val r5_1Data = for (i <- committeeMembers.indices) yield {
-      committeeMembers(i).setKeyR5_1(r4Data)
+      committeeMembers(i).doDKGRound5_1(r4Data).get
     }
 
     roundsData.r5_1Data = r5_1Data
     reCreateMember(4, roundsData)
 
     val r5_2Data = for (i <- committeeMembers.indices) yield {
-      (committeeMembers(i).ownId, committeeMembers(i).setKeyR5_2(r5_1Data))
+      (committeeMembers(i).ownId, committeeMembers(i).doDKGRound5_2(r5_1Data).get)
     }
 
     roundsData.r5_2Data = r5_2Data.map(_._2)
@@ -377,11 +377,11 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = (for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys, 0)
     }).toBuffer
 
     def reCreateMember(memberIndex: Int, roundsData: RoundsData) {
-      committeeMembers(memberIndex) = new CommitteeMember(ctx, keyPairs(memberIndex), committeeMembersPubKeys, roundsData)
+      committeeMembers(memberIndex) = new CommitteeMember(ctx, keyPairs(memberIndex), committeeMembersPubKeys, 0, roundsData)
     }
 
     def removeMemberFromEnd(absenteesPublicKeysAccumulator: ArrayBuffer[(Int, GroupElement)]) {
@@ -398,7 +398,7 @@ class DistrKeyGenTest  extends FunSuite {
     committeeMembers.remove(violatorOfRound1Index) // absentee and also a violator on the 1-st round
 
     val r1Data = for (i <- committeeMembers.indices) yield {
-      committeeMembers(i).setKeyR1()
+      committeeMembers(i).doDKGRound1().get
     }
 
     violatorOfRound1Index = committeeMembers.length - 1
@@ -411,7 +411,7 @@ class DistrKeyGenTest  extends FunSuite {
     removeMemberFromEnd(absenteesPublicKeys) // absentee on the 2-nd and 3-rd rounds
 
     val r2Data = for (i <- committeeMembers.indices) yield {
-      committeeMembers(i).setKeyR2(r1Data)
+      committeeMembers(i).doDKGRound2(r1Data).get
     }
 
     roundsData.r2Data = r2Data
@@ -420,7 +420,7 @@ class DistrKeyGenTest  extends FunSuite {
     removeMemberFromEnd(absenteesPublicKeys) // absentee on the 3-rd round
 
     val r3Data = for (i <- committeeMembers.indices) yield {
-      committeeMembers(i).setKeyR3(r2Data)
+      committeeMembers(i).doDKGRound3(r2Data).get
     }
 
     // change commitment of the member, which will not participate in rounds  5_1, 5_2
@@ -432,7 +432,7 @@ class DistrKeyGenTest  extends FunSuite {
     removeMemberFromEnd(absenteesPublicKeys) // just member who will not participate in commitments verification and will not post the violators and absentees secret shares (in round 5_1)
 
     val r4Data = for (i <- committeeMembers.indices) yield {
-      committeeMembers(i).setKeyR4(r3Data)
+      committeeMembers(i).doDKGRound4(r3Data).get
     }
 
     roundsData.r4Data = r4Data
@@ -441,7 +441,7 @@ class DistrKeyGenTest  extends FunSuite {
     removeMemberFromEnd(absenteesPublicKeys) // just the member who will not post the violators and absentees secret shares
 
     val r5_1Data = for (i <- committeeMembers.indices) yield {
-      committeeMembers(i).setKeyR5_1(r4Data)
+      committeeMembers(i).doDKGRound5_1(r4Data).get
     }
 
     roundsData.r5_1Data = r5_1Data
@@ -450,7 +450,7 @@ class DistrKeyGenTest  extends FunSuite {
     removeMemberFromEnd(absenteesPublicKeys) // just the member who will not reconstruct the violators and absentees secrets and obtain a shared public key
 
     val r5_2Data = for (i <- committeeMembers.indices) yield {
-      (committeeMembers(i).ownId, committeeMembers(i).setKeyR5_2(r5_1Data))
+      (committeeMembers(i).ownId, committeeMembers(i).doDKGRound5_2(r5_1Data).get)
     }
 
     roundsData.r5_2Data = r5_2Data.map(_._2)
@@ -506,11 +506,11 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys, 0)
     }
 
     val r1Data = for (i <- committeeMembersPubKeys.indices) yield {
-      committeeMembers(i).setKeyR1()
+      committeeMembers(i).doDKGRound1().get
     }
 
     val openedShare = DistrKeyGen.generateRecoveryKeyShare(ctx, committeeMembers(0).memberIdentifier, keyPairs(0), keyPairs(1)._2, r1Data).get
@@ -525,12 +525,12 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = transportKeyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(ctx, transportKeyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, transportKeyPairs(i), committeeMembersPubKeys, 0)
     }
 
-    val r1Data = for (i <- committeeMembersPubKeys.indices) yield committeeMembers(i).setKeyR1()
-    val r2Data = for (i <- committeeMembersPubKeys.indices) yield committeeMembers(i).setKeyR2(r1Data)
-    val r3Data = for (i <- committeeMembersPubKeys.indices) yield committeeMembers(i).setKeyR3(r2Data)
+    val r1Data = for (i <- committeeMembersPubKeys.indices) yield committeeMembers(i).doDKGRound1().get
+    val r2Data = for (i <- committeeMembersPubKeys.indices) yield committeeMembers(i).doDKGRound2(r1Data).get
+    val r3Data = for (i <- committeeMembersPubKeys.indices) yield committeeMembers(i).doDKGRound3(r2Data).get
 
     val identifier = committeeMembers(0).memberIdentifier
 

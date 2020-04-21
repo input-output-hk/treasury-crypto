@@ -2,6 +2,13 @@ package io.iohk.protocol
 
 import io.iohk.core.crypto.encryption.PubKey
 
+/**
+  * The Identifier deterministically assigns T values to public keys. Given the same set of keys, an identifier will
+  * always assign the same values to keys.
+  *
+  * @param pubKeys
+  * @tparam T
+  */
 abstract class Identifier[T](val pubKeys: Seq[PubKey]) {
 
   protected def sorter(key1: PubKey, key2: PubKey): Boolean = {

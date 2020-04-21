@@ -1,4 +1,4 @@
-package io.iohk.protocol.decryption
+package io.iohk.protocol.randomness
 
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalEnc}

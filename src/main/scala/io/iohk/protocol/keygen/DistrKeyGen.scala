@@ -82,6 +82,8 @@ class DistrKeyGen(ctx:              CryptoContext,
 
   if (initialize(roundsData).isFailure) throw new Exception("Wasn't initialized!")
 
+  def getAllDisqualifiedIds = violatorsIDs.toSet ++ absenteesIDs.toSet
+
   def getShare(id: Int): Option[BigInt] = {
 
     val shareOpt = shares.find(_.issuerID == id)
@@ -521,7 +523,7 @@ class DistrKeyGen(ctx:              CryptoContext,
         violatorsShares += Tuple2(absenteeID, absenteeShare.get.share_a)
     })
 
-    val r5_1Data = R5_1Data(ownID, violatorsShares.sortBy(_._1).toArray)
+    val r5_1Data = R5_1Data(ownID, violatorsShares.sortBy(_._1))
 
     roundsPassed += 1
     roundsDataCache.r5_1Data = Seq(r5_1Data) // round output is always cached
