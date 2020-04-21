@@ -13,7 +13,7 @@ import org.scalatest.FunSuite
 class TallyTest extends FunSuite with TallyTestSetup {
 
   test("Full Tally integration test") {
-    val tally = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())
+    val tally = new Tally(ctx, cmIdentifier, numberOfExperts, Map())
 
     // Each committee member generates TallyR1Data
     val tallyR1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
@@ -76,7 +76,7 @@ class TallyTest extends FunSuite with TallyTestSetup {
   test("state recovery") {
     val summator = new BallotsSummator(ctx, numberOfExperts)
 
-    val tally = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())
+    val tally = new Tally(ctx, cmIdentifier, numberOfExperts, Map())
     val tallyR1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get
 
@@ -96,20 +96,20 @@ class TallyTest extends FunSuite with TallyTestSetup {
     storage.updateTallyR3(tallyR3DataAll).get
     storage.updateTallyR4(tallyR4DataAll).get
 
-    val tallyRecovered0 = TallyNew.recoverState(ctx, cmIdentifier, numberOfExperts, Map(), TallyNew.Stages.Init, storage, summator).get
-    require(tallyRecovered0.getCurrentRound == TallyNew.Stages.Init)
+    val tallyRecovered0 = Tally.recoverState(ctx, cmIdentifier, numberOfExperts, Map(), Tally.Stages.Init, storage, summator).get
+    require(tallyRecovered0.getCurrentRound == Tally.Stages.Init)
 
-    val tallyRecovered1 = TallyNew.recoverState(ctx, cmIdentifier, numberOfExperts, Map(), TallyNew.Stages.TallyR1, storage, summator).get
-    require(tallyRecovered1.getCurrentRound == TallyNew.Stages.TallyR1)
+    val tallyRecovered1 = Tally.recoverState(ctx, cmIdentifier, numberOfExperts, Map(), Tally.Stages.TallyR1, storage, summator).get
+    require(tallyRecovered1.getCurrentRound == Tally.Stages.TallyR1)
 
-    val tallyRecovered2 = TallyNew.recoverState(ctx, cmIdentifier, numberOfExperts, Map(), TallyNew.Stages.TallyR2, storage, summator).get
-    require(tallyRecovered2.getCurrentRound == TallyNew.Stages.TallyR2)
+    val tallyRecovered2 = Tally.recoverState(ctx, cmIdentifier, numberOfExperts, Map(), Tally.Stages.TallyR2, storage, summator).get
+    require(tallyRecovered2.getCurrentRound == Tally.Stages.TallyR2)
 
-    val tallyRecovered3 = TallyNew.recoverState(ctx, cmIdentifier, numberOfExperts, Map(), TallyNew.Stages.TallyR3, storage, summator).get
-    require(tallyRecovered3.getCurrentRound == TallyNew.Stages.TallyR3)
+    val tallyRecovered3 = Tally.recoverState(ctx, cmIdentifier, numberOfExperts, Map(), Tally.Stages.TallyR3, storage, summator).get
+    require(tallyRecovered3.getCurrentRound == Tally.Stages.TallyR3)
 
-    val tallyRecovered4 = TallyNew.recoverState(ctx, cmIdentifier, numberOfExperts, Map(), TallyNew.Stages.TallyR4, storage, summator).get
-    require(tallyRecovered4.getCurrentRound == TallyNew.Stages.TallyR4)
+    val tallyRecovered4 = Tally.recoverState(ctx, cmIdentifier, numberOfExperts, Map(), Tally.Stages.TallyR4, storage, summator).get
+    require(tallyRecovered4.getCurrentRound == Tally.Stages.TallyR4)
   }
 }
 

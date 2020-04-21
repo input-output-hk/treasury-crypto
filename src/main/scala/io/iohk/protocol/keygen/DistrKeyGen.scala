@@ -82,6 +82,8 @@ class DistrKeyGen(ctx:              CryptoContext,
 
   if (initialize(roundsData).isFailure) throw new Exception("Wasn't initialized!")
 
+  def getAllDisqualifiedIds = violatorsIDs.toSet ++ absenteesIDs.toSet
+
   def getShare(id: Int): Option[BigInt] = {
 
     val shareOpt = shares.find(_.issuerID == id)

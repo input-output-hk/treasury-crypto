@@ -8,7 +8,7 @@ import io.iohk.protocol.voting.ballots.{ExpertBallot, VoterBallot}
 import scala.util.Try
 
 /**
-  * BallotsSummator is used to sum up ballots for their further processing. It is convenient to sum up
+  * BallotsSummator is used to sum up ballots for their further processing. The idea is to sum up
   * ballots one by one instead of accumulating them in memory and sum up all at once.
   *
   * @param ctx

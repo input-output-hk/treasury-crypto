@@ -1,22 +1,18 @@
 package io.iohk.protocol.keygen
 
-import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
-import io.iohk.core.crypto.encryption.hybrid.HybridPlaintext
-import io.iohk.core.crypto.encryption.{KeyPair, PubKey}
-import io.iohk.core.crypto.primitives.dlog.GroupElement
-import io.iohk.protocol.decryption.DecryptionManager
-import io.iohk.protocol.keygen.datastructures.C1Share
+import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
 import io.iohk.protocol.keygen.datastructures.round1.{R1Data, SecretShare}
 import io.iohk.protocol.keygen.datastructures.round2.{ComplaintR2, R2Data}
 import io.iohk.protocol.keygen.datastructures.round3.R3Data
 import io.iohk.protocol.keygen.datastructures.round4.{ComplaintR4, OpenedShare, R4Data}
 import io.iohk.protocol.keygen.datastructures.round5_1.R5_1Data
 import io.iohk.protocol.keygen.datastructures.round5_2.R5_2Data
-import io.iohk.protocol.keygen.math.LagrangeInterpolation
-import io.iohk.protocol.voting.Tally
-import io.iohk.protocol.voting.Tally.Result
-import io.iohk.protocol.voting.ballots.Ballot
+import io.iohk.protocol.tally.datastructures.{TallyR1Data, TallyR2Data, TallyR3Data, TallyR4Data}
+import io.iohk.protocol.tally.{BallotsSummator, Tally}
+import io.iohk.protocol.voting.ballots.{ExpertBallot, VoterBallot}
 import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
+
+import scala.util.Try
 
 /**
   * CommitteeMember is strictly for testing purposes at this point. It is a wrapper for the functionality performed
@@ -39,183 +35,128 @@ import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
 class CommitteeMember(val ctx: CryptoContext,
                       val transportKeyPair: KeyPair,
                       val committeeMembersPubKeys: Seq[PubKey],
+                      val numberOfExperts: Int,
                       roundsData: RoundsData = RoundsData()) {
   import ctx.group
 
-//  // SimpleIdentifier is useful for debugging purposes, but in real it's better to not rely on an order stability of the externally provided public keys
-//  val memberIdentifier = SimpleIdentifier(committeeMembersPubKeys)
-
-  // Here public keys are forcibly sorted, thus their indices, which play the role of member IDs, will be always the same for the same set of public keys
   val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
 
   // TODO: transport key pair serves also as a key pair for generating shared key. Originally these pairs were designed to be different.
   val secretKey = transportKeyPair._1
   val publicKey = transportKeyPair._2
 
-  // DistrKeyGen depends on common system parameters, committee member's keypair and set of committee members. It encapsulates the shared key generation logic.
-  val seed = ctx.hash.hash(transportKeyPair._1.toByteArray ++ "DKG Seed".getBytes)
+  // DistrKeyGen instance is used to run distributed key generation protocol
+  val seed = ctx.hash.hash(secretKey.toByteArray ++ "DKG Seed".getBytes) // TODO: secretKey should not be used to extract seed
   private val dkg = new DistrKeyGen(ctx, transportKeyPair, secretKey, seed, committeeMembersPubKeys, memberIdentifier, roundsData)
+  private var dkgViolatorsKeys: Option[Map[PubKey, Option[PrivKey]]] = None
+
+  // Tally should be initialized after DKG is finished, because it requires keys of committee members disqualified during DKG
+  private var tally: Option[Tally] = None
+  private var tallyResult: Option[Map[Int,Tally.Result]] = None // decrypted results of voting for each proposal (map of proposalId -> Result)
+  private val summator = new BallotsSummator(ctx, numberOfExperts) //TODO: probably we should pass summator as an input param
 
   val ownId: Int = dkg.ownID
-  var dkgViolatorsSKs: Array[BigInt] = Array[BigInt]()
-  var dkgViolatorsIds: Set[Int] = Set()
-  var decryptionViolatorsIds: Set[Int] = Set()
-  var delegations: Option[Seq[BigInt]] = None
 
-  def setKeyR1(): R1Data = {
-    dkg.doRound1() match {
-      case Some(data) => data
-      case None =>
-        println("doRound1 returned None")
-        R1Data(12345, Array[Array[Byte]](), Array[SecretShare](), Array[SecretShare]())
-    }
+  def doDKGRound1(): Try[R1Data] = Try {
+    dkg.doRound1().get
   }
 
-  def setKeyR2(r1Data: Seq[R1Data]): R2Data = {
-    dkg.doRound2(r1Data) match {
-      case Some(data) => data
-      case None =>
-        println("doRound2 returned None")
-        R2Data(12345, Array[ComplaintR2]())
-    }
+  def doDKGRound2(r1Data: Seq[R1Data]): Try[R2Data] = Try {
+    dkg.doRound2(r1Data).get
   }
 
-  def setKeyR3(r2Data: Seq[R2Data]): R3Data = {
-    dkg.doRound3(r2Data) match {
-      case Some(data) => data
-      case None =>
-        println("doRound3 returned None")
-        R3Data(12345, Array[Array[Byte]]())
-    }
+  def doDKGRound3(r2Data: Seq[R2Data]): Try[R3Data] = Try {
+    dkg.doRound3(r2Data).get
   }
 
-  def setKeyR4(r3Data: Seq[R3Data]): R4Data = {
-    dkg.doRound4(r3Data) match {
-      case Some(data) => data
-      case None =>
-        println("doRound4 returned None")
-        R4Data(12345, Array[ComplaintR4]())
-    }
+  def doDKGRound4(r3Data: Seq[R3Data]): Try[R4Data] = Try {
+    dkg.doRound4(r3Data).get
   }
 
-  def setKeyR5_1(r4Data: Seq[R4Data]): R5_1Data = {
-
-    dkg.doRound5_1(r4Data) match {
-      case Some(data) => data
-      case None =>
-        println("doRound5_1 returned None")
-        R5_1Data(12345, Array[(Int, OpenedShare)]())
-    }
+  def doDKGRound5_1(r4Data: Seq[R4Data]): Try[R5_1Data] = Try {
+    dkg.doRound5_1(r4Data).get
   }
 
-  def setKeyR5_2(r5_1Data: Seq[R5_1Data]): R5_2Data = {
+  def doDKGRound5_2(r5_1Data: Seq[R5_1Data]): Try[R5_2Data] = Try {
 
     val data = dkg.doRound5_2(r5_1Data).get
 
-    dkgViolatorsSKs = data.violatorsSecretKeys.map(sk => BigInt(sk.secretKey))
-    dkgViolatorsIds = data.violatorsSecretKeys.map(_.ownerID).toSet
+    var violatorKeys: Map[PubKey, Option[PrivKey]] = dkg.getAllDisqualifiedIds.map(memberIdentifier.getPubKey(_).get -> None).toMap
+    data.violatorsSecretKeys.foreach{ sk =>
+      val violatorPubKey = memberIdentifier.getPubKey(sk.ownerID).get
+      val violatorPrivKey = BigInt(sk.secretKey)
+      assert(violatorPubKey == group.groupGenerator.pow(violatorPrivKey).get)
+      violatorKeys += violatorPubKey -> Some(violatorPrivKey)
+    }
+
+    dkgViolatorsKeys = Some(violatorKeys)
 
     data
   }
 
-  // DecryptionManager depends on committee member's secret key and set of ballots. It encapsulates the tally decryption logic.
-  //
-  private var decryptor: Option[DecryptionManager] = None
 
-  private def getSkShares(submittersIDs: Seq[Int]): KeyShares =
-  {
-    val membersIds = committeeMembersPubKeys.map(memberIdentifier.getId(_).get.intValue())
-    val activeMembersIds = membersIds.diff(dkgViolatorsIds.toSeq).diff(decryptionViolatorsIds.toSeq)
-    val absenteesIds = activeMembersIds.diff(submittersIDs).filter(_ != ownId)
+  /* Tally stage. It should be started only when all rounds of DKG are executed. */
 
-    decryptionViolatorsIds ++= absenteesIds.toSet
+  def doTallyR1(ballots: Seq[VoterBallot]): Try[TallyR1Data] = Try {
+    ballots.foreach(summator.addVoterBallot(_).get)
 
-    KeyShares(ownId, absenteesIds.map(x => SKShare(x, dkg.getShare(x).get))) // TODO: check if dkg.getShare(x) can return None and how it should be managed
+    val newTally = new Tally(ctx, memberIdentifier, numberOfExperts, dkgViolatorsKeys.get)
+    tally = Some(newTally)
+
+    newTally.generateR1Data(summator, (secretKey, publicKey)).get
   }
 
-  def recoverDelegationsC1(skShares: Seq[KeyShares]): Seq[Seq[GroupElement]] = {
-    val decryptionViolatorsSKs = reconstructSecretKeys(skShares)
-    decryptor.get.decryptVector(decryptionViolatorsSKs, decryptor.get.delegationsSum.map(_.c1))
+  def doTallyR2(tallyR1DataAll: Seq[TallyR1Data], dkgR1DataAll: Seq[R1Data]): Try[TallyR2Data] = Try {
+    val tallyR1 = tally.get
+    val verifiedR1DataAll = tallyR1DataAll.filter { r1Data =>
+      memberIdentifier.getPubKey(r1Data.issuerID).flatMap { pubKey =>
+        tallyR1.verifyRound1Data(summator, pubKey, r1Data).toOption
+      }.isDefined
+    }
+
+    require(tallyR1.executeRound1(summator, verifiedR1DataAll).isSuccess)
+    tallyR1.generateR2Data((secretKey, publicKey), dkgR1DataAll).get
   }
 
-  def recoverChoicesC1(skShares: Seq[KeyShares], choicesSum: Seq[ElGamalCiphertext]): Seq[Seq[GroupElement]] = {
-    val decryptionViolatorsSKs = reconstructSecretKeys(skShares)
-    decryptor.get.decryptVector(decryptionViolatorsSKs, choicesSum.map(_.c1))
+  def doTallyR3(tallyR2DataAll: Seq[TallyR2Data],
+                dkgR1DataAll: Seq[R1Data],
+                expertBallots: Seq[ExpertBallot]): Try[TallyR3Data] = Try {
+    val tallyR2 = tally.get
+    val verifiedR2DataAll = tallyR2DataAll.filter { r2Data =>
+      memberIdentifier.getPubKey(r2Data.issuerID).flatMap { pubKey =>
+        tallyR2.verifyRound2Data(pubKey, r2Data, dkgR1DataAll).toOption
+      }.isDefined
+    }
+
+    require(tallyR2.executeRound2(verifiedR2DataAll, expertBallots).isSuccess)
+    tallyR2.generateR3Data((secretKey, publicKey)).get
   }
 
-  def reconstructSecretKeys(skShares: Seq[KeyShares]): Array[BigInt] = {
-    val decryptionViolatorsShares = skShares.map(
-      member =>
-        member.keyShares.map(
-          share =>
-            (share.ownerID, OpenedShare(member.issuerID, HybridPlaintext(group.groupIdentity, share.share.toByteArray)))
-        )
-    ).map(_.sortBy(_._1).map(_._2)).transpose
+  def doTallyR4(tallyR3DataAll: Seq[TallyR3Data],
+                dkgR1DataAll: Seq[R1Data]): Try[TallyR4Data] = Try {
+    val tallyR3 = tally.get
+    val verifiedR3DataAll = tallyR3DataAll.filter { r3Data =>
+      memberIdentifier.getPubKey(r3Data.issuerID).flatMap { pubKey =>
+        tallyR3.verifyRound3Data(pubKey, r3Data).toOption
+      }.isDefined
+    }
 
-    decryptionViolatorsShares.map(LagrangeInterpolation.restoreSecret(ctx, _, dkg.t)).toArray
+    require(tallyR3.executeRound3(verifiedR3DataAll).isSuccess)
+    tallyR3.generateR4Data((secretKey, publicKey), dkgR1DataAll).get
   }
 
-  def decryptTallyR1(ballots: Seq[Ballot]): C1Share =
-  {
-    // Initialization of the decryptor
-    decryptor = Some(new DecryptionManager(ctx, ballots))
-    decryptor.get.decryptC1ForDelegations(ownId, 0, secretKey)
+  def finalizeTally(tallyR4DataAll: Seq[TallyR4Data], dkgR1DataAll: Seq[R1Data]): Try[Map[Int, Tally.Result]] = Try {
+    val tallyR4 = tally.get
+    val verifiedR4DataAll = tallyR4DataAll.filter { r4Data =>
+      memberIdentifier.getPubKey(r4Data.issuerID).flatMap { pubKey =>
+        tallyR4.verifyRound4Data(pubKey, r4Data, dkgR1DataAll).toOption
+      }.isDefined
+    }
+
+    require(tallyR4.executeRound4(verifiedR4DataAll).isSuccess)
+    tallyResult = Some(tallyR4.getChoices)
+    tallyResult.get
   }
 
-  def keysRecoveryR1(c1ForDelegationsIn: Seq[C1Share]): KeyShares =
-  {
-    val c1ForDelegations = c1ForDelegationsIn
-      .filter(x => !dkgViolatorsIds.contains(x.issuerID))
-      //.filter(c1 => decryptor.validateDelegationsC1(c1)) // TODO: do we really need validation here? // this should happen externally
-
-    getSkShares(c1ForDelegations.map(_.issuerID))
-  }
-
-  def decryptTallyR2(c1ForDelegationsIn: Seq[C1Share], skSharesIn: Seq[KeyShares]): C1Share =
-  {
-    val c1ForDelegations = c1ForDelegationsIn.filter(
-      x =>
-        !dkgViolatorsIds.contains(x.issuerID) && !decryptionViolatorsIds.contains(x.issuerID))
-
-    val skShares = skSharesIn.filter(
-      x =>
-        !dkgViolatorsIds.contains(x.issuerID) && !decryptionViolatorsIds.contains(x.issuerID))
-
-    val d = decryptor.get
-
-    val delegationsC1 = c1ForDelegations.map(_.decryptedC1.map(_._1))
-    val dkgViolatorsC1 = d.decryptVector(dkgViolatorsSKs, d.delegationsSum.map(_.c1))
-    val decryptionViolatorsC1 = recoverDelegationsC1(skSharesIn)
-    delegations = Some(d.computeDelegations(delegationsC1 ++ dkgViolatorsC1 ++ decryptionViolatorsC1))
-
-    d.decryptC1ForChoices(ownId, 0, secretKey, delegations.get)
-  }
-
-  def keysRecoveryR2(c1ForChoicesIn: Seq[C1Share]): KeyShares =
-  {
-    val c1ForChoices = c1ForChoicesIn
-      .filter(
-        x =>
-          !dkgViolatorsIds.contains(x.issuerID) && !decryptionViolatorsIds.contains(x.issuerID))
-      //.filter(c1 => decryptor.validateChoicesC1(c1, c1ForDelegationsIn)) // this should happen externally
-
-    getSkShares(c1ForChoices.map(_.issuerID))
-  }
-
-  def decryptTallyR3(c1ForChoicesIn: Seq[C1Share], delegSkSharesIn: Seq[KeyShares], choicesSkSharesIn: Seq[KeyShares]): Result =
-  {
-    val c1ForChoices = c1ForChoicesIn.filter(
-      x =>
-      !dkgViolatorsIds.contains(x.issuerID) && !decryptionViolatorsIds.contains(x.issuerID))
-
-    val d = decryptor.get
-
-    val choicesSum = d.computeChoicesSum(delegations.get)
-    val dkgViolatorsC1 = d.decryptVector(dkgViolatorsSKs, choicesSum.map(_.c1))
-    val decryptionViolatorsC1 = recoverChoicesC1(choicesSkSharesIn, choicesSum) ++ recoverChoicesC1(delegSkSharesIn, choicesSum)
-
-    val allChoicesC1 = dkgViolatorsC1 ++ decryptionViolatorsC1 ++ c1ForChoices.map(_.decryptedC1.map(_._1))
-
-    Tally.countVotes(ctx, d.votersBallots ++ d.expertsBallots, allChoicesC1, delegations.get).get
-  }
+  def getTallyResult = tallyResult
 }

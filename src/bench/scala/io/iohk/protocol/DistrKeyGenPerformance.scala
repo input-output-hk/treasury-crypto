@@ -1,8 +1,7 @@
-package io.iohk
+package io.iohk.protocol
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.utils.{SizeUtils, TimeUtils}
-import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.integration.ProtocolTest
 import io.iohk.protocol.keygen._
 
@@ -27,27 +26,27 @@ class DistrKeyGenPerformance {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield
-      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys, 0)
 
     var overallBytes = 0
 
     val (r1Data, timeR1) = TimeUtils.get_time_average_s(
       "Round 1:",
-      for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).setKeyR1(),
+      for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).doDKGRound1().get,
       commiteeMembersNum)
 
     overallBytes += SizeUtils.getSize(r1Data)
 
     val (r2Data, timeR2) = TimeUtils.get_time_average_s(
       "Round 2:",
-      for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).setKeyR2(r1Data),
+      for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).doDKGRound2(r1Data).get,
       commiteeMembersNum)
 
     overallBytes += SizeUtils.getSize(r2Data)
 
     val (r3Data, timeR3) = TimeUtils.get_time_average_s(
       "Round 3:",
-      for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).setKeyR3(r2Data),
+      for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).doDKGRound3(r2Data).get,
       commiteeMembersNum)
 
     overallBytes += SizeUtils.getSize(r3Data)
@@ -56,21 +55,21 @@ class DistrKeyGenPerformance {
 
     val (r4Data, timeR4) = TimeUtils.get_time_average_s(
       "Round 4:",
-      for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).setKeyR4(r3DataPatched),
+      for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).doDKGRound4(r3DataPatched).get,
       commiteeMembersNum)
 
     overallBytes += SizeUtils.getSize(r4Data)
 
     val (r5_1Data, timeR5_1) = TimeUtils.get_time_average_s(
       "Round 5.1:",
-      for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).setKeyR5_1(r4Data),
+      for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).doDKGRound5_1(r4Data).get,
       commiteeMembersNum)
 
     overallBytes += SizeUtils.getSize(r5_1Data)
 
     val (r5_2Data, timeR5_2) = TimeUtils.get_time_average_s(
       "Round 5.2:",
-      for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).setKeyR5_2(r5_1Data),
+      for (i <- 0 until commiteeMembersNum) yield committeeMembers(i).doDKGRound5_2(r5_1Data).get,
       commiteeMembersNum)
 
     overallBytes += SizeUtils.getSize(r5_2Data)

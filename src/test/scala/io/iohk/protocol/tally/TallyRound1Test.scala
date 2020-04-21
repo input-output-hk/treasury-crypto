@@ -2,7 +2,7 @@ package io.iohk.protocol.tally
 
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.protocol.CommitteeIdentifier
-import io.iohk.protocol.tally.TallyNew.Stages
+import io.iohk.protocol.tally.Tally.Stages
 import io.iohk.protocol.tally.datastructures.DecryptionShare
 import io.iohk.protocol.voting.{RegularVoter, VotingOptions}
 import org.scalatest.FunSuite
@@ -12,7 +12,7 @@ class TallyRound1Test extends FunSuite with TallyTestSetup {
 
   test("generate TallyR1Data") {
     val (privKey, pubKey) = committeeKeys.head
-    val tally = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())
+    val tally = new Tally(ctx, cmIdentifier, numberOfExperts, Map())
     val r1Data = tally.generateR1Data(summator, (privKey, pubKey)).get
     val proposalsIds = summator.getDelegationsSum.keySet
 
@@ -27,7 +27,7 @@ class TallyRound1Test extends FunSuite with TallyTestSetup {
 
   test("verify TallyR1Data") {
     val (privKey, pubKey) = committeeKeys.head
-    val tally = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())
+    val tally = new Tally(ctx, cmIdentifier, numberOfExperts, Map())
     val r1Data = tally.generateR1Data(summator, (privKey, pubKey)).get
 
     // verification with correct data and key should succeed
@@ -53,7 +53,7 @@ class TallyRound1Test extends FunSuite with TallyTestSetup {
   }
 
   test("execute Round 1") {
-    val tally = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())
+    val tally = new Tally(ctx, cmIdentifier, numberOfExperts, Map())
     val r1DataAll = committeeKeys.map(keyPair => tally.generateR1Data(summator, keyPair).get)
 
     require(tally.executeRound1(summator, r1DataAll).isSuccess)
@@ -92,7 +92,7 @@ class TallyRound1Test extends FunSuite with TallyTestSetup {
       }
     }
 
-    val tally = new TallyNew(ctx, committeeIdentifier, numberOfExperts, Map())
+    val tally = new Tally(ctx, committeeIdentifier, numberOfExperts, Map())
     val r1Data = tally.generateR1Data(summator, (privKey, pubKey)).get
 
     require(tally.executeRound1(summator, Seq(r1Data)).isSuccess)
@@ -102,7 +102,7 @@ class TallyRound1Test extends FunSuite with TallyTestSetup {
   test("executeRound1 should do nothing in case there is no ballots") {
     val summator = new BallotsSummator(ctx, numberOfExperts)
 
-    val tally = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())
+    val tally = new Tally(ctx, cmIdentifier, numberOfExperts, Map())
     val r1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
 
     require(tally.executeRound1(summator, r1DataAll).isSuccess)
@@ -111,26 +111,26 @@ class TallyRound1Test extends FunSuite with TallyTestSetup {
 
   test("executeRound1 should detect failed committee members and disqualify them") {
     // test 1 failed committee member
-    val tally = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())
+    val tally = new Tally(ctx, cmIdentifier, numberOfExperts, Map())
     val r1DataAll = committeeKeys.map(key => tally.generateR1Data(summator, key).get)
     require(tally.executeRound1(summator, r1DataAll.tail).isSuccess) // we removed r1Data of the first member, so he should be disqualified
     require(tally.getDisqualifiedOnTallyCommitteeIds.size == 1
       && tally.getDisqualifiedOnTallyCommitteeIds.head == cmIdentifier.getId(committeeKeys.head._2).get)
 
     // test 0 failed committee member
-    val tally2 = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())
+    val tally2 = new Tally(ctx, cmIdentifier, numberOfExperts, Map())
     require(tally2.executeRound1(summator, r1DataAll).isSuccess) // we removed r1Data of the first member, so he should be disqualified
     require(tally2.getDisqualifiedOnTallyCommitteeIds.isEmpty)
 
     // test 1 previously disqualified
-    val tally3 = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map(committeeKeys.head._2 -> None))
+    val tally3 = new Tally(ctx, cmIdentifier, numberOfExperts, Map(committeeKeys.head._2 -> None))
     require(tally3.executeRound1(summator, r1DataAll).isFailure) // we provided r1Data of disqualified member
     require(tally3.executeRound1(summator, r1DataAll.tail).isSuccess) // now execution should succeed
     require(tally3.getDisqualifiedOnTallyCommitteeIds.isEmpty)
     require(tally3.getAllDisqualifiedCommitteeIds.size == 1)
 
     // test 1 previously disqualified and 1 new
-    val tally4 = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map(committeeKeys.head._2 -> None))
+    val tally4 = new Tally(ctx, cmIdentifier, numberOfExperts, Map(committeeKeys.head._2 -> None))
     require(tally4.executeRound1(summator, r1DataAll.drop(2)).isSuccess)
     require(tally4.getDisqualifiedOnTallyCommitteeIds.size == 1
       && tally4.getDisqualifiedOnTallyCommitteeIds.head == cmIdentifier.getId(committeeKeys(1)._2).get)
@@ -138,26 +138,26 @@ class TallyRound1Test extends FunSuite with TallyTestSetup {
   }
 
   test("executeRound1 should update tally phase properly") {
-    val tally = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())
+    val tally = new Tally(ctx, cmIdentifier, numberOfExperts, Map())
     require(tally.getCurrentRound == Stages.Init)
     val r1Data = tally.generateR1Data(summator, committeeKeys.head).get
     require(tally.executeRound1(summator, Seq(r1Data)).isSuccess)
     require(tally.executeRound1(summator, Seq(r1Data)).isFailure) // repeated execution should fail
     require(tally.getCurrentRound == Stages.TallyR1)
 
-    val tally2 = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())
+    val tally2 = new Tally(ctx, cmIdentifier, numberOfExperts, Map())
     require(tally2.executeRound1(summator, Seq()).isSuccess) // our single member failed to submit r1Data, but that's fine
     require(tally2.getCurrentRound == Stages.TallyR1) // executeRound1 failed so the phase should not be upcated
 
-    val tally3 = new TallyNew(ctx, cmIdentifier, 0, Map())
+    val tally3 = new Tally(ctx, cmIdentifier, 0, Map())
     require(tally3.executeRound1(summator, Seq()).isSuccess) // we don't expect r1Data in case there is no experts
     require(tally3.getCurrentRound == Stages.TallyR1)
 
-    val tally4 = new TallyNew(ctx, cmIdentifier, 0, committeeKeys.map(x => (x._2 -> Some(x._1))).toMap)
+    val tally4 = new Tally(ctx, cmIdentifier, 0, committeeKeys.map(x => (x._2 -> Some(x._1))).toMap)
     require(tally4.executeRound1(summator, Seq()).isSuccess) // all our members were disqualified so we don't expect r1Data
     require(tally4.getCurrentRound == Stages.TallyR1)
 
-    val tally5 = new TallyNew(ctx, cmIdentifier, numberOfExperts, Map())
+    val tally5 = new Tally(ctx, cmIdentifier, numberOfExperts, Map())
     require(tally5.executeRound1(summator, Seq(r1Data, r1Data)).isFailure) // we duplicated r1Data, execution should fail
     require(tally5.getCurrentRound == Stages.Init) // executeRound1 failed so the phase should not be updated
   }

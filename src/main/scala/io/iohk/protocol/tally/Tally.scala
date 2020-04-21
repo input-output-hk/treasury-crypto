@@ -8,13 +8,12 @@ import io.iohk.protocol.keygen.DistrKeyGen
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
 import io.iohk.protocol.storage.RoundsDataStorage
-import io.iohk.protocol.tally.TallyNew.{Result, Stages}
+import io.iohk.protocol.tally.Tally.{Result, Stages}
 import io.iohk.protocol.tally.datastructures._
 import io.iohk.protocol.voting.VotingOptions
 import io.iohk.protocol.voting.ballots.ExpertBallot
 import io.iohk.protocol.{CryptoContext, Identifier}
 
-import scala.annotation.tailrec
 import scala.util.Try
 
 /**
@@ -54,10 +53,10 @@ import scala.util.Try
   *                                             restored (depending on what round of DKG they were disqualified). They
   *                                             are passed here because they will be needed for generating decryption shares.
   */
-class TallyNew(ctx: CryptoContext,
-               cmIdentifier: Identifier[Int],
-               numberOfExperts: Int,
-               disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]]) {
+class Tally(ctx: CryptoContext,
+            cmIdentifier: Identifier[Int],
+            numberOfExperts: Int,
+            disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]]) {
   import ctx.{group, hash}
 
   private var currentRound = Stages.Init
@@ -89,7 +88,7 @@ class TallyNew(ctx: CryptoContext,
 
   def generateR1Data(summator: BallotsSummator, committeeMemberKey: KeyPair): Try[TallyR1Data] = Try {
     val (privKey, pubKey) = committeeMemberKey
-    val decryptionShares = TallyNew.generateDecryptionShares(summator.getDelegationsSum, privKey)
+    val decryptionShares = Tally.generateDecryptionShares(summator.getDelegationsSum, privKey)
     val committeeId = cmIdentifier.getId(pubKey).get
     TallyR1Data(committeeId, decryptionShares)
   }
@@ -109,7 +108,7 @@ class TallyNew(ctx: CryptoContext,
     }
   }
 
-  def executeRound1(summator: BallotsSummator, r1DataAll: Seq[TallyR1Data]): Try[TallyNew] = Try {
+  def executeRound1(summator: BallotsSummator, r1DataAll: Seq[TallyR1Data]): Try[Tally] = Try {
     if (currentRound != Stages.Init)
       throw new IllegalStateException("Unexpected state! Round 1 should be executed only in the Init state.")
 
@@ -128,7 +127,7 @@ class TallyNew(ctx: CryptoContext,
 
     val proposalIds = summator.getDelegationsSum.keys.toSeq
 
-    delegationsSharesSum = TallyNew.sumUpDecryptionShares(r1DataAll, numberOfExperts, proposalIds)
+    delegationsSharesSum = Tally.sumUpDecryptionShares(r1DataAll, numberOfExperts, proposalIds)
 
     disqualifiedOnTallyR1CommitteeIds = failedCommitteeIds
     delegationsSum = summator.getDelegationsSum
@@ -166,7 +165,7 @@ class TallyNew(ctx: CryptoContext,
     * At the end of the Round 2, all decryption shares should be available and, thus, the delegations can be decrypted.
     * Given that delegations are available we can sum up all the experts ballot weighted by delegated voting power.
     */
-  def executeRound2(r2DataAll: Seq[TallyR2Data], expertBallots: Seq[ExpertBallot]): Try[TallyNew] = Try {
+  def executeRound2(r2DataAll: Seq[TallyR2Data], expertBallots: Seq[ExpertBallot]): Try[Tally] = Try {
     if (currentRound != Stages.TallyR1)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
     expertBallots.foreach(b => assert(b.expertId >= 0 && b.expertId < numberOfExperts))
@@ -235,7 +234,7 @@ class TallyNew(ctx: CryptoContext,
       throw new IllegalStateException("Unexpected state! Round 3 should be executed only in the TallyR2 state.")
 
     val (privKey, pubKey) = committeeMemberKey
-    val decryptionShares = TallyNew.generateDecryptionShares(choicesSum, privKey)
+    val decryptionShares = Tally.generateDecryptionShares(choicesSum, privKey)
     val committeeId = cmIdentifier.getId(pubKey).get
     TallyR1Data(committeeId, decryptionShares)
   }
@@ -254,7 +253,7 @@ class TallyNew(ctx: CryptoContext,
     }
   }
 
-  def executeRound3(r3DataAll: Seq[TallyR3Data]): Try[TallyNew] = Try {
+  def executeRound3(r3DataAll: Seq[TallyR3Data]): Try[Tally] = Try {
     if (currentRound != Stages.TallyR2)
       throw new IllegalStateException("Unexpected state! Round 3 should be executed only in the TallyR2 state.")
 
@@ -273,7 +272,7 @@ class TallyNew(ctx: CryptoContext,
 
     val proposalIds = choicesSum.keys.toSeq
 
-    choicesSharesSum = TallyNew.sumUpDecryptionShares(r3DataAll, VotingOptions.values.size, proposalIds)
+    choicesSharesSum = Tally.sumUpDecryptionShares(r3DataAll, VotingOptions.values.size, proposalIds)
 
     disqualifiedOnTallyR3CommitteeIds = failedCommitteeIds
     currentRound = Stages.TallyR3
@@ -295,7 +294,7 @@ class TallyNew(ctx: CryptoContext,
     require(verifyRecoverySharesData(committePubKey, r4Data, disqualifiedOnTallyR3CommitteeIds, dkgR1DataAll).isSuccess)
   }
 
-  def executeRound4(r4DataAll: Seq[TallyR4Data]): Try[TallyNew] = Try {
+  def executeRound4(r4DataAll: Seq[TallyR4Data]): Try[Tally] = Try {
     if (currentRound != Stages.TallyR3)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
 
@@ -379,7 +378,7 @@ class TallyNew(ctx: CryptoContext,
   }
 }
 
-object TallyNew {
+object Tally {
   type Delegations = Seq[BigInt] // a sequence with the number of delegated coins to each expert
 
   object Stages extends Enumeration {
@@ -394,9 +393,9 @@ object TallyNew {
                    disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]],
                    stage: Stages.Value,
                    storage: RoundsDataStorage,
-                   summator: BallotsSummator): Try[TallyNew] = Try {
+                   summator: BallotsSummator): Try[Tally] = Try {
 
-    val tally = new TallyNew(ctx, cmIdentifier, numberOfExperts, disqualifiedBeforeTallyCommitteeKeys)
+    val tally = new Tally(ctx, cmIdentifier, numberOfExperts, disqualifiedBeforeTallyCommitteeKeys)
     if (stage > Stages.Init) {
       tally.executeRound1(summator, storage.getTallyR1).get
       if (stage > Stages.TallyR1) {
