@@ -1,4 +1,4 @@
-package io.iohk.protocol.decryption
+package io.iohk.protocol.randomness
 
 import io.iohk.core.crypto.encryption
 import io.iohk.protocol.CryptoContext
