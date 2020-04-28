@@ -11,6 +11,8 @@ import io.iohk.core.crypto.encryption.PubKey
   */
 abstract class Identifier[T](val pubKeys: Seq[PubKey]) {
 
+  require(pubKeys.distinct.size == pubKeys.size, "All public keys should be distinct!")
+
   protected def sorter(key1: PubKey, key2: PubKey): Boolean = {
     (key1.compare(key2) >= 0)
   }

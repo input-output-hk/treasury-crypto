@@ -3,6 +3,8 @@ package io.iohk.protocol
 import io.iohk.core.utils.TimeUtils
 import org.scalatest.FunSuite
 
+import scala.util.{Failure, Try}
+
 class IdentifierTest extends FunSuite {
   test("experts identifier") {
     val ctx = new CryptoContext(None)
@@ -25,6 +27,21 @@ class IdentifierTest extends FunSuite {
       val pubkey = identifier.getPubKey(i)
       val id = identifier.getId(pubkey.get)
       assert(i == id.get)
+    }
+  }
+
+  test("public key duplicates") {
+    val ctx = new CryptoContext(None)
+    val keys = for (i <- 0 until 10) yield ctx.group.createRandomGroupElement.get
+
+    Try(new ExpertIdentifier(keys :+ keys.head)) match {
+      case Failure(e) => require(e.getMessage.contains("All public keys should be distinct!"))
+      case _ => throw new Exception("Public key duplicates test failed")
+    }
+
+    Try(new CommitteeIdentifier(keys :+ keys.head)) match {
+      case Failure(e) => require(e.getMessage.contains("All public keys should be distinct!"))
+      case _ => throw new Exception("Public key duplicates test failed")
     }
   }
 
