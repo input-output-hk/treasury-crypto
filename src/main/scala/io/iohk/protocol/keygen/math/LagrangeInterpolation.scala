@@ -40,21 +40,21 @@ object LagrangeInterpolation {
     restoredSecret
   }
 
-  def testInterpolation(ctx: CryptoContext, degree: Int): Boolean = {
+  def testInterpolation(ctx: CryptoContext, threshold: Int): Boolean = {
     val drng = new FieldElementSP800DRNG(ctx.group.createRandomNumber.toByteArray, ctx.group.groupOrder)
     val secret = drng.nextRand
 
-    val poly = new Polynomial(ctx, degree, secret, drng)
+    val poly = new Polynomial(ctx, threshold-1, secret, drng)
 
-    val sharesNum = degree * 2 // ratio specific for voting protocol, as assumed t = n / 2, i.e. degree = sharesNum / 2
+    val sharesNum = threshold * 2 // ratio specific for voting protocol, as assumed t = n / 2, i.e. threshold = sharesNum / 2
     var shares = for(x <- 0 until sharesNum) yield {OpenedShare(x, HybridPlaintext(ctx.group.groupIdentity, poly.evaluate(x+1).toByteArray))}
 
     val rnd = new scala.util.Random
     val patchIndex = rnd.nextInt(sharesNum)
     val patchLength = {
       val maxLength = sharesNum - patchIndex
-      if(maxLength > degree) // the minimal number of shares needed for interpolation is equal to degree of polynomial
-        rnd.nextInt(degree)
+      if(maxLength > threshold) // the minimal number of shares needed for interpolation is equal to threshold
+        rnd.nextInt(threshold)
       else
         rnd.nextInt(maxLength)
     } + 1
@@ -62,7 +62,7 @@ object LagrangeInterpolation {
     // Delete random number of shares (imitation of committee members disqualification)
     shares = shares.patch(patchIndex, Nil, patchLength)
 
-    val restoredSecret = restoreSecret(ctx, shares, degree)
+    val restoredSecret = restoreSecret(ctx, shares, threshold)
 
     secret.equals(restoredSecret)
   }

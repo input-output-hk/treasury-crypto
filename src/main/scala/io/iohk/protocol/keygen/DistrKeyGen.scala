@@ -119,8 +119,8 @@ class DistrKeyGen(ctx:              CryptoContext,
 
     // we set a_0 to be the secretKey and generate all other coefficients with an RNG seeded with secretSeed
     val drng = new FieldElementSP800DRNG(secretSeed ++ "Polynomials".getBytes, ctx.group.groupOrder)
-    val poly_a = new Polynomial(ctx, t, secretKey, drng)
-    val poly_b = new Polynomial(ctx, t, drng.nextRand, drng)
+    val poly_a = new Polynomial(ctx, t-1, secretKey, drng)      // for the (t,n)-threshold protocol we should set up polynomials of degree t-1
+    val poly_b = new Polynomial(ctx, t-1, drng.nextRand, drng)
 
     for(i <- A.indices)
       A(i) = g.pow(poly_a(i)).get
