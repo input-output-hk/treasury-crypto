@@ -32,7 +32,7 @@ class MultRelationNIZKPerformance {
       println("Running test for unit vector of size " + size + " ...")
       val (uv, rand) = TimeUtils.time("\tUV creation: ", createUnitVector(size, 3))
       val value = LiftedElGamalEnc.encrypt(pubKey, 5).get._1
-      val unitVector = for(i <- 0 until size) yield if(i == 3) BigInt(1) else BigInt(0)
+      val unitVector = for(i <- 0 until size) yield if(i == 3) 1 else 0
       val uv2 = TimeUtils.time("\tUV with value creation: ",
         MultRelationNIZK.produceEncryptedUnitVectorWithValue(pubKey, value, unitVector))
       val proof = TimeUtils.time(
@@ -51,7 +51,7 @@ class MultRelationNIZKPerformance {
       println("Running test for unit vector of size " + size + " ...")
       val (uv, rand) = TimeUtils.time("\tUV creation: ", createUnitVector(size, 3))
       val value = LiftedElGamalEnc.encrypt(pubKey, 5).get._1
-      val unitVector = for(i <- 0 until size) yield if(i == 3) BigInt(1) else BigInt(0)
+      val unitVector = for(i <- 0 until size) yield if(i == 3) 1 else 0
       val uv2 = TimeUtils.time("\tUV with value creation: ",
         MultRelationNIZK.produceEncryptedUnitVectorWithValue(pubKey, value, unitVector))
 

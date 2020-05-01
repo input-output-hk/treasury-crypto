@@ -5,6 +5,7 @@ import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.protocol.nizk.shvzk.SHVZKProof
+import io.iohk.protocol.voting.ballots.Ballot.BallotTypes
 
 import scala.util.Try
 
@@ -18,7 +19,13 @@ trait Ballot extends BytesSerializable {
   def proposalId: Int
   def proof: SHVZKProof
 
-  def unitVector: Array[ElGamalCiphertext]
+  def unitVector: Vector[ElGamalCiphertext]
+}
+
+object Ballot {
+  object BallotTypes extends Enumeration {
+    val Voter, Expert, PrivateVoter = Value
+  }
 }
 
 object BallotSerializer extends Serializer[Ballot, DiscreteLogGroup] {
@@ -28,10 +35,10 @@ object BallotSerializer extends Serializer[Ballot, DiscreteLogGroup] {
   }
 
   override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[Ballot] = Try {
-    val ballotTypeId = bytes(0)
-    ballotTypeId match {
-      case VoterBallot.BallotTypeId => VoterBallotSerializer.parseBytes(bytes.drop(1), decoder).get
-      case ExpertBallot.BallotTypeId => ExpertBallotSerializer.parseBytes(bytes.drop(1), decoder).get
+    val ballotTypeId = bytes(0).toInt
+    BallotTypes(ballotTypeId) match {
+      case BallotTypes.Voter => VoterBallotSerializer.parseBytes(bytes.drop(1), decoder).get
+      case BallotTypes.Expert => ExpertBallotSerializer.parseBytes(bytes.drop(1), decoder).get
     }
   }
 }

@@ -17,15 +17,11 @@ abstract class Voter(val ctx: CryptoContext) {
     new SHVZKVerifier(publicKey, ballot.unitVector, ballot.proof).verifyProof()
   }
 
-  protected def produceUnitVector(size: Int, nonZeroPos: Int): (Array[ElGamalCiphertext], Array[Randomness]) = {
-    val ciphertexts = new Array[ElGamalCiphertext](size)
-    val randomness = new Array[Randomness](size)
-
-    for (i <- 0 until size) {
-      randomness(i) = group.createRandomNumber
-      ciphertexts(i) = LiftedElGamalEnc.encrypt(publicKey, randomness(i), if (i == nonZeroPos) 1 else 0).get
+  protected def buildUnitVector(size: Int, nonZeroPos: Int): (Vector[ElGamalCiphertext], Vector[Randomness]) = {
+    val randomness = Vector.fill(size)(group.createRandomNumber)
+    val ciphertexts = randomness.zipWithIndex.map { case (r, i) =>
+      LiftedElGamalEnc.encrypt(publicKey, r, if (i == nonZeroPos) 1 else 0).get
     }
-
     (ciphertexts, randomness)
   }
 }

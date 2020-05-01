@@ -1,6 +1,7 @@
 package io.iohk.protocol.voting
 
 import io.iohk.core.crypto.encryption
+import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.protocol.CryptoContext
 import org.scalatest.FunSuite
 
@@ -30,5 +31,23 @@ class VoterTest extends FunSuite {
 
     assert(voter.verifyBallot(ballot))
     assert(ballot.unitVector.size == Voter.VOTER_CHOISES_NUM)
+  }
+
+  test("test zero knowledge proof for PrivateVoter ballot") {
+    val numberOfExperts = 6
+    val stake = 13
+
+    val voter = new PrivateVoter(ctx, numberOfExperts, pubKey, stake)
+    val ballot = voter.createBallot(0, Right(2)).get
+
+    require(ballot.verifyProofs(pubKey).isSuccess)
+    require(LiftedElGamalEnc.decrypt(privKey, ballot.encryptedStake).get == stake)
+    ballot.uVector.combine.zipWithIndex.foreach { case (v,i) =>
+      val r = LiftedElGamalEnc.decrypt(privKey, v).get
+      if (i == 2) require(r == 1)
+      else require(r == 0)
+    }
+
+
   }
 }

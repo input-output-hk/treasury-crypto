@@ -6,26 +6,23 @@ import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.Serializer
 import io.iohk.protocol.nizk.shvzk.{SHVZKProof, SHVZKProofSerializer}
 import io.iohk.protocol.voting.Voter
+import io.iohk.protocol.voting.ballots.Ballot.BallotTypes
 
 import scala.util.Try
 
 case class ExpertBallot(
   proposalId: Int,
   expertId: Int,
-  uvChoice: Array[ElGamalCiphertext],
+  uvChoice: Vector[ElGamalCiphertext],
   proof: SHVZKProof
 ) extends Ballot {
 
   override type M = Ballot
   override val serializer = BallotSerializer
 
-  override val ballotTypeId: Byte = ExpertBallot.BallotTypeId
+  override val ballotTypeId: Byte = BallotTypes.Expert.id.toByte
 
-  def unitVector: Array[ElGamalCiphertext] = uvChoice
-}
-
-object ExpertBallot {
-  val BallotTypeId = 2.toByte
+  def unitVector: Vector[ElGamalCiphertext] = uvChoice
 }
 
 object ExpertBallotSerializer extends Serializer[ExpertBallot, DiscreteLogGroup] {
@@ -59,6 +56,6 @@ object ExpertBallotSerializer extends Serializer[ExpertBallot, DiscreteLogGroup]
     val proofLen = Ints.fromByteArray(bytes.slice(position, position+4))
     val proof = SHVZKProofSerializer.parseBytes(bytes.slice(position+4, position+4+proofLen), decoder).get
 
-    ExpertBallot(proposalId, expertId, uvChoice, proof)
+    ExpertBallot(proposalId, expertId, uvChoice.toVector, proof)
   }
 }

@@ -35,7 +35,7 @@ object MultRelationNIZK {
     *                             needed to produce V)
     * @return MultRelationNIZKProof
     */
-  def produceNIZK(pubKey: PubKey, encryptedValue: ElGamalCiphertext, unitVector: Seq[BigInt],
+  def produceNIZK(pubKey: PubKey, encryptedValue: ElGamalCiphertext, unitVector: Seq[Int],
                   unitVectorRandomness: Seq[Randomness], zeroVectorRandomness: Seq[Randomness])
                  (implicit dlogGroup: DiscreteLogGroup, hashFunction: CryptographicHash): Try[MultRelationNIZKProof] = Try {
     require(unitVector.size == unitVectorRandomness.size)
@@ -115,7 +115,7 @@ object MultRelationNIZK {
     check1 && check2
   }.getOrElse(false)
 
-  def produceEncryptedUnitVectorWithValue(pubKey: PubKey, encryptedValue: ElGamalCiphertext, unitVector: Seq[BigInt])
+  def produceEncryptedUnitVectorWithValue(pubKey: PubKey, encryptedValue: ElGamalCiphertext, unitVector: Seq[Int])
                                          (implicit dlogGroup: DiscreteLogGroup): Seq[(ElGamalCiphertext, Randomness)] = {
 
     require(unitVector.count(_.equals(1)) == 1)

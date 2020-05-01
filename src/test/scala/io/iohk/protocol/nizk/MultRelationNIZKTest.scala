@@ -21,7 +21,7 @@ class MultRelationNIZKTest extends FunSuite with TableDrivenPropertyChecks {
   private val value = BigInt(111)
   private val encryptedValue = LiftedElGamalEnc.encrypt(pubKey, value).get._1
 
-  private def encryptUnitVector(uv: Array[BigInt]): Seq[(ElGamalCiphertext, Randomness)] = {
+  private def encryptUnitVector(uv: Array[Int]): Seq[(ElGamalCiphertext, Randomness)] = {
     uv.map { x =>
       val r = dlogGroup.createRandomNumber
       (LiftedElGamalEnc.encrypt(pubKey, r, x).get, r)
@@ -29,7 +29,7 @@ class MultRelationNIZKTest extends FunSuite with TableDrivenPropertyChecks {
   }
 
   private def doValueTest(value: BigInt): Unit = {
-    val unitVector = Array[BigInt](0, 0, 1)
+    val unitVector = Array(0, 0, 1)
     val encryptedValue_ = LiftedElGamalEnc.encrypt(pubKey, value).get
 
     val encryptedUnitVectorWithValue = MultRelationNIZK.produceEncryptedUnitVectorWithValue(pubKey, encryptedValue_._1, unitVector)
@@ -56,7 +56,7 @@ class MultRelationNIZKTest extends FunSuite with TableDrivenPropertyChecks {
   }
 
   test("test for valid proof") {
-    val unitVector = Array[BigInt](0, 0, 1)
+    val unitVector = Array(0, 0, 1)
 
     val encryptedUnitVector = encryptUnitVector(unitVector)
     val encryptedUnitVectorWithValue = MultRelationNIZK.produceEncryptedUnitVectorWithValue(pubKey, encryptedValue, unitVector)
@@ -74,7 +74,7 @@ class MultRelationNIZKTest extends FunSuite with TableDrivenPropertyChecks {
   }
 
   test("test invalid proof") {
-    val unitVector = Array[BigInt](0, 0, 1)
+    val unitVector = Array(0, 0, 1)
 
     val encryptedUnitVector = encryptUnitVector(unitVector)
     val encryptedUnitVectorWithValue = MultRelationNIZK.produceEncryptedUnitVectorWithValue(pubKey, encryptedValue, unitVector)
@@ -122,7 +122,7 @@ class MultRelationNIZKTest extends FunSuite with TableDrivenPropertyChecks {
   }
 
   test("serialization") {
-    val unitVector = Array[BigInt](0, 0, 1)
+    val unitVector = Array(0, 0, 1)
 
     val encryptedUnitVector = encryptUnitVector(unitVector)
     val encryptedUnitVectorWithValue = MultRelationNIZK.produceEncryptedUnitVectorWithValue(pubKey, encryptedValue, unitVector)

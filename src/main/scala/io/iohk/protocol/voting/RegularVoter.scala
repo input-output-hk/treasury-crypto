@@ -18,8 +18,8 @@ class RegularVoter(override val ctx: CryptoContext,
       case VotingOptions.Abstain  => 2
     }
 
-    val (uvDelegVector, uvDelegRand) = produceUnitVector(expertsNum, -1)
-    val (uvChoiceVector, uvChoiceRand) = produceUnitVector(Voter.VOTER_CHOISES_NUM, nonZeroPos)
+    val (uvDelegVector, uvDelegRand) = buildUnitVector(expertsNum, -1)
+    val (uvChoiceVector, uvChoiceRand) = buildUnitVector(Voter.VOTER_CHOISES_NUM, nonZeroPos)
     val proof =
       if (withProof)
         new SHVZKGen(publicKey, uvDelegVector ++ uvChoiceVector,
@@ -32,8 +32,8 @@ class RegularVoter(override val ctx: CryptoContext,
   def produceDelegatedVote(proposalID: Int, delegate: Int, withProof: Boolean = true): VoterBallot = {
     assert(delegate >= 0 && delegate < expertsNum)
 
-    val (uvDelegVector, uvDelegRand) = produceUnitVector(expertsNum, delegate)
-    val (uvChoiceVector, uvChoiceRand) = produceUnitVector(Voter.VOTER_CHOISES_NUM, -1)
+    val (uvDelegVector, uvDelegRand) = buildUnitVector(expertsNum, delegate)
+    val (uvChoiceVector, uvChoiceRand) = buildUnitVector(Voter.VOTER_CHOISES_NUM, -1)
     val proof =
       if (withProof)
         new SHVZKGen(publicKey, uvDelegVector ++ uvChoiceVector, delegate, uvDelegRand ++ uvChoiceRand).produceNIZK().get

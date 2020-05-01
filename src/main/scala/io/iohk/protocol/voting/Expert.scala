@@ -17,7 +17,7 @@ case class Expert(override val ctx: CryptoContext,
       case VotingOptions.Abstain  => 2
     }
 
-    val (uvChoiceVector, uvChoiceRand) = produceUnitVector(Voter.VOTER_CHOISES_NUM, nonZeroPos)
+    val (uvChoiceVector, uvChoiceRand) = buildUnitVector(Voter.VOTER_CHOISES_NUM, nonZeroPos)
     val proof =
       if (withProof)
         new SHVZKGen(publicKey, uvChoiceVector, nonZeroPos, uvChoiceRand).produceNIZK().get
