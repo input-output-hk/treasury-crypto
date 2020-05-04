@@ -1,28 +1,18 @@
 package io.iohk.protocol.voting
 
-import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
-import io.iohk.core.crypto.encryption.{PubKey, Randomness}
-import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.nizk.shvzk.SHVZKVerifier
+import io.iohk.core.crypto.encryption.PubKey
+import io.iohk.protocol.ProtocolContext
 import io.iohk.protocol.voting.ballots.Ballot
 
-abstract class Voter(val ctx: CryptoContext) {
+abstract class Voter(val pctx: ProtocolContext) {
 
-  protected implicit val group = ctx.group
-  protected implicit val hash = ctx.hash
+  protected implicit val group = pctx.cryptoContext.group
+  protected implicit val hash = pctx.cryptoContext.hash
 
   def publicKey: PubKey
 
   def verifyBallot(ballot: Ballot): Boolean = {
-    new SHVZKVerifier(publicKey, ballot.unitVector, ballot.proof).verifyProof()
-  }
-
-  protected def buildUnitVector(size: Int, nonZeroPos: Int): (Vector[ElGamalCiphertext], Vector[Randomness]) = {
-    val randomness = Vector.fill(size)(group.createRandomNumber)
-    val ciphertexts = randomness.zipWithIndex.map { case (r, i) =>
-      LiftedElGamalEnc.encrypt(publicKey, r, if (i == nonZeroPos) 1 else 0).get
-    }
-    (ciphertexts, randomness)
+    ballot.verifyBallot(pctx, publicKey).isSuccess
   }
 }
 

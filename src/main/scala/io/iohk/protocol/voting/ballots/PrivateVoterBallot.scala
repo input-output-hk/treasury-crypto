@@ -1,18 +1,21 @@
 package io.iohk.protocol.voting.ballots
 
+import com.google.common.primitives.{Bytes, Ints, Shorts}
 import io.iohk.core.crypto.encryption.PubKey
-import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
-import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
+import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalCiphertextSerializer, LiftedElGamalEnc}
+import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHash
-import io.iohk.protocol.nizk.shvzk.{SHVZKProof, SHVZKVerifier}
-import io.iohk.protocol.nizk.unitvectornizk.MultRelationNIZK
+import io.iohk.core.serialization.Serializer
+import io.iohk.protocol.ProtocolContext
+import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKProofSerializer, SHVZKVerifier}
+import io.iohk.protocol.nizk.unitvectornizk.{MultRelationNIZK, MultRelationNIZKProofSerializer}
 import io.iohk.protocol.nizk.unitvectornizk.MultRelationNIZK.MultRelationNIZKProof
-import io.iohk.protocol.voting.UnitVector
+import io.iohk.protocol.voting.{UnitVector, Voter, VotingOptions}
 import io.iohk.protocol.voting.ballots.Ballot.BallotTypes
 
 import scala.util.Try
 
-case class PrivateVoterBallot(proposalId: Int,
+case class PrivateVoterBallot(override val proposalId: Int,
                               uVector: UnitVector,
                               vVector: UnitVector,
                               uProof: Option[SHVZKProof],
@@ -23,14 +26,150 @@ case class PrivateVoterBallot(proposalId: Int,
   override type M = Ballot
   override val serializer = BallotSerializer
 
-  override def ballotTypeId: Byte = BallotTypes.PrivateVoter.id.toByte
+  override val ballotTypeId: Byte = BallotTypes.PrivateVoter.id.toByte
 
-  def unitVector: Vector[ElGamalCiphertext] = uVector.combine
-  def proof = uProof.get
+  override def verifyBallot(pctx: ProtocolContext, pubKey: PubKey): Try[Unit] = Try {
+    import pctx.cryptoContext.{group,hash}
+    require(uVector.delegations.size == pctx.numberOfExperts)
+    require(uVector.choice.size == pctx.numberOfChoices)
+    require(vVector.delegations.size == pctx.numberOfExperts)
+    require(vVector.choice.size == pctx.numberOfChoices)
 
-  def verifyProofs(pubKey: PubKey)
-                  (implicit group: DiscreteLogGroup, hash: CryptographicHash): Try[Unit] = Try {
     require(new SHVZKVerifier(pubKey, uVector.combine, uProof.get).verifyProof())
     require(MultRelationNIZK.verifyNIZK(pubKey, encryptedStake, uVector.combine, vVector.combine, vProof.get))
+  }
+}
+
+object PrivateVoterBallot {
+  /**
+    *
+    * @param proposalID
+    * @param vote either VotingOptions (in case a voter votes directly) or expert id (in case delegation)
+    * @param withProof
+    * @return
+    */
+  def createBallot(pctx: ProtocolContext,
+                   proposalID: Int,
+                   vote: Int,
+                   ballotEncryptionKey: PubKey,
+                   stake: BigInt,
+                   withProof: Boolean = true): Try[PrivateVoterBallot] = Try {
+    import pctx.cryptoContext.{group,hash}
+    require(vote >= 0 && vote < pctx.numberOfChoices + pctx.numberOfExperts, "Invalid vote!")
+    require(stake > 0, "Invalid stake amount!")
+
+    val encryptedStake = LiftedElGamalEnc.encrypt(ballotEncryptionKey, stake).get._1
+
+    // Step 1: building encrypted unit vector of voter's preference
+    val (u, uRand) = Ballot.buildEncryptedUnitVector(pctx.numberOfExperts + pctx.numberOfChoices, vote, ballotEncryptionKey)
+    val (uDeleg, uChoice) = u.splitAt(pctx.numberOfExperts)
+    val uVector = UnitVector(uDeleg, uChoice)
+    val uProof =
+      if (withProof)
+        Some(new SHVZKGen(ballotEncryptionKey, u, vote, uRand).produceNIZK().get)
+      else None
+
+    // Step 2: building a vector of (a^e_i)*Enc(0), where 'a' is an encrypted stake and 'e_i' is a corresponding bit of a unit vector
+    val plainUnitVector = Array.fill(u.size)(0)
+    plainUnitVector(vote) = 1
+
+    val vRand = Vector.fill(u.size)(group.createRandomNumber)
+    val v = vRand.zip(plainUnitVector).map { case (r,bit) =>
+      val st = encryptedStake.pow(bit).get
+      val encryptedZero = LiftedElGamalEnc.encrypt(ballotEncryptionKey, r, 0).get
+      st.multiply(encryptedZero).get
+    }
+    val vProof =
+      if (withProof)
+        Some(MultRelationNIZK.produceNIZK(ballotEncryptionKey, encryptedStake, plainUnitVector, uRand, vRand).get)
+      else None
+    val (vDeleg, vChoice) = v.splitAt(pctx.numberOfExperts)
+    val vVector = UnitVector(vDeleg, vChoice)
+
+    PrivateVoterBallot(proposalID, uVector, vVector, uProof, vProof, encryptedStake)
+  }
+}
+
+/* BallotSerializer should be used to deserialize PrivateVoterBallot */
+private[voting] object PrivateVoterBallotSerializer extends Serializer[PrivateVoterBallot, DiscreteLogGroup] {
+
+  override def toBytes(ballot: PrivateVoterBallot): Array[Byte] = {
+    val uBytes = ballot.uVector.combine.foldLeft(Array[Byte]()) { (acc, b) =>
+      val bytes = b.bytes
+      Bytes.concat(acc, Array(bytes.length.toByte), bytes)
+    }
+    val uProofBytes = ballot.uProof.map(_.bytes).getOrElse(Array[Byte]())
+
+    val vBytes = ballot.vVector.combine.foldLeft(Array[Byte]()) { (acc, b) =>
+      val bytes = b.bytes
+      Bytes.concat(acc, Array(bytes.length.toByte), bytes)
+    }
+    val vProofBytes = ballot.vProof.map(_.bytes).getOrElse(Array[Byte]())
+
+    val stakeBytes = ballot.encryptedStake.bytes
+
+    Bytes.concat(
+      Ints.toByteArray(ballot.proposalId),
+      Shorts.toByteArray(ballot.uVector.delegations.length.toShort), // we store only the size of 'u' vector because 'u' and 'v' should have equal size
+      Shorts.toByteArray(ballot.uVector.choice.length.toShort),
+      uBytes,
+      vBytes,
+      Ints.toByteArray(uProofBytes.length), uProofBytes,
+      Ints.toByteArray(vProofBytes.length), vProofBytes,
+      Array(stakeBytes.length.toByte), stakeBytes
+    )
+  }
+
+  override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[PrivateVoterBallot] = Try {
+    val proposalId = Ints.fromByteArray(bytes.slice(0,4))
+    val uDelegVectorLen = Shorts.fromByteArray(bytes.slice(4,6))    // 'v' vector should have the same size
+    val uChoiceVectorLen = Shorts.fromByteArray(bytes.slice(6,8))
+    var position = 8
+
+    val uVector: Vector[ElGamalCiphertext] = (0 until uDelegVectorLen + uChoiceVectorLen).map { _ =>
+      val len = bytes(position)
+      val c = ElGamalCiphertextSerializer.parseBytes(bytes.slice(position+1, position+1+len), decoder).get
+      position = position + len + 1
+      c
+    }.toVector
+    val (uDelegations, uChoices) = uVector.splitAt(uDelegVectorLen)
+
+    val vVector: Vector[ElGamalCiphertext] = (0 until uDelegVectorLen + uChoiceVectorLen).map { _ =>
+      val len = bytes(position)
+      val c = ElGamalCiphertextSerializer.parseBytes(bytes.slice(position+1, position+1+len), decoder).get
+      position = position + len + 1
+      c
+    }.toVector
+    val (vDelegations, vChoices) = vVector.splitAt(uDelegVectorLen)
+
+    val uProofLen = Ints.fromByteArray(bytes.slice(position, position+4))
+    position += 4
+    val uProof = uProofLen match {
+      case 0 => None
+      case _ => {
+        position += uProofLen
+        Some(SHVZKProofSerializer.parseBytes(bytes.slice(position - uProofLen, position), decoder).get)
+      }
+    }
+
+    val vProofLen = Ints.fromByteArray(bytes.slice(position, position+4))
+    position += 4
+    val vProof = vProofLen match {
+      case 0 => None
+      case _ => {
+        position += vProofLen
+        Some(MultRelationNIZKProofSerializer.parseBytes(bytes.slice(position - vProofLen, position), decoder).get)
+      }
+    }
+
+    val stakeLen = bytes(position)
+    val encryptedStake = ElGamalCiphertextSerializer.parseBytes(bytes.slice(position+1, position+1+stakeLen), decoder).get
+
+    PrivateVoterBallot(proposalId,
+                      UnitVector(uDelegations, uChoices),
+                      UnitVector(vDelegations, vChoices),
+                      uProof,
+                      vProof,
+                      encryptedStake)
   }
 }

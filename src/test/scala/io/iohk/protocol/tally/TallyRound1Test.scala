@@ -1,7 +1,7 @@
 package io.iohk.protocol.tally
 
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
-import io.iohk.protocol.CommitteeIdentifier
+import io.iohk.protocol.{CommitteeIdentifier, ProtocolContext}
 import io.iohk.protocol.tally.Tally.Stages
 import io.iohk.protocol.tally.datastructures.DecryptionShare
 import io.iohk.protocol.voting.{RegularVoter, VotingOptions}
@@ -80,10 +80,11 @@ class TallyRound1Test extends FunSuite with TallyTestSetup {
     val numberOfExperts = 0
     val numberOfVoters = 5
     val numberOfProposals = 3
+    val pctx = new ProtocolContext(ctx, 3, numberOfExperts)
 
     val (privKey, pubKey) = TallyTest.generateCommitteeKeys(1).head
     val committeeIdentifier = new CommitteeIdentifier(Seq(pubKey))
-    val voter = new RegularVoter(ctx, numberOfExperts, pubKey, 2)
+    val voter = new RegularVoter(pctx, pubKey, 2)
     val summator = new BallotsSummator(ctx, numberOfExperts)
 
     for(i <- 0 until numberOfVoters) {

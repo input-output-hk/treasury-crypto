@@ -15,27 +15,24 @@ class BallotCreationPerformance {
     for (experts <- numberOfExperts) {
       println("Running test for " + experts + " experts ...")
 
-      val voter = new RegularVoter(ctx, experts, pubKey, 1)
-      val expert = new Expert(ctx, 0, pubKey)
+      val pctx = new ProtocolContext(ctx, 3, experts)
+      val voter = new RegularVoter(pctx, pubKey,1)
+      val expert = new Expert(pctx,0, pubKey)
 
       TimeUtils.accurate_time("\tVoter ballot creation: ", voter.produceVote(0, VotingOptions.Yes))
 
       val ballot = voter.produceVote(0, VotingOptions.Yes)
-      val ballotSize = ballot.unitVector.foldLeft(0) {
-        (acc, c) => acc + c.bytes.size
-      }
+      val ballotSize = ballot.bytes.size
 
       println("\tVoter ballot size: " + ballotSize + " bytes")
-      println("\tVoter ballot proof size: " + ballot.proof.size + " bytes")
+      println("\tVoter ballot proof size: " + ballot.uProof.size + " bytes")
 
       TimeUtils.accurate_time("\tExpert ballot creation: ", expert.produceVote(0, VotingOptions.Yes))
 
       val exballot = expert.produceVote(0, VotingOptions.Yes)
-      val exballotSize = exballot.unitVector.foldLeft(0) {
-        (acc, c) => acc + c.bytes.size
-      }
+      val exballotSize = exballot.bytes
       println("\tExpert ballot size: " + exballotSize + " bytes")
-      println("\tExpert ballot proof size: " + exballot.proof.size + " bytes")
+      println("\tExpert ballot proof size: " + exballot.uProof.size + " bytes")
     }
   }
 }

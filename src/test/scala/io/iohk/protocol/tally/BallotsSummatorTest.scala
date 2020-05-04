@@ -2,7 +2,7 @@ package io.iohk.protocol.tally
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
-import io.iohk.protocol.CryptoContext
+import io.iohk.protocol.{CryptoContext, ProtocolContext}
 import io.iohk.protocol.voting.{Expert, RegularVoter, VotingOptions}
 import org.scalatest.FunSuite
 
@@ -13,11 +13,12 @@ class BallotsSummatorTest extends FunSuite {
   val (privKey, pubKey) = encryption.createKeyPair.get
 
   test("voter ballots summation, when voters vote directly") {
-    val numberOfExperts = 6
     val numberOfVoters = 10
+    val numberOfExperts = 6
     val stake = 3
-    val voter = new RegularVoter(ctx, numberOfExperts, pubKey, stake)
-    val summator = new BallotsSummator(ctx, numberOfExperts)
+    val pctx = new ProtocolContext(ctx, 3, numberOfExperts)
+    val voter = new RegularVoter(pctx, pubKey, stake)
+    val summator = new BallotsSummator(ctx, pctx.numberOfExperts)
 
     for(i <- 1 to numberOfVoters) {
       summator.addVoterBallot(voter.produceVote(0, VotingOptions.Yes))
@@ -52,7 +53,8 @@ class BallotsSummatorTest extends FunSuite {
   test("voter ballots summation, when voters delegate") {
     val numberOfExperts = 8
     val numberOfVoters = 13
-    val voter = new RegularVoter(ctx, numberOfExperts, pubKey, 2)
+    val pctx = new ProtocolContext(ctx, 3, numberOfExperts)
+    val voter = new RegularVoter(pctx, pubKey, 2)
     val summator = new BallotsSummator(ctx, numberOfExperts)
 
     for(i <- 1 to numberOfVoters) {
@@ -86,7 +88,8 @@ class BallotsSummatorTest extends FunSuite {
 
   test("expert ballots summation") {
     val numberOfExperts = 6
-    val expert = new Expert(ctx, numberOfExperts, pubKey)
+    val pctx = new ProtocolContext(ctx, 3, numberOfExperts)
+    val expert = new Expert(pctx, 0, pubKey)
     val summator = new BallotsSummator(ctx, numberOfExperts)
 
     for(i <- 1 to numberOfExperts) {

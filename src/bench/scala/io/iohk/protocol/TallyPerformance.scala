@@ -18,6 +18,7 @@ class TallyPerformance {
 
     val numberOfExperts = 100
     val numberOfVoters = 1000
+    val pctx = new ProtocolContext(ctx, 3, numberOfExperts)
 
     println("Commitee members:\t" + commiteeMembersNum)
     println("Commitee violators:\t" + violatorsNum + " (" + violatorsPercentage + "%)")
@@ -39,9 +40,9 @@ class TallyPerformance {
     val (sharedPubKey, dkgR1DataAll) = ProtocolTest.runDistributedKeyGeneration(ctx, committeeMembersAll)
 
     val voterBallots = for (i <- 0 until numberOfVoters) yield
-      new RegularVoter(ctx, numberOfExperts, sharedPubKey, 1).produceVote(0, VotingOptions.Yes, false)
+      new RegularVoter(pctx, sharedPubKey,1).produceVote(0, VotingOptions.Yes, false)
     val expertBallots = for (i <- 0 until numberOfExperts) yield
-      new Expert(ctx, i, sharedPubKey).produceVote(0, VotingOptions.Yes, false)
+      new Expert(pctx, i, sharedPubKey).produceVote(0, VotingOptions.Yes, false)
 
     var overallBytes: Int = 0
     val committeeMembersActive = committeeMembersAll.drop(violatorsNum)

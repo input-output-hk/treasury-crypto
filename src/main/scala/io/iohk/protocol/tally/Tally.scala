@@ -215,7 +215,7 @@ class Tally(ctx: CryptoContext,
       val delegatedStake = delegationsDecrypted.get(proposalId).map(v => v(ballot.expertId)).getOrElse(BigInt(0))
 
       for (i <- 0 until updatedChoices.size) {
-        val weightedVote = ballot.uvChoice(i).pow(delegatedStake).get
+        val weightedVote = ballot.uChoiceVector(i).pow(delegatedStake).get
         updatedChoices(i) = updatedChoices(i).multiply(weightedVote).get
       }
       acc + (proposalId -> updatedChoices)
