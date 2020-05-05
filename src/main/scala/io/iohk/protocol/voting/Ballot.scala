@@ -1,4 +1,4 @@
-package io.iohk.protocol.voting.ballots
+package io.iohk.protocol.voting
 
 import com.google.common.primitives.Bytes
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
@@ -6,7 +6,7 @@ import io.iohk.core.crypto.encryption.{PubKey, Randomness}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.protocol.ProtocolContext
-import io.iohk.protocol.voting.ballots.Ballot.BallotTypes
+import io.iohk.protocol.voting.Ballot.BallotTypes
 
 import scala.util.Try
 
@@ -26,7 +26,7 @@ object Ballot {
     val Voter, Expert, PrivateVoter = Value
   }
 
-  private[ballots] def buildEncryptedUnitVector(size: Int, nonZeroPos: Int, key: PubKey)
+  def buildEncryptedUnitVector(size: Int, nonZeroPos: Int, key: PubKey)
                                                (implicit group: DiscreteLogGroup)
   : (Vector[ElGamalCiphertext], Vector[Randomness]) = {
     val randomness = Vector.fill(size)(group.createRandomNumber)

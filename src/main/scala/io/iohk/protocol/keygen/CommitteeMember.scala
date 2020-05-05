@@ -9,8 +9,8 @@ import io.iohk.protocol.keygen.datastructures.round5_1.R5_1Data
 import io.iohk.protocol.keygen.datastructures.round5_2.R5_2Data
 import io.iohk.protocol.tally.datastructures.{TallyR1Data, TallyR2Data, TallyR3Data, TallyR4Data}
 import io.iohk.protocol.tally.{BallotsSummator, Tally}
-import io.iohk.protocol.voting.ballots.{ExpertBallot, VoterBallot}
-import io.iohk.protocol.{CommitteeIdentifier, CryptoContext, ProtocolContext}
+import io.iohk.protocol.voting.{ExpertBallot, VoterBallot}
+import io.iohk.protocol.{CommitteeIdentifier, ProtocolContext}
 
 import scala.util.Try
 
@@ -36,7 +36,7 @@ class CommitteeMember(val ctx: ProtocolContext,
                       val transportKeyPair: KeyPair,
                       val committeeMembersPubKeys: Seq[PubKey],
                       roundsData: RoundsData = RoundsData()) {
-  import ctx.cryptoContext.{group,hash}
+  import ctx.cryptoContext.{group, hash}
 
   val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
 

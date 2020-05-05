@@ -10,7 +10,7 @@ import io.iohk.protocol.nizk.ElgamalDecrNIZK
 import io.iohk.protocol.storage.RoundsDataStorage
 import io.iohk.protocol.tally.Tally.{Result, Stages}
 import io.iohk.protocol.tally.datastructures._
-import io.iohk.protocol.voting.ballots.ExpertBallot
+import io.iohk.protocol.voting.ExpertBallot
 import io.iohk.protocol.{Identifier, ProtocolContext}
 
 import scala.util.Try

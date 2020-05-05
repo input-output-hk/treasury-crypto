@@ -3,12 +3,11 @@ package io.iohk.protocol.voting
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.protocol.{CryptoContext, ProtocolContext}
-import io.iohk.protocol.voting.ballots.{BallotSerializer, PrivateStakeBallot}
 import org.scalatest.FunSuite
 
 class PrivateStakeBallotTest extends FunSuite {
   val ctx = new CryptoContext(None)
-  import ctx.{group}
+  import ctx.group
 
   val (privKey, pubKey) = encryption.createKeyPair.get
 

@@ -2,7 +2,7 @@ package io.iohk.protocol.tally
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
-import io.iohk.protocol.voting.ballots.{ExpertBallot, PrivateStakeBallot, PublicStakeBallot}
+import io.iohk.protocol.voting.{ExpertBallot, PrivateStakeBallot, PublicStakeBallot}
 import io.iohk.protocol.{CryptoContext, ProtocolContext}
 import org.scalatest.FunSuite
 

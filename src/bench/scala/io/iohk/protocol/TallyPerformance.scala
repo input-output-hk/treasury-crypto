@@ -4,7 +4,7 @@ import io.iohk.core.crypto.encryption
 import io.iohk.core.utils.TimeUtils
 import io.iohk.protocol.integration.ProtocolTest
 import io.iohk.protocol.keygen._
-import io.iohk.protocol.voting.ballots.{ExpertBallot, PublicStakeBallot}
+import io.iohk.protocol.voting.{ExpertBallot, PublicStakeBallot}
 
 class TallyPerformance {
 

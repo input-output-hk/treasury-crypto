@@ -3,7 +3,7 @@ package io.iohk.protocol.tally
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.protocol.tally.Tally.Stages
 import io.iohk.protocol.tally.datastructures.DecryptionShare
-import io.iohk.protocol.voting.ballots.PublicStakeBallot
+import io.iohk.protocol.voting.PublicStakeBallot
 import io.iohk.protocol.{CommitteeIdentifier, ProtocolContext}
 import org.scalatest.FunSuite
 

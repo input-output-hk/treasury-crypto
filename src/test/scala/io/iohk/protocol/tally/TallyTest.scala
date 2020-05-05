@@ -5,7 +5,7 @@ import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGrou
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, DiscreteLogGroupFactory}
 import io.iohk.protocol.keygen.{DistrKeyGen, RoundsData}
 import io.iohk.protocol.storage.RoundsDataInMemoryStorage
-import io.iohk.protocol.voting.ballots.{ExpertBallot, PublicStakeBallot}
+import io.iohk.protocol.voting.{ExpertBallot, PublicStakeBallot}
 import io.iohk.protocol.{CommitteeIdentifier, CryptoContext, ProtocolContext}
 import org.scalatest.FunSuite
 

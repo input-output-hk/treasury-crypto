@@ -2,7 +2,7 @@ package io.iohk.protocol.tally
 
 import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
 import io.iohk.protocol.ProtocolContext
-import io.iohk.protocol.voting.ballots.{ExpertBallot, VoterBallot}
+import io.iohk.protocol.voting.{ExpertBallot, VoterBallot}
 
 import scala.util.Try
 

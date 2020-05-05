@@ -1,4 +1,4 @@
-package io.iohk.protocol.voting.ballots
+package io.iohk.protocol.voting
 
 import com.google.common.primitives.{Bytes, Ints, Shorts}
 import io.iohk.core.crypto.encryption.PubKey
@@ -7,7 +7,7 @@ import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.Serializer
 import io.iohk.protocol.ProtocolContext
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKProofSerializer, SHVZKVerifier}
-import io.iohk.protocol.voting.ballots.Ballot.BallotTypes
+import io.iohk.protocol.voting.Ballot.BallotTypes
 
 import scala.util.Try
 

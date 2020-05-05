@@ -2,7 +2,6 @@ package io.iohk.protocol.voting
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
-import io.iohk.protocol.voting.ballots.{BallotSerializer, PublicStakeBallot}
 import io.iohk.protocol.{CryptoContext, ProtocolContext}
 import org.scalatest.FunSuite
 

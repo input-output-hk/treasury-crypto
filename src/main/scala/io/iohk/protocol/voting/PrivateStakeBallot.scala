@@ -1,17 +1,15 @@
-package io.iohk.protocol.voting.ballots
+package io.iohk.protocol.voting
 
 import com.google.common.primitives.{Bytes, Ints, Shorts}
 import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalCiphertextSerializer, LiftedElGamalEnc}
-import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
-import io.iohk.core.crypto.primitives.hash.CryptographicHash
+import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.Serializer
 import io.iohk.protocol.ProtocolContext
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKProofSerializer, SHVZKVerifier}
-import io.iohk.protocol.nizk.unitvectornizk.{MultRelationNIZK, MultRelationNIZKProofSerializer}
 import io.iohk.protocol.nizk.unitvectornizk.MultRelationNIZK.MultRelationNIZKProof
-import io.iohk.protocol.voting.{UnitVector, Voter, VotingOptions}
-import io.iohk.protocol.voting.ballots.Ballot.BallotTypes
+import io.iohk.protocol.nizk.unitvectornizk.{MultRelationNIZK, MultRelationNIZKProofSerializer}
+import io.iohk.protocol.voting.Ballot.BallotTypes
 
 import scala.util.Try
 
@@ -32,7 +30,7 @@ case class PrivateStakeBallot(override val proposalId: Int,
   override def weightedUnitVector(implicit g: DiscreteLogGroup) = vVector
 
   override def verifyBallot(pctx: ProtocolContext, pubKey: PubKey): Try[Unit] = Try {
-    import pctx.cryptoContext.{group,hash}
+    import pctx.cryptoContext.{group, hash}
     require(uVector.delegations.size == pctx.numberOfExperts)
     require(uVector.choice.size == pctx.numberOfChoices)
     require(vVector.delegations.size == pctx.numberOfExperts)
@@ -57,7 +55,7 @@ object PrivateStakeBallot {
                    ballotEncryptionKey: PubKey,
                    stake: BigInt,
                    withProof: Boolean = true): Try[PrivateStakeBallot] = Try {
-    import pctx.cryptoContext.{group,hash}
+    import pctx.cryptoContext.{group, hash}
     require(vote >= 0 && vote < pctx.numberOfChoices + pctx.numberOfExperts, "Invalid vote!")
     require(stake > 0, "Invalid stake amount!")
 

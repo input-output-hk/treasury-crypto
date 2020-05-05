@@ -1,8 +1,7 @@
 package io.iohk.protocol
 
 import io.iohk.core.utils.TimeUtils
-import io.iohk.protocol.voting.ballots.{ExpertBallot, PublicStakeBallot}
-import io.iohk.protocol.voting.{Expert, RegularVoter, VotingOptions}
+import io.iohk.protocol.voting.{ExpertBallot, PublicStakeBallot}
 
 /* Benchmarking ballot creation */
 class BallotCreationPerformance {

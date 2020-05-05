@@ -1,10 +1,9 @@
 package io.iohk.protocol.integration
 
 import io.iohk.core.crypto.encryption.PubKey
-import io.iohk.protocol.{CryptoContext, ProtocolContext}
 import io.iohk.protocol.tally.Tally.Result
-import io.iohk.protocol.voting.ballots.{Ballot, ExpertBallot, PrivateStakeBallot, PublicStakeBallot, VoterBallot}
-import io.iohk.protocol.voting.{Expert, RegularVoter, VotingOptions}
+import io.iohk.protocol.voting.{ExpertBallot, PrivateStakeBallot, PublicStakeBallot, VoterBallot}
+import io.iohk.protocol.{CryptoContext, ProtocolContext}
 
 import scala.util.Try
 

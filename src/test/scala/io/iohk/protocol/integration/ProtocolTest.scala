@@ -2,12 +2,12 @@ package io.iohk.protocol.integration
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.PubKey
-import io.iohk.protocol.{CryptoContext, ProtocolContext}
+import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen._
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.keygen.datastructures.round3.R3Data
 import io.iohk.protocol.tally.Tally.Result
-import io.iohk.protocol.voting.ballots.{ExpertBallot, PublicStakeBallot, VoterBallot}
+import io.iohk.protocol.voting.{ExpertBallot, VoterBallot}
 import org.scalatest.FunSuite
 
 import scala.util.Random
