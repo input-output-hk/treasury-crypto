@@ -4,7 +4,6 @@ import com.google.common.primitives.Bytes
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
 import io.iohk.core.crypto.encryption.{PubKey, Randomness}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
-import io.iohk.core.crypto.primitives.hash.CryptographicHash
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.protocol.ProtocolContext
 import io.iohk.protocol.voting.ballots.Ballot.BallotTypes
@@ -28,7 +27,7 @@ object Ballot {
   }
 
   private[ballots] def buildEncryptedUnitVector(size: Int, nonZeroPos: Int, key: PubKey)
-                                        (implicit group: DiscreteLogGroup)
+                                               (implicit group: DiscreteLogGroup)
   : (Vector[ElGamalCiphertext], Vector[Randomness]) = {
     val randomness = Vector.fill(size)(group.createRandomNumber)
     val ciphertexts = randomness.zipWithIndex.map { case (r, i) =>
@@ -40,15 +39,15 @@ object Ballot {
 
 object BallotSerializer extends Serializer[Ballot, DiscreteLogGroup] {
   override def toBytes(b: Ballot): Array[Byte] = b match {
-    case v: VoterBallot => Bytes.concat(Array(v.ballotTypeId), VoterBallotSerializer.toBytes(v))
+    case v: PublicStakeBallot => Bytes.concat(Array(v.ballotTypeId), PublicStakeBallotSerializer.toBytes(v))
     case e: ExpertBallot => Bytes.concat(Array(e.ballotTypeId), ExpertBallotSerializer.toBytes(e))
-    case pv: PrivateVoterBallot => Bytes.concat(Array(pv.ballotTypeId), PrivateVoterBallotSerializer.toBytes(pv))
+    case pv: PrivateStakeBallot => Bytes.concat(Array(pv.ballotTypeId), PrivateVoterBallotSerializer.toBytes(pv))
   }
 
   override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[Ballot] = Try {
     val ballotTypeId = bytes(0).toInt
     BallotTypes(ballotTypeId) match {
-      case BallotTypes.Voter => VoterBallotSerializer.parseBytes(bytes.drop(1), decoder).get
+      case BallotTypes.Voter => PublicStakeBallotSerializer.parseBytes(bytes.drop(1), decoder).get
       case BallotTypes.Expert => ExpertBallotSerializer.parseBytes(bytes.drop(1), decoder).get
       case BallotTypes.PrivateVoter => PrivateVoterBallotSerializer.parseBytes(bytes.drop(1), decoder).get
     }

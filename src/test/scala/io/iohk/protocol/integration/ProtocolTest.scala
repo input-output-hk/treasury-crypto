@@ -7,7 +7,7 @@ import io.iohk.protocol.keygen._
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.keygen.datastructures.round3.R3Data
 import io.iohk.protocol.tally.Tally.Result
-import io.iohk.protocol.voting.ballots.{ExpertBallot, VoterBallot}
+import io.iohk.protocol.voting.ballots.{ExpertBallot, PublicStakeBallot, VoterBallot}
 import org.scalatest.FunSuite
 
 import scala.util.Random
@@ -38,12 +38,13 @@ class ProtocolTest extends FunSuite {
     elections.verify(tallyResults)
   }
 
-  test("test protocol") {
+  test("test full protocol") {
     val crs = CryptoContext.generateRandomCRS
     val ctx = new CryptoContext(Option(crs))
 
-    require(doTest(ctx, ElectionsScenario1(ctx)))
-    require(doTest(ctx, ElectionsScenario2(ctx)))
+    require(doTest(ctx, new ElectionsScenario1(ctx)))
+    require(doTest(ctx, new ElectionsScenario2(ctx)))
+    require(doTest(ctx, new ElectionsScenario3(ctx)))
   }
 }
 

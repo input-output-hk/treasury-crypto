@@ -3,7 +3,7 @@ package io.iohk.protocol.integration
 import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.protocol.{CryptoContext, ProtocolContext}
 import io.iohk.protocol.tally.Tally.Result
-import io.iohk.protocol.voting.ballots.{Ballot, ExpertBallot, VoterBallot}
+import io.iohk.protocol.voting.ballots.{Ballot, ExpertBallot, PrivateStakeBallot, PublicStakeBallot, VoterBallot}
 import io.iohk.protocol.voting.{Expert, RegularVoter, VotingOptions}
 
 import scala.util.Try
@@ -14,13 +14,13 @@ trait Elections {
   def numberOfExperts: Int
 }
 
-case class ElectionsScenario1(ctx: CryptoContext) extends Elections {
+class ElectionsScenario1(ctx: CryptoContext) extends Elections {
   private val proposalID = 1
   private val votersNum = 2
   override val numberOfExperts = 2
   val pctx = new ProtocolContext(ctx, 3, numberOfExperts)
 
-  def run(sharedPubKey: PubKey): (Seq[VoterBallot], Seq[ExpertBallot]) = {
+  def run(sharedPubKey: PubKey): (Seq[PublicStakeBallot], Seq[ExpertBallot]) = {
     val votersBallots =
       for (voterId <- numberOfExperts until (numberOfExperts + votersNum)) yield {
         new RegularVoter(pctx, sharedPubKey, 3)
@@ -45,17 +45,17 @@ case class ElectionsScenario1(ctx: CryptoContext) extends Elections {
   }
 }
 
-case class ElectionsScenario2(ctx: CryptoContext) extends Elections
+class ElectionsScenario2(ctx: CryptoContext) extends Elections
 {
-  private val proposalIDs = Set(32, 48)
-  private val votersNum = 10
-  private val votersDelegatedNum = 20
-  override val numberOfExperts = 5
+  val proposalIDs = Set(32, 48)
+  val votersNum = 10
+  val votersDelegatedNum = 20
+  val numberOfExperts = 5
   val pctx = new ProtocolContext(ctx, 3, numberOfExperts)
 
   def run(sharedPubKey: PubKey): (Seq[VoterBallot], Seq[ExpertBallot]) =
   {
-    proposalIDs.foldLeft((Seq[VoterBallot](), Seq[ExpertBallot]())) { case ((vAcc, eAcc), proposalID) =>
+    proposalIDs.foldLeft((Seq[PublicStakeBallot](), Seq[ExpertBallot]())) { case ((vAcc, eAcc), proposalID) =>
       val votersBallots =
         for (voterId <- numberOfExperts until (numberOfExperts + votersNum)) yield {
           new RegularVoter(pctx, sharedPubKey, proposalID)
@@ -87,4 +87,28 @@ case class ElectionsScenario2(ctx: CryptoContext) extends Elections
     }
     true
   }.getOrElse(false)
+}
+
+/* Test an election with private stake ballots */
+class ElectionsScenario3(ctx: CryptoContext) extends ElectionsScenario2(ctx)
+{
+  override def run(sharedPubKey: PubKey): (Seq[PrivateStakeBallot], Seq[ExpertBallot]) =
+  {
+    proposalIDs.foldLeft((Seq[PrivateStakeBallot](), Seq[ExpertBallot]())) { case ((vAcc, eAcc), proposalID) =>
+      val votersBallots =
+        for (voterId <- numberOfExperts until (numberOfExperts + votersNum)) yield {
+          val vote = if (voterId % 2 == 1) pctx.numberOfExperts else pctx.numberOfExperts + 2
+          PrivateStakeBallot.createBallot(pctx, proposalID, vote, sharedPubKey, stake = proposalID).get
+        }
+
+      val votersDelegatedBallots = for (_ <- 0 until votersDelegatedNum) yield
+          PrivateStakeBallot.createBallot(pctx, proposalID, 0, sharedPubKey, stake = proposalID).get
+
+      val expertsBallots =
+        for (expertId <- 0 until numberOfExperts) yield
+          ExpertBallot.createBallot(pctx, proposalID, expertId, 1, sharedPubKey).get
+
+      (vAcc ++ votersBallots ++ votersDelegatedBallots) -> (eAcc ++ expertsBallots)
+    }
+  }
 }

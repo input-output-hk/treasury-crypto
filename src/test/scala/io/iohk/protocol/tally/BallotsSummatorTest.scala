@@ -2,6 +2,7 @@ package io.iohk.protocol.tally
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
+import io.iohk.protocol.voting.ballots.{PrivateStakeBallot, PublicStakeBallot}
 import io.iohk.protocol.{CryptoContext, ProtocolContext}
 import io.iohk.protocol.voting.{Expert, RegularVoter, VotingOptions}
 import org.scalatest.FunSuite
@@ -83,6 +84,52 @@ class BallotsSummatorTest extends FunSuite {
           case 22 => require(res == 0)
         }
       }
+    }
+  }
+
+  test("summation of private stake ballots") {
+    val pctx = new ProtocolContext(ctx, 3, 5)
+    val summator = new BallotsSummator(ctx, pctx.numberOfExperts)
+    val vote = 2
+    val stake = 13
+
+    val ballots = for (i <- 0 until 10) yield
+      PrivateStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get
+
+    ballots.foreach(summator.addVoterBallot(_))
+
+    require(summator.getChoicesSum.size == 1)
+    require(summator.getDelegationsSum.size == 1)
+
+    val fullVector = summator.getDelegationsSum(0) ++ summator.getChoicesSum(0)
+    fullVector.zipWithIndex.foreach { case (v, i) =>
+      val r = LiftedElGamalEnc.decrypt(privKey, v).get
+      if (i == vote) require(r == stake*10)
+      else require(r == 0)
+    }
+  }
+
+  test("summation of private and public stake ballots") {
+    val pctx = new ProtocolContext(ctx, 3, 5)
+    val summator = new BallotsSummator(ctx, pctx.numberOfExperts)
+    val vote = 2
+    val stake = 13
+
+    val publicBallots = for (i <- 0 until 10) yield
+      PublicStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get
+    val privateBallots = for (i <- 0 until 10) yield
+      PrivateStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get
+
+    (publicBallots ++ privateBallots).foreach(summator.addVoterBallot(_))
+
+    require(summator.getChoicesSum.size == 1)
+    require(summator.getDelegationsSum.size == 1)
+
+    val fullVector = summator.getDelegationsSum(0) ++ summator.getChoicesSum(0)
+    fullVector.zipWithIndex.foreach { case (v, i) =>
+      val r = LiftedElGamalEnc.decrypt(privKey, v).get
+      if (i == vote) require(r == stake*20)
+      else require(r == 0)
     }
   }
 

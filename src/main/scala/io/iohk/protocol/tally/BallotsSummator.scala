@@ -27,9 +27,8 @@ class BallotsSummator(ctx: CryptoContext,
   private var choicesSums: Map[Int, Vector[ElGamalCiphertext]] = Map()
 
   def addVoterBallot(ballot: VoterBallot): Try[BallotsSummator] = Try {
-    require(ballot.uVector.delegations.length == numberOfExperts, "Invalid voter ballot: invalid number of delegation bits in the unit vector")
-    require(ballot.uVector.choice.length == VotingOptions.values.size, "Invalid voter ballot: invalid number of choice bits in the unit vector")
-    require(ballot.stake > 0, "Invalid voter ballot: inconsistent stake")
+    require(ballot.weightedUnitVector.delegations.length == numberOfExperts, "Invalid voter ballot: invalid number of delegation bits in the unit vector")
+    require(ballot.weightedUnitVector.choice.length == VotingOptions.values.size, "Invalid voter ballot: invalid number of choice bits in the unit vector")
 
     val delegationsUnitVector = delegationsSums.getOrElse(ballot.proposalId,
       Vector.fill[ElGamalCiphertext](numberOfExperts)(neutralCiphertext))
@@ -37,11 +36,11 @@ class BallotsSummator(ctx: CryptoContext,
       Vector.fill[ElGamalCiphertext](VotingOptions.values.size)(neutralCiphertext))
 
     val updatedDelegationsVector = for(i <- delegationsUnitVector.indices.toVector) yield {
-      val weightedVote = ballot.uVector.delegations(i).pow(ballot.stake).get
+      val weightedVote = ballot.weightedUnitVector.delegations(i)
       delegationsUnitVector(i).multiply(weightedVote).get
     }
     val updatedChoicesVector = for(i <- choicesUnitVector.indices.toVector) yield {
-      val weightedVote = ballot.uVector.choice(i).pow(ballot.stake).get
+      val weightedVote = ballot.weightedUnitVector.choice(i)
       choicesUnitVector(i).multiply(weightedVote).get
     }
 
