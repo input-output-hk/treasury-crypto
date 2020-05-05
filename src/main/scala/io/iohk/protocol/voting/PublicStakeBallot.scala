@@ -11,13 +11,10 @@ import io.iohk.protocol.voting.Ballot.BallotTypes
 
 import scala.util.Try
 
-case class PublicStakeBallot(
-  override val proposalId: Int,
-  uVector: UnitVector,
-  uProof: Option[SHVZKProof],
-  stake: BigInt
-) extends VoterBallot {
-
+case class PublicStakeBallot(override val proposalId: Int,
+                             uVector: EncryptedUnitVector,
+                             uProof: Option[SHVZKProof],
+                             stake: BigInt) extends VoterBallot {
   override type M = Ballot
   override val serializer = BallotSerializer
 
@@ -25,8 +22,8 @@ case class PublicStakeBallot(
 
   def encryptedUnitVector = uVector
 
-  def weightedUnitVector(implicit group: DiscreteLogGroup): UnitVector = {
-    UnitVector(
+  def weightedUnitVector(implicit group: DiscreteLogGroup): EncryptedUnitVector = {
+    EncryptedUnitVector(
       uVector.delegations.map(v => v.pow(stake).get),
       uVector.choice.map(v => v.pow(stake).get)
     )
@@ -54,7 +51,7 @@ object PublicStakeBallot {
 
     val (u, uRand) = Ballot.buildEncryptedUnitVector(pctx.numberOfExperts + pctx.numberOfChoices, vote, ballotEncryptionKey)
     val (uDeleg, uChoice) = u.splitAt(pctx.numberOfExperts)
-    val uVector = UnitVector(uDeleg, uChoice)
+    val uVector = EncryptedUnitVector(uDeleg, uChoice)
     val uProof = withProof match {
       case true => Some(new SHVZKGen(ballotEncryptionKey, u, vote, uRand).produceNIZK().get)
       case _ => None
@@ -113,6 +110,6 @@ object PublicStakeBallotSerializer extends Serializer[PublicStakeBallot, Discret
     val stakeLen = bytes(position)
     val stake = BigInt(bytes.slice(position+1, position+1+stakeLen))
 
-    PublicStakeBallot(proposalId, UnitVector(uDelegations, uChoices), proof, stake)
+    PublicStakeBallot(proposalId, EncryptedUnitVector(uDelegations, uChoices), proof, stake)
   }
 }

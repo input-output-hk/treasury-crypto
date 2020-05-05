@@ -14,8 +14,8 @@ import io.iohk.protocol.voting.Ballot.BallotTypes
 import scala.util.Try
 
 case class PrivateStakeBallot(override val proposalId: Int,
-                              uVector: UnitVector,
-                              vVector: UnitVector,
+                              uVector: EncryptedUnitVector,
+                              vVector: EncryptedUnitVector,
                               uProof: Option[SHVZKProof],
                               vProof: Option[MultRelationNIZKProof],
                               encryptedStake: ElGamalCiphertext
@@ -64,7 +64,7 @@ object PrivateStakeBallot {
     // Step 1: building encrypted unit vector of voter's preference
     val (u, uRand) = Ballot.buildEncryptedUnitVector(pctx.numberOfExperts + pctx.numberOfChoices, vote, ballotEncryptionKey)
     val (uDeleg, uChoice) = u.splitAt(pctx.numberOfExperts)
-    val uVector = UnitVector(uDeleg, uChoice)
+    val uVector = EncryptedUnitVector(uDeleg, uChoice)
     val uProof =
       if (withProof)
         Some(new SHVZKGen(ballotEncryptionKey, u, vote, uRand).produceNIZK().get)
@@ -85,7 +85,7 @@ object PrivateStakeBallot {
         Some(MultRelationNIZK.produceNIZK(ballotEncryptionKey, encryptedStake, plainUnitVector, uRand, vRand).get)
       else None
     val (vDeleg, vChoice) = v.splitAt(pctx.numberOfExperts)
-    val vVector = UnitVector(vDeleg, vChoice)
+    val vVector = EncryptedUnitVector(vDeleg, vChoice)
 
     PrivateStakeBallot(proposalID, uVector, vVector, uProof, vProof, encryptedStake)
   }
@@ -167,8 +167,8 @@ private[voting] object PrivateVoterBallotSerializer extends Serializer[PrivateSt
     val encryptedStake = ElGamalCiphertextSerializer.parseBytes(bytes.slice(position+1, position+1+stakeLen), decoder).get
 
     PrivateStakeBallot(proposalId,
-                      UnitVector(uDelegations, uChoices),
-                      UnitVector(vDelegations, vChoices),
+                      EncryptedUnitVector(uDelegations, uChoices),
+                      EncryptedUnitVector(vDelegations, vChoices),
                       uProof,
                       vProof,
                       encryptedStake)
