@@ -4,7 +4,7 @@ import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
 
 package object voting {
 
-  object VotingOptions extends Enumeration {
+  private[voting] object VotingOptions extends Enumeration {
     val Yes, No, Abstain = Value
   }
 

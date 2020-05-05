@@ -15,7 +15,3 @@ abstract class Voter(val pctx: ProtocolContext) {
     ballot.verifyBallot(pctx, publicKey).isSuccess
   }
 }
-
-object Voter {
-  val VOTER_CHOISES_NUM = 3
-}

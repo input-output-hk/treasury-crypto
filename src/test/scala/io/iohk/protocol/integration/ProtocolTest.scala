@@ -2,7 +2,7 @@ package io.iohk.protocol.integration
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.PubKey
-import io.iohk.protocol.CryptoContext
+import io.iohk.protocol.{CryptoContext, ProtocolContext}
 import io.iohk.protocol.keygen._
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.keygen.datastructures.round3.R3Data
@@ -18,18 +18,18 @@ import scala.util.Random
   */
 class ProtocolTest extends FunSuite {
 
-  def doTest(ctx: CryptoContext, elections: Elections): Boolean = {
-    import ctx.group
+  def doTest(elections: Elections): Boolean = {
+    val ctx = elections.getContext
 
     // Generating keypairs for every commitee member
-    val keyPairs = Array.fill(20)(encryption.createKeyPair.get)
+    val keyPairs = Array.fill(20)(encryption.createKeyPair(ctx.cryptoContext.group).get)
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     // Instantiating committee members
-    val committeeMembers = keyPairs.map(k => new CommitteeMember(ctx, k, committeeMembersPubKeys, elections.numberOfExperts))
+    val committeeMembers = keyPairs.map(k => new CommitteeMember(ctx, k, committeeMembersPubKeys))
 
     // Generating shared public key by running the DKG protocol among committee members
-    val (sharedPubKey, dkgR1DataAll) = ProtocolTest.runDistributedKeyGeneration(ctx, committeeMembers)
+    val (sharedPubKey, dkgR1DataAll) = ProtocolTest.runDistributedKeyGeneration(ctx.cryptoContext, committeeMembers)
 
     // Running elections by specific scenario
     val (voterBallots, expertBallots) = elections.run(sharedPubKey)
@@ -42,9 +42,9 @@ class ProtocolTest extends FunSuite {
     val crs = CryptoContext.generateRandomCRS
     val ctx = new CryptoContext(Option(crs))
 
-    require(doTest(ctx, new ElectionsScenario1(ctx)))
-    require(doTest(ctx, new ElectionsScenario2(ctx)))
-    require(doTest(ctx, new ElectionsScenario3(ctx)))
+    require(doTest(new ElectionsScenario1(ctx)))
+    require(doTest(new ElectionsScenario2(ctx)))
+    require(doTest(new ElectionsScenario3(ctx)))
   }
 }
 

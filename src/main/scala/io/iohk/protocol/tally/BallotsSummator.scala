@@ -1,8 +1,7 @@
 package io.iohk.protocol.tally
 
 import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
-import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.voting.VotingOptions
+import io.iohk.protocol.ProtocolContext
 import io.iohk.protocol.voting.ballots.{ExpertBallot, VoterBallot}
 
 import scala.util.Try
@@ -12,11 +11,9 @@ import scala.util.Try
   * ballots one by one instead of accumulating them in memory and sum up all at once.
   *
   * @param ctx
-  * @param numberOfExperts
   */
-class BallotsSummator(ctx: CryptoContext,
-                      numberOfExperts: Int) {
-  import ctx.group
+class BallotsSummator(ctx: ProtocolContext) {
+  import ctx.cryptoContext.group
 
   private val neutralCiphertext = ElGamalCiphertext(group.groupIdentity, group.groupIdentity)
 
@@ -27,13 +24,13 @@ class BallotsSummator(ctx: CryptoContext,
   private var choicesSums: Map[Int, Vector[ElGamalCiphertext]] = Map()
 
   def addVoterBallot(ballot: VoterBallot): Try[BallotsSummator] = Try {
-    require(ballot.weightedUnitVector.delegations.length == numberOfExperts, "Invalid voter ballot: invalid number of delegation bits in the unit vector")
-    require(ballot.weightedUnitVector.choice.length == VotingOptions.values.size, "Invalid voter ballot: invalid number of choice bits in the unit vector")
+    require(ballot.weightedUnitVector.delegations.length == ctx.numberOfExperts, "Invalid voter ballot: invalid number of delegation bits in the unit vector")
+    require(ballot.weightedUnitVector.choice.length == ctx.numberOfChoices, "Invalid voter ballot: invalid number of choice bits in the unit vector")
 
     val delegationsUnitVector = delegationsSums.getOrElse(ballot.proposalId,
-      Vector.fill[ElGamalCiphertext](numberOfExperts)(neutralCiphertext))
+      Vector.fill[ElGamalCiphertext](ctx.numberOfExperts)(neutralCiphertext))
     val choicesUnitVector = choicesSums.getOrElse(ballot.proposalId,
-      Vector.fill[ElGamalCiphertext](VotingOptions.values.size)(neutralCiphertext))
+      Vector.fill[ElGamalCiphertext](ctx.numberOfChoices)(neutralCiphertext))
 
     val updatedDelegationsVector = for(i <- delegationsUnitVector.indices.toVector) yield {
       val weightedVote = ballot.weightedUnitVector.delegations(i)
@@ -50,11 +47,11 @@ class BallotsSummator(ctx: CryptoContext,
   }
   
   def addExpertBallot(ballot: ExpertBallot, delegatedVotingPower: BigInt): Try[BallotsSummator] = Try {
-    require(ballot.uChoiceVector.length == VotingOptions.values.size, "Invalid expert ballot: invalid number of choice bits in the unit vector")
+    require(ballot.uChoiceVector.length == ctx.numberOfChoices, "Invalid expert ballot: invalid number of choice bits in the unit vector")
     require(delegatedVotingPower > 0, "Invalid expert ballot: inconsistent voting power")
 
     val choicesUnitVector = choicesSums.getOrElse(ballot.proposalId,
-      Vector.fill[ElGamalCiphertext](VotingOptions.values.size)(neutralCiphertext))
+      Vector.fill[ElGamalCiphertext](ctx.numberOfChoices)(neutralCiphertext))
 
     val updatedChoicesVector = for(i <- choicesUnitVector.indices.toVector) yield {
       val weightedVote = ballot.uChoiceVector(i).pow(delegatedVotingPower).get

@@ -9,6 +9,7 @@ class DistrKeyGenPerformance {
 
   val crs = CryptoContext.generateRandomCRS
   val ctx = new CryptoContext(Option(crs))
+  val pctx = new ProtocolContext(ctx, 3, 0)
   import ctx.group
 
   def Run(commiteeMembersNum: Int, violatorsPercentage: Int): Unit = {
@@ -26,7 +27,7 @@ class DistrKeyGenPerformance {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield
-      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys, 0)
+      new CommitteeMember(pctx, keyPairs(i), committeeMembersPubKeys)
 
     var overallBytes = 0
 

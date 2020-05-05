@@ -2,9 +2,8 @@ package io.iohk.protocol.tally
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
-import io.iohk.protocol.voting.ballots.{PrivateStakeBallot, PublicStakeBallot}
+import io.iohk.protocol.voting.ballots.{ExpertBallot, PrivateStakeBallot, PublicStakeBallot}
 import io.iohk.protocol.{CryptoContext, ProtocolContext}
-import io.iohk.protocol.voting.{Expert, RegularVoter, VotingOptions}
 import org.scalatest.FunSuite
 
 class BallotsSummatorTest extends FunSuite {
@@ -18,13 +17,15 @@ class BallotsSummatorTest extends FunSuite {
     val numberOfExperts = 6
     val stake = 3
     val pctx = new ProtocolContext(ctx, 3, numberOfExperts)
-    val voter = new RegularVoter(pctx, pubKey, stake)
-    val summator = new BallotsSummator(ctx, pctx.numberOfExperts)
+    val summator = new BallotsSummator(pctx)
 
     for(i <- 1 to numberOfVoters) {
-      summator.addVoterBallot(voter.produceVote(0, VotingOptions.Yes))
-      summator.addVoterBallot(voter.produceVote(1, VotingOptions.No))
-      summator.addVoterBallot(voter.produceVote(2, VotingOptions.Abstain))
+      summator.addVoterBallot(
+        PublicStakeBallot.createBallot(pctx, 0, pctx.numberOfExperts, pubKey, stake).get)
+      summator.addVoterBallot(
+        PublicStakeBallot.createBallot(pctx, 1, pctx.numberOfExperts + 1, pubKey, stake).get)
+      summator.addVoterBallot(
+        PublicStakeBallot.createBallot(pctx, 2, pctx.numberOfExperts + 2, pubKey, stake).get)
     }
 
     require(summator.getDelegationsSum.size == 3)
@@ -54,14 +55,17 @@ class BallotsSummatorTest extends FunSuite {
   test("voter ballots summation, when voters delegate") {
     val numberOfExperts = 8
     val numberOfVoters = 13
+    val stake = 2
     val pctx = new ProtocolContext(ctx, 3, numberOfExperts)
-    val voter = new RegularVoter(pctx, pubKey, 2)
-    val summator = new BallotsSummator(ctx, numberOfExperts)
+    val summator = new BallotsSummator(pctx)
 
     for(i <- 1 to numberOfVoters) {
-      summator.addVoterBallot(voter.produceDelegatedVote(0, 0, false))
-      summator.addVoterBallot(voter.produceDelegatedVote(10, 5, false))
-      summator.addVoterBallot(voter.produceDelegatedVote(22, 7, false))
+      summator.addVoterBallot(
+        PublicStakeBallot.createBallot(pctx, 0, 0, pubKey, stake, false).get)
+      summator.addVoterBallot(
+        PublicStakeBallot.createBallot(pctx, 10, 5, pubKey, stake, false).get)
+      summator.addVoterBallot(
+        PublicStakeBallot.createBallot(pctx, 22, 7, pubKey, stake, false).get)
     }
 
     require(summator.getDelegationsSum.size == 3)
@@ -89,7 +93,7 @@ class BallotsSummatorTest extends FunSuite {
 
   test("summation of private stake ballots") {
     val pctx = new ProtocolContext(ctx, 3, 5)
-    val summator = new BallotsSummator(ctx, pctx.numberOfExperts)
+    val summator = new BallotsSummator(pctx)
     val vote = 2
     val stake = 13
 
@@ -111,7 +115,7 @@ class BallotsSummatorTest extends FunSuite {
 
   test("summation of private and public stake ballots") {
     val pctx = new ProtocolContext(ctx, 3, 5)
-    val summator = new BallotsSummator(ctx, pctx.numberOfExperts)
+    val summator = new BallotsSummator(pctx)
     val vote = 2
     val stake = 13
 
@@ -136,13 +140,12 @@ class BallotsSummatorTest extends FunSuite {
   test("expert ballots summation") {
     val numberOfExperts = 6
     val pctx = new ProtocolContext(ctx, 3, numberOfExperts)
-    val expert = new Expert(pctx, 0, pubKey)
-    val summator = new BallotsSummator(ctx, numberOfExperts)
+    val summator = new BallotsSummator(pctx)
 
     for(i <- 1 to numberOfExperts) {
-      summator.addExpertBallot(expert.produceVote(0, VotingOptions.Yes), 5)
-      summator.addExpertBallot(expert.produceVote(1, VotingOptions.No), 5)
-      summator.addExpertBallot(expert.produceVote(2, VotingOptions.Abstain), 5)
+      summator.addExpertBallot(ExpertBallot.createBallot(pctx, 0, 0, 0, pubKey).get, 5)
+      summator.addExpertBallot(ExpertBallot.createBallot(pctx, 1, 0, 1, pubKey).get, 5)
+      summator.addExpertBallot(ExpertBallot.createBallot(pctx, 2, 0, 2, pubKey).get, 5)
     }
 
     require(summator.getChoicesSum.size == 3)

@@ -1,6 +1,7 @@
 package io.iohk.protocol
 
 import io.iohk.core.utils.TimeUtils
+import io.iohk.protocol.voting.ballots.{ExpertBallot, PublicStakeBallot}
 import io.iohk.protocol.voting.{Expert, RegularVoter, VotingOptions}
 
 /* Benchmarking ballot creation */
@@ -16,20 +17,18 @@ class BallotCreationPerformance {
       println("Running test for " + experts + " experts ...")
 
       val pctx = new ProtocolContext(ctx, 3, experts)
-      val voter = new RegularVoter(pctx, pubKey,1)
-      val expert = new Expert(pctx,0, pubKey)
 
-      TimeUtils.accurate_time("\tVoter ballot creation: ", voter.produceVote(0, VotingOptions.Yes))
+      TimeUtils.accurate_time("\tVoter ballot creation: ", PublicStakeBallot.createBallot(pctx,0,0,pubKey,1).get)
 
-      val ballot = voter.produceVote(0, VotingOptions.Yes)
+      val ballot = PublicStakeBallot.createBallot(pctx,0,0,pubKey,1).get
       val ballotSize = ballot.bytes.size
 
       println("\tVoter ballot size: " + ballotSize + " bytes")
       println("\tVoter ballot proof size: " + ballot.uProof.size + " bytes")
 
-      TimeUtils.accurate_time("\tExpert ballot creation: ", expert.produceVote(0, VotingOptions.Yes))
+      TimeUtils.accurate_time("\tExpert ballot creation: ", ExpertBallot.createBallot(pctx, 0, 0, 0, pubKey).get)
 
-      val exballot = expert.produceVote(0, VotingOptions.Yes)
+      val exballot = ExpertBallot.createBallot(pctx, 0, 0, 0, pubKey).get
       val exballotSize = exballot.bytes
       println("\tExpert ballot size: " + exballotSize + " bytes")
       println("\tExpert ballot proof size: " + exballot.uProof.size + " bytes")

@@ -10,7 +10,7 @@ import io.iohk.protocol.keygen.datastructures.round5_2.R5_2Data
 import io.iohk.protocol.tally.datastructures.{TallyR1Data, TallyR2Data, TallyR3Data, TallyR4Data}
 import io.iohk.protocol.tally.{BallotsSummator, Tally}
 import io.iohk.protocol.voting.ballots.{ExpertBallot, VoterBallot}
-import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
+import io.iohk.protocol.{CommitteeIdentifier, CryptoContext, ProtocolContext}
 
 import scala.util.Try
 
@@ -32,12 +32,11 @@ import scala.util.Try
   * @param committeeMembersPubKeys public keys of all committee members
   * @param roundsData
   */
-class CommitteeMember(val ctx: CryptoContext,
+class CommitteeMember(val ctx: ProtocolContext,
                       val transportKeyPair: KeyPair,
                       val committeeMembersPubKeys: Seq[PubKey],
-                      val numberOfExperts: Int,
                       roundsData: RoundsData = RoundsData()) {
-  import ctx.group
+  import ctx.cryptoContext.{group,hash}
 
   val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
 
@@ -46,14 +45,14 @@ class CommitteeMember(val ctx: CryptoContext,
   val publicKey = transportKeyPair._2
 
   // DistrKeyGen instance is used to run distributed key generation protocol
-  val seed = ctx.hash.hash(secretKey.toByteArray ++ "DKG Seed".getBytes) // TODO: secretKey should not be used to extract seed
-  private val dkg = new DistrKeyGen(ctx, transportKeyPair, secretKey, seed, committeeMembersPubKeys, memberIdentifier, roundsData)
+  val seed = hash.hash(secretKey.toByteArray ++ "DKG Seed".getBytes) // TODO: secretKey should not be used to extract seed
+  private val dkg = new DistrKeyGen(ctx.cryptoContext, transportKeyPair, secretKey, seed, committeeMembersPubKeys, memberIdentifier, roundsData)
   private var dkgViolatorsKeys: Option[Map[PubKey, Option[PrivKey]]] = None
 
   // Tally should be initialized after DKG is finished, because it requires keys of committee members disqualified during DKG
   private var tally: Option[Tally] = None
   private var tallyResult: Option[Map[Int,Tally.Result]] = None // decrypted results of voting for each proposal (map of proposalId -> Result)
-  private val summator = new BallotsSummator(ctx, numberOfExperts) //TODO: probably we should pass summator as an input param
+  private val summator = new BallotsSummator(ctx) //TODO: probably we should pass summator as an input param
 
   val ownId: Int = dkg.ownID
 
@@ -100,7 +99,7 @@ class CommitteeMember(val ctx: CryptoContext,
   def doTallyR1(ballots: Seq[VoterBallot]): Try[TallyR1Data] = Try {
     ballots.foreach(summator.addVoterBallot(_).get)
 
-    val newTally = new Tally(ctx, memberIdentifier, numberOfExperts, dkgViolatorsKeys.get)
+    val newTally = new Tally(ctx, memberIdentifier, dkgViolatorsKeys.get)
     tally = Some(newTally)
 
     newTally.generateR1Data(summator, (secretKey, publicKey)).get

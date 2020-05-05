@@ -10,9 +10,8 @@ import io.iohk.protocol.nizk.ElgamalDecrNIZK
 import io.iohk.protocol.storage.RoundsDataStorage
 import io.iohk.protocol.tally.Tally.{Result, Stages}
 import io.iohk.protocol.tally.datastructures._
-import io.iohk.protocol.voting.VotingOptions
 import io.iohk.protocol.voting.ballots.ExpertBallot
-import io.iohk.protocol.{CryptoContext, Identifier}
+import io.iohk.protocol.{Identifier, ProtocolContext}
 
 import scala.util.Try
 
@@ -44,20 +43,17 @@ import scala.util.Try
   * other hand, calls to "generateRXData" and "verifyRXData" don't produce any side-effects.
   * Also note that "executeRoundX" should be called sequentially one after another, otherwise they will return error.
   *
-  * @param ctx                                  CryptoContext
+  * @param ctx                                  ProtocolContext
   * @param cmIdentifier                         Identifier object that maps public keys of committee members to their integer identifiers
-  * @param numberOfExperts                      number of registered experts in the system (recall that the number of
-  *                                             experts defines the size of voter's unit vectors)
   * @param disqualifiedBeforeTallyCommitteeKeys some committee members can be disqualified during the DKG stage before
   *                                             Tally begins. In this case their keys might already been
   *                                             restored (depending on what round of DKG they were disqualified). They
   *                                             are passed here because they will be needed for generating decryption shares.
   */
-class Tally(ctx: CryptoContext,
+class Tally(ctx: ProtocolContext,
             cmIdentifier: Identifier[Int],
-            numberOfExperts: Int,
             disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]]) {
-  import ctx.{group, hash}
+  import ctx.cryptoContext.{group, hash}
 
   private var currentRound = Stages.Init
   def getCurrentRound = currentRound
@@ -104,7 +100,7 @@ class Tally(ctx: CryptoContext,
 
     r1Data.decryptionShares.foreach { case (proposalId, s) =>
       require(proposalId == s.proposalId)
-      require(s.validate(ctx, committePubKey, uvDelegationsSum(proposalId)).isSuccess, "Invalid decryption share")
+      require(s.validate(ctx.cryptoContext, committePubKey, uvDelegationsSum(proposalId)).isSuccess, "Invalid decryption share")
     }
   }
 
@@ -112,7 +108,7 @@ class Tally(ctx: CryptoContext,
     if (currentRound != Stages.Init)
       throw new IllegalStateException("Unexpected state! Round 1 should be executed only in the Init state.")
 
-    if (numberOfExperts <= 0 || summator.getDelegationsSum.isEmpty) {
+    if (ctx.numberOfExperts <= 0 || summator.getDelegationsSum.isEmpty) {
       // there is nothing to do on Round 1 if there are no experts or no proposals
       currentRound = Stages.TallyR1
       return Try(this)
@@ -127,7 +123,7 @@ class Tally(ctx: CryptoContext,
 
     val proposalIds = summator.getDelegationsSum.keys.toSeq
 
-    delegationsSharesSum = Tally.sumUpDecryptionShares(r1DataAll, numberOfExperts, proposalIds)
+    delegationsSharesSum = Tally.sumUpDecryptionShares(r1DataAll, ctx.numberOfExperts, proposalIds)
 
     disqualifiedOnTallyR1CommitteeIds = failedCommitteeIds
     delegationsSum = summator.getDelegationsSum
@@ -157,7 +153,7 @@ class Tally(ctx: CryptoContext,
     require(r2Data.violatorsShares.map(_._1).toSet == disqualifiedOnTallyR1CommitteeIds, "Unexpected set of recovery shares")
     r2Data.violatorsShares.foreach { s =>
       val violatorPubKey = cmIdentifier.getPubKey(s._1).get
-      require(DistrKeyGen.validateRecoveryKeyShare(ctx, cmIdentifier, committePubKey, violatorPubKey, dkgR1DataAll, s._2).isSuccess)
+      require(DistrKeyGen.validateRecoveryKeyShare(ctx.cryptoContext, cmIdentifier, committePubKey, violatorPubKey, dkgR1DataAll, s._2).isSuccess)
     }
   }
 
@@ -168,7 +164,7 @@ class Tally(ctx: CryptoContext,
   def executeRound2(r2DataAll: Seq[TallyR2Data], expertBallots: Seq[ExpertBallot]): Try[Tally] = Try {
     if (currentRound != Stages.TallyR1)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
-    expertBallots.foreach(b => assert(b.expertId >= 0 && b.expertId < numberOfExperts))
+    expertBallots.foreach(b => assert(b.expertId >= 0 && b.expertId < ctx.numberOfExperts))
 
     // Step 1: restore private keys of failed committee members
     val updatedAllDisqualifiedCommitteeKeys = if (disqualifiedOnTallyR1CommitteeIds.nonEmpty) {
@@ -177,7 +173,7 @@ class Tally(ctx: CryptoContext,
         val recoveryShares = r2DataAll.map(_.violatorsShares.find(_._1 == id).map(_._2)).flatten
 
         // note that there should be at least t/2 recovery shares, where t is the size of the committee, otherwise recovery will fail
-        val privKey = DistrKeyGen.recoverPrivateKeyByOpenedShares(ctx, cmIdentifier.pubKeys.size, recoveryShares, Some(pubKey)).get
+        val privKey = DistrKeyGen.recoverPrivateKeyByOpenedShares(ctx.cryptoContext, cmIdentifier.pubKeys.size, recoveryShares, Some(pubKey)).get
         (pubKey -> privKey)
       }
       // update state and store newly restored keys
@@ -211,7 +207,7 @@ class Tally(ctx: CryptoContext,
     choicesSum = expertBallots.foldLeft(init) { (acc, ballot) =>
       val proposalId = ballot.proposalId
       val updatedChoices = acc.getOrElse(proposalId,
-        Array.fill(VotingOptions.values.size)(ElGamalCiphertext(group.groupIdentity, group.groupIdentity)))
+        Array.fill(ctx.numberOfChoices)(ElGamalCiphertext(group.groupIdentity, group.groupIdentity)))
       val delegatedStake = delegationsDecrypted.get(proposalId).map(v => v(ballot.expertId)).getOrElse(BigInt(0))
 
       for (i <- 0 until updatedChoices.size) {
@@ -249,7 +245,7 @@ class Tally(ctx: CryptoContext,
 
     r3Data.decryptionShares.foreach { case (proposalId, s) =>
       require(proposalId == s.proposalId)
-      require(s.validate(ctx, committePubKey, choicesSum(proposalId)).isSuccess, "Invalid decryption share")
+      require(s.validate(ctx.cryptoContext, committePubKey, choicesSum(proposalId)).isSuccess, "Invalid decryption share")
     }
   }
 
@@ -272,7 +268,7 @@ class Tally(ctx: CryptoContext,
 
     val proposalIds = choicesSum.keys.toSeq
 
-    choicesSharesSum = Tally.sumUpDecryptionShares(r3DataAll, VotingOptions.values.size, proposalIds)
+    choicesSharesSum = Tally.sumUpDecryptionShares(r3DataAll, ctx.numberOfChoices, proposalIds)
 
     disqualifiedOnTallyR3CommitteeIds = failedCommitteeIds
     currentRound = Stages.TallyR3
@@ -337,7 +333,7 @@ class Tally(ctx: CryptoContext,
       val recoveryShares = r4DataAll.map(_.violatorsShares.find(_._1 == id).map(_._2)).flatten
 
       // note that there should be at least t/2 recovery shares, where t is the size of the committee, otherwise recovery will fail
-      val privKey = DistrKeyGen.recoverPrivateKeyByOpenedShares(ctx, cmIdentifier.pubKeys.size, recoveryShares, Some(pubKey)).get
+      val privKey = DistrKeyGen.recoverPrivateKeyByOpenedShares(ctx.cryptoContext, cmIdentifier.pubKeys.size, recoveryShares, Some(pubKey)).get
       (pubKey -> privKey)
     }.toMap
 
@@ -352,7 +348,7 @@ class Tally(ctx: CryptoContext,
     if (disqualifiedCommitteeIds.nonEmpty) {
       // we need to act only if there are committee members that failed during Tally Round 1
       val recoveryShares = disqualifiedCommitteeIds.toSeq.map { id =>
-        val recoveryShare = DistrKeyGen.generateRecoveryKeyShare(ctx, cmIdentifier,
+        val recoveryShare = DistrKeyGen.generateRecoveryKeyShare(ctx.cryptoContext, cmIdentifier,
           committeeMemberKey, cmIdentifier.getPubKey(id).get, dkgR1DataAll).get
         (id, recoveryShare)
       }
@@ -373,7 +369,7 @@ class Tally(ctx: CryptoContext,
 
     r2Data.violatorsShares.foreach { s =>
       val violatorPubKey = cmIdentifier.getPubKey (s._1).get
-      require (DistrKeyGen.validateRecoveryKeyShare (ctx, cmIdentifier, committePubKey, violatorPubKey, dkgR1DataAll, s._2).isSuccess)
+      require (DistrKeyGen.validateRecoveryKeyShare (ctx.cryptoContext, cmIdentifier, committePubKey, violatorPubKey, dkgR1DataAll, s._2).isSuccess)
     }
   }
 }
@@ -385,17 +381,17 @@ object Tally {
     val Init, TallyR1, TallyR2, TallyR3, TallyR4 = Value
   }
 
+  // TODO: remove this
   case class Result(yes: BigInt, no: BigInt, abstain: BigInt)
 
-  def recoverState(ctx: CryptoContext,
+  def recoverState(ctx: ProtocolContext,
                    cmIdentifier: Identifier[Int],
-                   numberOfExperts: Int,
                    disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]],
                    stage: Stages.Value,
                    storage: RoundsDataStorage,
                    summator: BallotsSummator): Try[Tally] = Try {
 
-    val tally = new Tally(ctx, cmIdentifier, numberOfExperts, disqualifiedBeforeTallyCommitteeKeys)
+    val tally = new Tally(ctx, cmIdentifier, disqualifiedBeforeTallyCommitteeKeys)
     if (stage > Stages.Init) {
       tally.executeRound1(summator, storage.getTallyR1).get
       if (stage > Stages.TallyR1) {

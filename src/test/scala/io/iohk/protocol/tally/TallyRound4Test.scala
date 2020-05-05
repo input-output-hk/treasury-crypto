@@ -7,7 +7,7 @@ class TallyRound4Test extends FunSuite with TallyTestSetup {
 
   // prepare tally initialized to Round 2
   def prepareTallyRound2() = {
-    val tally = new Tally(ctx, cmIdentifier, numberOfExperts, Map())
+    val tally = new Tally(pctx, cmIdentifier, Map())
 
     val tallyR1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get
@@ -90,7 +90,7 @@ class TallyRound4Test extends FunSuite with TallyTestSetup {
   }
 
   test("execution Round 4 with key recovery") {
-    val tally = new Tally(ctx, cmIdentifier, numberOfExperts, Map())
+    val tally = new Tally(pctx, cmIdentifier, Map())
 
     val tallyR1DataAll = committeeKeys.tail.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get
@@ -115,8 +115,8 @@ class TallyRound4Test extends FunSuite with TallyTestSetup {
   }
 
   test("execution Round 4 when there are no voter ballots") {
-    val summator = new BallotsSummator(ctx, numberOfExperts)
-    val tally = new Tally(ctx, cmIdentifier, numberOfExperts, Map())
+    val summator = new BallotsSummator(pctx)
+    val tally = new Tally(pctx, cmIdentifier, Map())
 
     tally.executeRound1(summator, Seq()).get
     tally.executeRound2(Seq(), Seq()).get

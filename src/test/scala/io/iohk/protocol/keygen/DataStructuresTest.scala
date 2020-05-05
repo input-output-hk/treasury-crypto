@@ -1,7 +1,7 @@
 package io.iohk.protocol.keygen
 
 import io.iohk.core.crypto.encryption
-import io.iohk.protocol.CryptoContext
+import io.iohk.protocol.{CryptoContext, ProtocolContext}
 import io.iohk.protocol.keygen.datastructures.round1.R1DataSerializer
 import io.iohk.protocol.keygen.datastructures.round2.R2DataSerializer
 import io.iohk.protocol.keygen.datastructures.round3.R3DataSerializer
@@ -16,14 +16,14 @@ class DataStructuresTest extends FunSuite {
 
     val crs = CryptoContext.generateRandomCRS
     val ctx = new CryptoContext(Option(crs))
-    val numberOfExperts = 5
+    val pctx = new ProtocolContext(ctx, 3, 5)
     import ctx.group
 
     val keyPairs = for(id <- 1 to 10) yield encryption.createKeyPair.get
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys, numberOfExperts)
+      new CommitteeMember(pctx, keyPairs(i), committeeMembersPubKeys)
     }
 
     val r1Data = for (i <- committeeMembersPubKeys.indices) yield {
@@ -75,7 +75,7 @@ class DataStructuresTest extends FunSuite {
     //--------------------------------------------------------------------------------
     val sharedPublicKeys = r5_2Data.map(_._2.sharedPublicKey).map(group.reconstructGroupElement(_).get)
 
-    var individualPublicKeys = for(i <- committeeMembers.indices) yield {
+    val individualPublicKeys = for(i <- committeeMembers.indices) yield {
       (committeeMembers(i).ownId, group.groupGenerator.pow(committeeMembers(i).secretKey).get)
     }
     val publicKeysSum = individualPublicKeys.map(_._2).foldLeft(group.groupIdentity){(publicKeysSum, publicKey) => publicKeysSum.multiply(publicKey).get}

@@ -11,27 +11,25 @@ import scala.util.Try
 trait Elections {
   def run(sharedPubKey: PubKey): (Seq[VoterBallot], Seq[ExpertBallot])
   def verify(tallyRes: Map[Int, Result]): Boolean
-  def numberOfExperts: Int
+  def getContext: ProtocolContext
 }
 
 class ElectionsScenario1(ctx: CryptoContext) extends Elections {
   private val proposalID = 1
   private val votersNum = 2
-  override val numberOfExperts = 2
+  private val numberOfExperts = 2
   val pctx = new ProtocolContext(ctx, 3, numberOfExperts)
+
+  def getContext = pctx
 
   def run(sharedPubKey: PubKey): (Seq[PublicStakeBallot], Seq[ExpertBallot]) = {
     val votersBallots =
-      for (voterId <- numberOfExperts until (numberOfExperts + votersNum)) yield {
-        new RegularVoter(pctx, sharedPubKey, 3)
-          .produceDelegatedVote(proposalID, 1)
-      }
+      for (_ <- 0 until votersNum) yield
+        PublicStakeBallot.createBallot(pctx, proposalID, 1, sharedPubKey, 3).get
 
     val expertsBallots =
-      for (expertId <- 0 until numberOfExperts) yield {
-        Expert(pctx, expertId, sharedPubKey)
-          .produceVote(proposalID, VotingOptions.Yes)
-      }
+      for (expertId <- 0 until numberOfExperts) yield
+        ExpertBallot.createBallot(pctx, proposalID, expertId, 0, sharedPubKey).get
 
     votersBallots -> expertsBallots
   }
@@ -53,26 +51,24 @@ class ElectionsScenario2(ctx: CryptoContext) extends Elections
   val numberOfExperts = 5
   val pctx = new ProtocolContext(ctx, 3, numberOfExperts)
 
+  def getContext = pctx
+
   def run(sharedPubKey: PubKey): (Seq[VoterBallot], Seq[ExpertBallot]) =
   {
     proposalIDs.foldLeft((Seq[PublicStakeBallot](), Seq[ExpertBallot]())) { case ((vAcc, eAcc), proposalID) =>
       val votersBallots =
         for (voterId <- numberOfExperts until (numberOfExperts + votersNum)) yield {
-          new RegularVoter(pctx, sharedPubKey, proposalID)
-            .produceVote(proposalID, if (voterId % 2 == 1) VotingOptions.Yes else VotingOptions.Abstain)
+          val vote = if (voterId % 2 == 1) pctx.numberOfExperts else pctx.numberOfExperts + 2
+          PublicStakeBallot.createBallot(pctx, proposalID, vote, sharedPubKey, stake = proposalID).get
         }
 
       val votersDelegatedBallots =
-        for (voterId <- (numberOfExperts + votersNum) until (numberOfExperts + votersNum + votersDelegatedNum)) yield {
-          new RegularVoter(pctx, sharedPubKey, proposalID)
-            .produceDelegatedVote(proposalID, 0)
-        }
+        for (_ <- 0 until votersDelegatedNum) yield
+          PublicStakeBallot.createBallot(pctx, proposalID, 0, sharedPubKey, stake = proposalID).get
 
       val expertsBallots =
-        for (expertId <- 0 until numberOfExperts) yield {
-          Expert(pctx, expertId, sharedPubKey)
-            .produceVote(proposalID, VotingOptions.No)
-        }
+        for (expertId <- 0 until numberOfExperts) yield
+          ExpertBallot.createBallot(pctx, proposalID, expertId, 1, sharedPubKey).get
 
       (vAcc ++ votersBallots ++ votersDelegatedBallots) -> (eAcc ++ expertsBallots)
     }
