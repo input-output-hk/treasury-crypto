@@ -51,7 +51,7 @@ class CommitteeMember(val ctx: ProtocolContext,
 
   // Tally should be initialized after DKG is finished, because it requires keys of committee members disqualified during DKG
   private var tally: Option[Tally] = None
-  private var tallyResult: Option[Map[Int,Tally.Result]] = None // decrypted results of voting for each proposal (map of proposalId -> Result)
+  private var tallyResult: Option[Map[Int,Vector[BigInt]]] = None // decrypted results of voting for each proposal (map of proposalId -> Result)
   private val summator = new BallotsSummator(ctx) //TODO: probably we should pass summator as an input param
 
   val ownId: Int = dkg.ownID
@@ -144,7 +144,7 @@ class CommitteeMember(val ctx: ProtocolContext,
     tallyR3.generateR4Data((secretKey, publicKey), dkgR1DataAll).get
   }
 
-  def finalizeTally(tallyR4DataAll: Seq[TallyR4Data], dkgR1DataAll: Seq[R1Data]): Try[Map[Int, Tally.Result]] = Try {
+  def finalizeTally(tallyR4DataAll: Seq[TallyR4Data], dkgR1DataAll: Seq[R1Data]): Try[Map[Int, Vector[BigInt]]] = Try {
     val tallyR4 = tally.get
     val verifiedR4DataAll = tallyR4DataAll.filter { r4Data =>
       memberIdentifier.getPubKey(r4Data.issuerID).flatMap { pubKey =>

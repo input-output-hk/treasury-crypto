@@ -69,9 +69,9 @@ class TallyRound4Test extends FunSuite with TallyTestSetup {
     require(tally.executeRound4(tallyR4DataAll).isSuccess)
 
     tally.getChoices.foreach { case (proposalId, tallyRes) =>
-      require(tallyRes.yes == 2 * numberOfVoters)
-      require(tallyRes.no == 0)
-      require(tallyRes.abstain == 0)
+      require(tallyRes(0) == 2 * numberOfVoters)
+      require(tallyRes(1) == 0)
+      require(tallyRes(2) == 0)
     }
 
     require(tally.getAllDisqualifiedCommitteeIds.isEmpty)
@@ -108,9 +108,9 @@ class TallyRound4Test extends FunSuite with TallyTestSetup {
     require(tally.getCurrentRound == Stages.TallyR4)
 
     tally.getChoices.foreach { case (proposalId, tallyRes) =>
-      require(tallyRes.yes == 2 * numberOfVoters)
-      require(tallyRes.no == 0)
-      require(tallyRes.abstain == 0)
+      require(tallyRes(0) == 2 * numberOfVoters)
+      require(tallyRes(1) == 0)
+      require(tallyRes(2) == 0)
     }
   }
 

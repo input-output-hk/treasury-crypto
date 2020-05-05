@@ -67,9 +67,9 @@ class TallyTest extends FunSuite with TallyTestSetup {
     tally.executeRound4(verifiedTallyR4DataAll).get
 
     tally.getChoices.foreach { case (proposalId, tallyRes) =>
-      require(tallyRes.yes == 2 * numberOfVoters)
-      require(tallyRes.no == 0)
-      require(tallyRes.abstain == 0)
+      require(tallyRes(0) == 2 * numberOfVoters)
+      require(tallyRes(1) == 0)
+      require(tallyRes(2) == 0)
     }
   }
 

@@ -6,7 +6,6 @@ import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen._
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.keygen.datastructures.round3.R3Data
-import io.iohk.protocol.tally.Tally.Result
 import io.iohk.protocol.voting.{ExpertBallot, VoterBallot}
 import org.scalatest.FunSuite
 
@@ -45,6 +44,7 @@ class ProtocolTest extends FunSuite {
     require(doTest(new ElectionsScenario1(ctx)))
     require(doTest(new ElectionsScenario2(ctx)))
     require(doTest(new ElectionsScenario3(ctx)))
+    require(doTest(new ElectionsScenario4(ctx)))
   }
 }
 
@@ -86,7 +86,7 @@ object ProtocolTest {
   def runTally(committeeMembers: Seq[CommitteeMember],
                voterBallots: Seq[VoterBallot],
                expertBallots: Seq[ExpertBallot],
-               dkgR1DataAll: Seq[R1Data]): Map[Int, Result] = {
+               dkgR1DataAll: Seq[R1Data]): Map[Int, Vector[BigInt]] = {
     // let's simulate 1 failed CM at each round
     val r1DataAll = committeeMembers.drop(1).map(_.doTallyR1(voterBallots).get)
     val r2DataAll = committeeMembers.drop(2).map(_.doTallyR2(r1DataAll, dkgR1DataAll).get)

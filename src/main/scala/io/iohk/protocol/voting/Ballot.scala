@@ -27,7 +27,7 @@ object Ballot {
   }
 
   def buildEncryptedUnitVector(size: Int, nonZeroPos: Int, key: PubKey)
-                                               (implicit group: DiscreteLogGroup)
+                              (implicit group: DiscreteLogGroup)
   : (Vector[ElGamalCiphertext], Vector[Randomness]) = {
     val randomness = Vector.fill(size)(group.createRandomNumber)
     val ciphertexts = randomness.zipWithIndex.map { case (r, i) =>

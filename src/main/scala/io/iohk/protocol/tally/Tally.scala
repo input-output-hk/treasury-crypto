@@ -8,7 +8,7 @@ import io.iohk.protocol.keygen.DistrKeyGen
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
 import io.iohk.protocol.storage.RoundsDataStorage
-import io.iohk.protocol.tally.Tally.{Result, Stages}
+import io.iohk.protocol.tally.Tally.Stages
 import io.iohk.protocol.tally.datastructures._
 import io.iohk.protocol.voting.ExpertBallot
 import io.iohk.protocol.{Identifier, ProtocolContext}
@@ -76,7 +76,7 @@ class Tally(ctx: ProtocolContext,
 
   private var choicesSum = Map[Int, Vector[ElGamalCiphertext]]()        // For each proposal holds the summation of choices parts of encrypted unit vectors of voters and experts.
   private var choicesSharesSum = Map[Int, Vector[GroupElement]]()       // For each proposal holds the summation of decryption shares of committee members that are used to decrypt choicesSum.
-  private var choices = Map[Int, Result]()                              // For each proposal holds a voting result, i.e. number of Yes, No and Abstain votes.
+  private var choices = Map[Int, Vector[BigInt]]()                      // For each proposal holds a voting result, e.g. number of votes for each voting option
   def getChoicesSum = choicesSum
   def getChoicesSharesSum = choicesSharesSum
   def getChoices = choices
@@ -316,7 +316,7 @@ class Tally(ctx: ProtocolContext,
       val choices = encryptedChoices.zip(decryptionSharesSum).map { case (encr,decr) =>
         LiftedElGamalEnc.discreteLog(encr.c2.divide(decr).get).get
       }
-      (proposalId -> Result(choices(0), choices(1), choices(2)))
+      (proposalId -> choices)
     }
 
     // if we reached this point execution was successful, so update state variables
@@ -380,9 +380,6 @@ object Tally {
   object Stages extends Enumeration {
     val Init, TallyR1, TallyR2, TallyR3, TallyR4 = Value
   }
-
-  // TODO: remove this
-  case class Result(yes: BigInt, no: BigInt, abstain: BigInt)
 
   def recoverState(ctx: ProtocolContext,
                    cmIdentifier: Identifier[Int],
