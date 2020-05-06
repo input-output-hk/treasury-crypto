@@ -228,10 +228,10 @@ The protocol for ballot casting is depicted in Figure~\ref{fig:vote}.\footnote{S
 			    \end{itemize}
 
 			    \item pick randomness $r_{k,1},\ldots, r_{k,m+3}\leftarrow \ZZ_q$ and compute $u_{k,t}\leftarrow \Enc_{\pk}(e^{(m+3)}_{k,t}; r_{k,t})$, $t\in[m+3]$;
-			    \item produce a unit vector proof $\pi_k$ showing that $\{c_{k,t}\}_{t\in[m+3]}$ encrypts a unit vector.
+			    \item produce a unit vector proof $\pi_k$ showing that $\{u_{k,t}\}_{t\in[m+3]}$ encrypts a unit vector.
 			\end{itemize}
 			  
-			\item Send transaction with $(Ballot, (\Voter_i, \{\{c_{k,t}\}_{t\in[m+3]}, \pi_k\}_{k \in |\mathcal{P}|}))$ to the blockchain.
+			\item Send transaction with $(Ballot, (\Voter_i, \{\{u_{k,t}\}_{t\in[m+3]}, \pi_k\}_{k \in |\mathcal{P}|}))$ to the blockchain.
 		\end{itemize}	
 	\end{itemize}
 \end{boxfig}
