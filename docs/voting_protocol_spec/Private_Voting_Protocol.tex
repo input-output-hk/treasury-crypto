@@ -2,9 +2,9 @@
 
 Even though the voting protocol described in the previous sections preserves privacy of a voter's choice, it does not preserve the privacy of a voting power (i.e., amount of stake) possesed by a voter.
 
-In \cite{ZBO20} there was presented a non-trivial extension to the original protocol from \cite{ZOB18} that allows keep an amount of stake of voters (and respectively their voting power) in private. In this section we provide details of this extension.
+In \cite{ZBO20} there was presented a non-trivial extension to the original protocol from \cite{ZOB18} that allows keeping an amount of voter stake (and respectively his voting power) in private. This extension might be of a particular interest for privacy-preserving blockchain systems (like Zcash). In this section we provide details of the extension.
 
-In general, it involves modification of a voter ballot and some small modifications to the tally procedure, specifically how the voter ballots are summed up. Other parts of the protocol are not affected.
+In general, it involves modification of a voter ballot and some small modifications to the tally procedure, specifically how the voter ballots are summed up. Other parts of the protocol are unaffected.
 
 \subsection{Ballots casting}
 
@@ -18,13 +18,13 @@ Before publishing voter's/expert's choices on the blockchain they are encrypted.
 \[\Enc_{\pk}(e^{(\ell)}_i ) = \Enc_{\pk}(e^{(\ell)}_{i,1}), \ldots, \Enc_{\pk}(e^{(1)}_{i,\ell}),\]
 where $e^{(\ell)}_i = (e^{(\ell)}_{i,1},\ldots, e^{(\ell)}_{i,\ell})$ and $\pk$ is a shared election public key generated during the DKG stage. Let us denote an encrypted unit vector as $u^{(l)}_i$, so that $u^{(l)}_{i}=\Enc_{\pk}(e^{(\ell)}_{i})$. In the original protocol, $u^{(l)}_i$, together with a proof of its correctness, constitutes a voter/expert ballot. Moreover, it is supposed that the amount of stake of a voter is publickly known.
 
-In the extended protocol, a voter ballot\footnote{Note that the extension is applied only to voters ballots, experts ballots are unaffected} additionally includes a vector $v^{(l)}_i=(v^{(l)}_{i,1},...,v^{(l)}_{i,l})$, where each element is calculated in the following way:
+In the extended protocol, a voter ballot\footnote{Note that the modification is applied only to voters ballots, expert ballots are unaffected} additionally includes a vector $v^{(l)}_i=(v^{(l)}_{i,1},...,v^{(l)}_{i,l})$, where each element is calculated in the following way:
 \[v^{(l)}_{i,j}=\hat{\alpha}^{e_j}\cdot\Enc_{\pk}(0), \]
 where $\hat{\alpha}=\Enc_{\pk}(\alpha)$ and $\alpha$ is an amount of stake of a voter (his voting power). Note that the vector $v^{(l)}_i$ is basically an encryption of a vector $\alpha \cdot e^{(l)}_i$ (an initial unit vector where each element is multiplied by $\alpha$).
 
-Moreover, a voter adds an additional zero-knowledge proof of correct relation between vectors $u^{(l)}_i$, $v^{(l)}_i$ and $\hat\alpha$ (see \ref{fig:MultRelationNIZK}). It is supposed that $\hat\alpha$ is publicly available and it is externally validated that it encrypts  a correct amount of stake. In case of a blockchain system, validation of $\hat\alpha$ might require another additional proof that will ensure correctness of $\alpha$. This proof is specific to the platform where the protocol is used and does not considered in the current document.
+Moreover, a voter adds an additional zero-knowledge proof of correct relation between vectors $u^{(l)}_i$, $v^{(l)}_i$ and $\hat\alpha$ (see Fig.~\ref{fig:MultRelationNIZK}\footnote{See implementation here: \href{https://github.com/input-output-hk/treasury-crypto/blob/new_api/src/main/scala/io/iohk/protocol/nizk/MultRelationNIZK.scala}{https://github.com/input-output-hk/treasury-crypto/../protocol/nizk/MultRelationNIZK.scala}}). It is supposed that $\hat\alpha$ is publicly available and it is externally validated that it encrypts  a correct amount of stake. In case of a blockchain system, validation of $\hat\alpha$ might require another additional proof that will ensure correctness of $\alpha$. Such a proof is specific to the platform where the protocol is used and does not considered in the current document.
 
-The full protocol for ballot casting is depicted in Figure~\ref{fig:private_vote}.\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/treasury-crypto/blob/master/src/main/scala/io/iohk/protocol/voting/Voter.scala}{https://github.com/input-output-hk/treasury-crypto/../protocol/voting/Voter.scala}}
+The full protocol for ballot casting is depicted in Figure~\ref{fig:private_vote}.\footnote{See implementation of a private ballot here:\\ \href{https://github.com/input-output-hk/treasury-crypto/blob/new_api/src/main/scala/io/iohk/protocol/voting/PrivateStakeBallot.scala}{https://github.com/input-output-hk/treasury-crypto/../protocol/voting/PrivateStakeBallot.scala}}
 
 \begin{boxfig}{\label{fig:private_vote}Ballots casting}{}
 \footnotesize
@@ -58,10 +58,10 @@ The full protocol for ballot casting is depicted in Figure~\ref{fig:private_vote
 			    \end{itemize}
 
 			    \item pick randomness $r_{k,1},\ldots, r_{k,m+3}\leftarrow \ZZ_q$ and compute $u_{k,t}\leftarrow \Enc_{\pk}(e_t; r_{k,t})$, $t\in[m+3]$, where $e_t$ is a $t$-th bit of the vector $e^{(m+3)}_{k,l}$;
-			    \item produce a proof $\pi_k^u$ showing that $\{u_{k,t}\}_{t\in[m+3]}$ encrypts a unit vector (see [\ref{fig:unit_zk_prover}]);
+			    \item produce a proof $\pi_k^u$ showing that $\{u_{k,t}\}_{t\in[m+3]}$ encrypts a unit vector (see Fig.~\ref{fig:unit_zk_prover});
 			    \item pick randomness $r_{k,\alpha}\leftarrow \ZZ_q$ and compute $\hat\alpha=\Enc_{\pk}(\alpha,r_{k,\alpha})$, where $\alpha$ is an amount of stake of a voter;
 			    \item pick randomness $z_{k,1},\ldots, z_{k,m+3}\leftarrow \ZZ_q$ and compute $v_{k,t}\leftarrow \hat\alpha^{e_{t}} \cdot \Enc_{\pk}(0;z_{k,t})$, $t\in[m+3]$, where $e_{t}$ is a $t$-th bit of the vector $e^{(m+3)}_{k,l}$;
-			    \item produce a proof $\pi_k^v$ showing that $\{v_{k,t}\}_{t\in[m+3]}$ is in correct relation to $\{u_{k,t}\}_{t\in[m+3]}$ and $\hat\alpha$ (see [\ref{fig:MultRelationNIZK}]);
+			    \item produce a proof $\pi_k^v$ showing that $\{v_{k,t}\}_{t\in[m+3]}$ is in correct relation to $\{u_{k,t}\}_{t\in[m+3]}$ and $\hat\alpha$ (see Fig.~\ref{fig:MultRelationNIZK});
 			\end{itemize}
 			  
 			\item Send a transaction with $(Ballot, (\Voter_i, \hat\alpha,\{\{u_{k,t},v_{k,t}\}_{t\in[m+3]}, \pi_k^u, \pi_k^v\}_{k \in |\mathcal{P}|}))$ to the blockchain.
@@ -96,4 +96,50 @@ The full protocol for ballot casting is depicted in Figure~\ref{fig:private_vote
 	\item $X\cdot \prod_{i=0}^{n-1} A_i^{\rho^{i+1}} = \Enc_{\pk}(x',y')$
 	\end{itemize}
 \end{itemize}	
-}{\label{fig:vec_zk} Vector multiplicative relation ZK argument}
+}{\label{fig:MultRelationNIZK} Vector multiplicative relation ZK argument}
+
+\FloatBarrier
+\subsection{Tally Protocol}
+
+The tally protocol remains almost the same except the way voter ballots are summed up. Recall that in the original protocol, a voter ballot contains an encrypted unit vector. Before vectors are summed up, each of them is multiplied by the stake of a voter, which is publicly available. 
+
+In the privacy-preserving version the stake is not publicly available. But voter ballots contain additional vector $\{v_{k,t}\}_{t\in[m+3]}$, which is already an encrypted unit vector weighted by the stake. So, instead of recalculating the weighted unit vector during the Round 1 of Tally, we now just take $\{v_{k,t}\}$ as it is and sum them up.
+
+See the modifications to the Tally protocol in Fig.~\ref{fig:private_tally}.
+
+Note that actually nothing prevents the usage of both types of ballots (with private and public stake) at the same time. It just changes the way how they are summed up.
+
+\begin{boxfig}{\label{fig:private_tally}Tally with the private stake. The changes with the original Tally protocol from Fig.~\ref{fig:tally1} are highlighted with red color.}{}
+\footnotesize
+\textbf{Entities:}\\
+    \hspace*{6mm} \textbf{Committee members} $\mathcal{C}:=\{C_1,\ldots, C_l \}$.\\
+    \hspace*{6mm} \textbf{Voters} $\mathcal{V}:=\{V_1,\ldots, V_n \}$.\\
+    \hspace*{6mm} \textbf{Experts} $\mathcal{E}:=\{E_1,\ldots, E_m \}$\\
+
+\textbf{Input data:}\\
+    \hspace*{6mm} {\color{red}\textbf{Set of voter's ballots:} $C_V:=\{(u_{v_1},v_{v_1}),\ldots, (u_{v_n},v_{v_n}) \}$, where $u_{v_i}=\{u_{v_i,0},\ldots,u_{v_i,m+2}\}$ is an encrypted unit vector with choice of a voter $V_i$ and $v_{v_i}=\{v_{v_i,0},\ldots,v_{v_i,m+2}\}$ is an encrypted unit vector weighted by the stake of a voter.}\\
+    \hspace*{6mm} \textbf{Set of expert's ballots:} $C_E:=\{c_{e_1},\ldots, c_{e_m} \}$, where $c_{e_i}=\{c_{e_i,0},c_{e_i,1},c_{e_i,2}\}$ is an encrypted unit vector with choice of an expert $E_i$.\\
+
+\textbf{Round 1 (delegation decryption):}
+Each committee member $C_j$ does the following:
+\begin{itemize}
+    \item For $i = 1,\ldots, m$ compute homomorphically the number of delegations $d_{e_i}$ for each expert $E_i$:
+    {\color{red}\[d_{e_i}=\prod_{l=0}^{n-1} v_{v_l,i}.\]}
+    \item For $i = 1,\ldots, m$ compute decryption shares for delegation sums as follows:
+    \begin{itemize}
+        \item Parse $d_{e_i}$ to $(d_{e_i,1}, d_{e_i,2})$ (recall that $c_{e_i}$ and, correspondingly, $d_{e_i}$ are ElGamal ciphertexts, which comprise of 2 group elements [\ref{sec:elgamal}])
+        \item Compute $D_{j,e_i}=(d_{e_i,1})^{sk_j}$, where $sk_j$ is a secret key\footnote{Here we refer to the secret key $sk_j$ that was used to generate shared election public key and for which a corresponding $pk_j$ was registered by $C_j$.} of the committee member $C_j$, and a proof $\pi_i$ that the share is generated correctly (see Fig.~\ref{fig:DecrShareNIZK} for NIZK description):
+        \begin{equation*}
+        \pi_{j,i}\leftarrow\nizk\left\{\begin{array}{l} (\pk_j, d_{e_i,1}, D_{j,e_i}),(\sk_j): \\
+         D_{j,e_i}=(d_{e_i,1})^{sk_j} \; \wedge pk_j=g^{sk_j} \; \wedge \;  (\pk_j,\sk_j)\in\RRR_{\textsc{PKE}} \end{array}\right\}
+        \end{equation*}
+    \end{itemize}
+    \item Publish $\{D_{j,e_i}, \pi_i\}_{i \in [m]}$ to the blockchain
+\end{itemize}
+
+Committee members $C_j, j \in \FFF$, that failed to submit decryption shares are disqualified from further participation.
+\\~\\
+\textbf{Round 2 (delegation decryption shares recovery):} the same as in the original protocol (see Fig.~\ref{fig:tally1})\\
+\textbf{Round 3 (tally results decryption):} the same as in the original protocol (see Fig.~\ref{fig:tally2})\\
+\textbf{Round 4 (tally decryption shares recovery):} the same as in the original protocol (see Fig.~\ref{fig:tally2})
+\end{boxfig}

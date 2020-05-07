@@ -194,7 +194,7 @@ where $e^{(\ell)}_i = (e^{(\ell)}_{i,1},\ldots, e^{(\ell)}_{i,\ell})$ and $\pk$ 
 Since tally is calculated homomorphically by summing up encrypted unit vectors, it is crucial to verify that encryptions are formed correctly (i.e., that they indeed encrypt unit vectors). To do so, each voter/expert creates a special zero-knowledge proof for each published encrypted unit vector that proves it is correct. The corresponding ZK proof is described in section [\ref{sec:SHVZK}].
 Note that a voter/expert publishes a separate unit vector for each submitted proposal.
 
-The protocol for ballot casting is depicted in Figure~\ref{fig:vote}.\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/treasury-crypto/blob/master/src/main/scala/io/iohk/protocol/voting/Voter.scala}{https://github.com/input-output-hk/treasury-crypto/../protocol/voting/Voter.scala}}
+The protocol for ballot casting is depicted in Figure~\ref{fig:vote}.\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/treasury-crypto/tree/new_api/src/main/scala/io/iohk/protocol/voting}{https://github.com/input-output-hk/treasury-crypto/../protocol/voting}}
 
 \begin{boxfig}{\label{fig:vote}Ballots casting}{}
 \footnotesize
@@ -373,7 +373,7 @@ Joint decryption is accomplished in two steps. At the first step, the number of 
 
 At the second step, the number of votes for each choice ("Abstain","Yes","No") is calculated homomorphically by summing up corresponding part of voter's and expert's unit vectors (weighed by the voting power for voters and delegated voting power for experts). Then, committe members produce decryption shares, which allows everyone to decrypt and verify the final tally.
 
-The full protocol is described in Fig.~\ref{fig:tally1} and Fig.~\ref{fig:tally2}.\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/treasury-crypto/blob/master/src/main/scala/io/iohk/protocol/voting/Tally.scala}{https://github.com/input-output-hk/treasury-crypto/../protocol/voting/Tally.scala}\\ \href{https://github.com/input-output-hk/treasury-crypto/blob/master/src/main/scala/io/iohk/protocol/decryption/DecryptionManager.scala}{https://github.com/input-output-hk/treasury-crypto/../protocol/decryption/DecryptionManager.scala}} Note that in case of several proposals, the protocol is performed for each proposal separately in parallel (for better efficiency, committee members may combine published data into a single transaction).
+The full protocol is described in Fig.~\ref{fig:tally1} and Fig.~\ref{fig:tally2}.\footnote{See implementation here: \href{https://github.com/input-output-hk/treasury-crypto/blob/new_api/src/main/scala/io/iohk/protocol/tally/Tally.scala}{https://github.com/input-output-hk/treasury-crypto/../protocol/tally/Tally.scala}} Note that in case of several proposals, the protocol is performed for each proposal separately in parallel (for better efficiency, committee members may combine published data into a single transaction).
 
 \begin{boxfig}{\label{fig:tally1}Tally (Rounds 1,2)}{}
 \footnotesize
@@ -498,7 +498,7 @@ As it was previously outlined in [\nameref{sec:overview}], randomness generation
 	\item \textbf{Randomness revealing}.
 \end{enumerate}
 
-Commitment phase is done during the post-voting stage. At this phase each qualified\footnote{By qualified we mean a committee member that has not been disqualified during any of the previous stages (DKG, Tally)} committe member generates a random value and submits its encryption (under his private key) to the blockchain. No one else knows the committed random values of committee members. The commitment phase is formilized at Fig.~\ref{fig:rand_commit}.\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/treasury-crypto/blob/master/src/main/scala/io/iohk/protocol/decryption/RandomnessGenManager.scala}{https://github.com/input-output-hk/treasury-crypto/../protocol/decryption/RandomnessGenManager.scala}}
+Commitment phase is done during the post-voting stage. At this phase each qualified\footnote{By qualified we mean a committee member that has not been disqualified during any of the previous stages (DKG, Tally)} committe member generates a random value and submits its encryption (under his private key) to the blockchain. No one else knows the committed random values of committee members. The commitment phase is formilized at Fig.~\ref{fig:rand_commit}.\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/treasury-crypto/blob/new_api/src/main/scala/io/iohk/protocol/randomness/RandomnessGenManager.scala}{https://github.com/input-output-hk/treasury-crypto/../protocol/randomness/RandomnessGenManager.scala}}
 
 Randomness revealing phase is done during the pre-voting stage of the next treasury epoch. At this phase committe members reveal their random values together with a proof of their relevance with the commitment. In case some committee member failed to reveal the random value, his secret key is jointly reconstructed by other committee members and then everyone can decrypt the random value. So if a committee member has made a committment of a random value, it will be revealed even if he aborted to do it by himself, which makes impossible to manipulate the final randomness. The revealing phase is formalized at and Fig.~\ref{fig:rand_reveal}.
 
