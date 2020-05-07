@@ -6,9 +6,9 @@ import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalCiphert
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.Serializer
 import io.iohk.protocol.ProtocolContext
+import io.iohk.protocol.nizk.MultRelationNIZK.MultRelationNIZKProof
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKProofSerializer, SHVZKVerifier}
-import io.iohk.protocol.nizk.unitvectornizk.MultRelationNIZK.MultRelationNIZKProof
-import io.iohk.protocol.nizk.unitvectornizk.{MultRelationNIZK, MultRelationNIZKProofSerializer}
+import io.iohk.protocol.nizk.{MultRelationNIZK, MultRelationNIZKProofSerializer}
 import io.iohk.protocol.voting.Ballot.BallotTypes
 
 import scala.util.Try
