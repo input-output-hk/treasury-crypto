@@ -7,7 +7,6 @@ import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
-import io.iohk.protocol.nizk.unitvectornizk.{MultRelationNIZK, MultRelationNIZKProofSerializer}
 import org.scalatest.FunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 

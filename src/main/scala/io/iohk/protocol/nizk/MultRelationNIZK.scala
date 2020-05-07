@@ -1,4 +1,4 @@
-package io.iohk.protocol.nizk.unitvectornizk
+package io.iohk.protocol.nizk
 
 import com.google.common.primitives.Bytes
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalCiphertextSerializer, LiftedElGamalEnc}
@@ -6,7 +6,7 @@ import io.iohk.core.crypto.encryption.{PubKey, Randomness}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.crypto.primitives.hash.CryptographicHash
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
-import io.iohk.protocol.nizk.unitvectornizk.MultRelationNIZK.MultRelationNIZKProof
+import io.iohk.protocol.nizk.MultRelationNIZK.MultRelationNIZKProof
 
 import scala.util.Try
 
