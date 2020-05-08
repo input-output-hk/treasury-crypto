@@ -5,7 +5,7 @@ import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGrou
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, DiscreteLogGroupFactory}
 import io.iohk.protocol.keygen.{DistrKeyGen, RoundsData}
 import io.iohk.protocol.storage.RoundsDataInMemoryStorage
-import io.iohk.protocol.voting.{ExpertBallot, PublicStakeBallot}
+import io.iohk.protocol.voting.{DelegatedVote, DirectVote, ExpertBallot, PublicStakeBallot}
 import io.iohk.protocol.{CommitteeIdentifier, CryptoContext, ProtocolContext}
 import org.scalatest.FunSuite
 
@@ -142,12 +142,12 @@ trait TallyTestSetup {
   for (i <- 0 until numberOfVoters)
     for (j <- 0 until numberOfProposals) {
       summator.addVoterBallot(
-        PublicStakeBallot.createBallot(pctx, j, vote = numberOfExperts, sharedVotingKey, 1, false).get)
+        PublicStakeBallot.createBallot(pctx, j, DirectVote(0), sharedVotingKey, 1, false).get)
       summator.addVoterBallot(
-        PublicStakeBallot.createBallot(pctx, j, 0, sharedVotingKey, 1, false).get)
+        PublicStakeBallot.createBallot(pctx, j, DelegatedVote(0), sharedVotingKey, 1, false).get)
     }
   val expertBallots = for (i <- 0 until numberOfExperts; j <- 0 until numberOfProposals) yield
-    ExpertBallot.createBallot(pctx, j, i, 0, sharedVotingKey, false).get
+    ExpertBallot.createBallot(pctx, j, i, DirectVote(0), sharedVotingKey, false).get
 
   val dkgR1DataAll = committeeKeys.map { keys =>
     val dkg = new DistrKeyGen(ctx, keys, keys._1, keys._1.toByteArray, committeeKeys.map(_._2), cmIdentifier, RoundsData())

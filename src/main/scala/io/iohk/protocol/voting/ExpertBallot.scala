@@ -36,16 +36,17 @@ object ExpertBallot {
   def createBallot(pctx: ProtocolContext,
                    proposalID: Int,
                    expertID: Int,
-                   vote: Int,
+                   vote: DirectVote,
                    ballotEncryptionKey: PubKey,
                    withProof: Boolean = true): Try[ExpertBallot] = Try {
     import pctx.cryptoContext.{group, hash}
-    require(vote >= 0 && vote < pctx.numberOfChoices, "Invalid vote!")
+    require(vote.validate(pctx), "Invalid vote!")
     require(expertID >= 0 && expertID < pctx.numberOfExperts, "Invalid expert ID!")
 
-    val (uVector, uRand) = Ballot.buildEncryptedUnitVector(pctx.numberOfChoices, vote, ballotEncryptionKey)
+    val vectorNonZeroBit = vote.getDirectVote.get
+    val (uVector, uRand) = Ballot.buildEncryptedUnitVector(pctx.numberOfChoices, vectorNonZeroBit, ballotEncryptionKey)
     val uProof = withProof match {
-      case true => Some(new SHVZKGen(ballotEncryptionKey, uVector, vote, uRand).produceNIZK().get)
+      case true => Some(new SHVZKGen(ballotEncryptionKey, uVector, vectorNonZeroBit, uRand).produceNIZK().get)
       case _ => None
     }
 

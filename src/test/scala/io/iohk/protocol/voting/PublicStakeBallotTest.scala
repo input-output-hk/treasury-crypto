@@ -17,7 +17,8 @@ class PublicStakeBallotTest extends FunSuite {
     val stake = 13
 
     // test all possible votes
-    for (vote <- 0 until (pctx.numberOfExperts + pctx.numberOfChoices)) {
+    for (i <- 0 until (pctx.numberOfExperts + pctx.numberOfChoices)) {
+      val vote = if (i < pctx.numberOfExperts) DelegatedVote(i) else DirectVote(i - pctx.numberOfExperts)
       val ballot = PublicStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get
 
       require(ballot.uVector.delegations.size == pctx.numberOfExperts)
@@ -27,15 +28,23 @@ class PublicStakeBallotTest extends FunSuite {
       require(ballot.verifyBallot(pctx, pubKey).isSuccess)
       require(ballot.stake == stake)
 
-      ballot.uVector.combine.zipWithIndex.foreach { case (v,i) =>
+      ballot.uVector.combine.zipWithIndex.foreach { case (v,j) =>
         val r = LiftedElGamalEnc.decrypt(privKey, v).get
-        if (i == vote) require(r == 1)
+        if (j == i) require(r == 1)
         else require(r == 0)
       }
     }
 
     // test invalid votes
-    val invalidVotes = Seq(-1, pctx.numberOfExperts + pctx.numberOfChoices, 100, 2355)
+    val invalidVotes = Seq(
+      DelegatedVote(-1),
+      DelegatedVote(pctx.numberOfExperts),
+      DelegatedVote(pctx.numberOfExperts + pctx.numberOfChoices),
+      DelegatedVote(100),
+      DirectVote(-1),
+      DirectVote(pctx.numberOfChoices),
+      DirectVote(2355))
+
     for (vote <- invalidVotes) {
       val badBallot = PublicStakeBallot.createBallot(pctx, 0, vote, pubKey, stake)
       require(badBallot.isFailure)
@@ -45,7 +54,7 @@ class PublicStakeBallotTest extends FunSuite {
   test("serialization") {
     val pctx = new ProtocolContext(ctx, 3, 5)
     val stake = 13
-    val vote = 2
+    val vote = DelegatedVote(2)
 
     val ballot = PublicStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get
     val bytes = ballot.bytes
@@ -64,7 +73,7 @@ class PublicStakeBallotTest extends FunSuite {
   test("serialization when there are no experts") {
     val pctx = new ProtocolContext(ctx, 3, 0)
 
-    val ballot = PublicStakeBallot.createBallot(pctx, 0, 1, pubKey, 1).get
+    val ballot = PublicStakeBallot.createBallot(pctx, 0, DirectVote(1), pubKey, 1).get
     val bytes = ballot.bytes
     val recoveredBallot = BallotSerializer.parseBytes(bytes, Option(ctx.group)).get.asInstanceOf[PublicStakeBallot]
 

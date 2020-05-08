@@ -18,7 +18,7 @@ class ExpertBallotTest extends FunSuite {
 
     // test all possible votes
     for (vote <- 0 until (pctx.numberOfChoices)) {
-      val ballot = ExpertBallot.createBallot(pctx, 0, 2, vote, pubKey).get
+      val ballot = ExpertBallot.createBallot(pctx, 0, 2, DirectVote(vote), pubKey).get
 
       require(ballot.uChoiceVector.size == pctx.numberOfChoices)
       require(ballot.verifyBallot(pctx, pubKey).isSuccess)
@@ -33,7 +33,7 @@ class ExpertBallotTest extends FunSuite {
     // test invalid votes
     val invalidVotes = Seq(-1, pctx.numberOfChoices, 100, 2355)
     for (vote <- invalidVotes) {
-      val badBallot = ExpertBallot.createBallot(pctx, 0, 0, vote, pubKey)
+      val badBallot = ExpertBallot.createBallot(pctx, 0, 0, DirectVote(vote), pubKey)
       require(badBallot.isFailure)
     }
   }
@@ -42,7 +42,7 @@ class ExpertBallotTest extends FunSuite {
     val pctx = new ProtocolContext(ctx, 3, 5)
     val vote = 2
 
-    val ballot = ExpertBallot.createBallot(pctx, 0, 0, vote, pubKey).get
+    val ballot = ExpertBallot.createBallot(pctx, 0, 0, DirectVote(vote), pubKey).get
     val bytes = ballot.bytes
     val recoveredBallot = BallotSerializer.parseBytes(bytes, Option(group)).get.asInstanceOf[ExpertBallot]
 

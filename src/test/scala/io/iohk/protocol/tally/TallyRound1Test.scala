@@ -3,7 +3,7 @@ package io.iohk.protocol.tally
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.protocol.tally.Tally.Stages
 import io.iohk.protocol.tally.datastructures.DecryptionShare
-import io.iohk.protocol.voting.PublicStakeBallot
+import io.iohk.protocol.voting.{DelegatedVote, DirectVote, PublicStakeBallot}
 import io.iohk.protocol.{CommitteeIdentifier, ProtocolContext}
 import org.scalatest.FunSuite
 
@@ -88,7 +88,7 @@ class TallyRound1Test extends FunSuite with TallyTestSetup {
 
     for(i <- 0 until numberOfVoters)
       for(j <- 0 until numberOfProposals)
-        summator.addVoterBallot(PublicStakeBallot.createBallot(pctx, j, 0, pubKey, 2).get)
+        summator.addVoterBallot(PublicStakeBallot.createBallot(pctx, j, DirectVote(0), pubKey, 2).get)
 
     val tally = new Tally(pctx, committeeIdentifier, Map())
     val r1Data = tally.generateR1Data(summator, (privKey, pubKey)).get

@@ -1,7 +1,7 @@
 package io.iohk.protocol.integration
 
 import io.iohk.core.crypto.encryption.PubKey
-import io.iohk.protocol.voting.{ExpertBallot, PrivateStakeBallot, PublicStakeBallot, VoterBallot}
+import io.iohk.protocol.voting.{DelegatedVote, DirectVote, ExpertBallot, PrivateStakeBallot, PublicStakeBallot, VoterBallot}
 import io.iohk.protocol.{CryptoContext, ProtocolContext}
 
 import scala.util.Try
@@ -23,11 +23,11 @@ class ElectionsScenario1(ctx: CryptoContext) extends Elections {
   def run(sharedPubKey: PubKey): (Seq[PublicStakeBallot], Seq[ExpertBallot]) = {
     val votersBallots =
       for (_ <- 0 until votersNum) yield
-        PublicStakeBallot.createBallot(pctx, proposalID, 1, sharedPubKey, 3, false).get
+        PublicStakeBallot.createBallot(pctx, proposalID, DelegatedVote(1), sharedPubKey, 3, false).get
 
     val expertsBallots =
       for (expertId <- 0 until numberOfExperts) yield
-        ExpertBallot.createBallot(pctx, proposalID, expertId, 0, sharedPubKey, false).get
+        ExpertBallot.createBallot(pctx, proposalID, expertId, DirectVote(0), sharedPubKey, false).get
 
     votersBallots -> expertsBallots
   }
@@ -56,17 +56,17 @@ class ElectionsScenario2(ctx: CryptoContext) extends Elections
     proposalIDs.foldLeft((Seq[PublicStakeBallot](), Seq[ExpertBallot]())) { case ((vAcc, eAcc), proposalID) =>
       val votersBallots =
         for (voterId <- numberOfExperts until (numberOfExperts + votersNum)) yield {
-          val vote = if (voterId % 2 == 1) pctx.numberOfExperts else pctx.numberOfExperts + 2
+          val vote = if (voterId % 2 == 1) DirectVote(0) else DirectVote(2)
           PublicStakeBallot.createBallot(pctx, proposalID, vote, sharedPubKey, stake = proposalID, false).get
         }
 
       val votersDelegatedBallots =
         for (_ <- 0 until votersDelegatedNum) yield
-          PublicStakeBallot.createBallot(pctx, proposalID, 0, sharedPubKey, stake = proposalID, false).get
+          PublicStakeBallot.createBallot(pctx, proposalID, DelegatedVote(0), sharedPubKey, stake = proposalID, false).get
 
       val expertsBallots =
         for (expertId <- 0 until numberOfExperts) yield
-          ExpertBallot.createBallot(pctx, proposalID, expertId, 1, sharedPubKey,false).get
+          ExpertBallot.createBallot(pctx, proposalID, expertId, DirectVote(1), sharedPubKey,false).get
 
       (vAcc ++ votersBallots ++ votersDelegatedBallots) -> (eAcc ++ expertsBallots)
     }
@@ -91,16 +91,16 @@ class ElectionsScenario3(ctx: CryptoContext) extends ElectionsScenario2(ctx)
     proposalIDs.foldLeft((Seq[PrivateStakeBallot](), Seq[ExpertBallot]())) { case ((vAcc, eAcc), proposalID) =>
       val votersBallots =
         for (voterId <- numberOfExperts until (numberOfExperts + votersNum)) yield {
-          val vote = if (voterId % 2 == 1) pctx.numberOfExperts else pctx.numberOfExperts + 2
-          PrivateStakeBallot.createBallot(pctx, proposalID, vote, sharedPubKey, stake = proposalID, false).get
+          val choice = if (voterId % 2 == 1) 0 else 2
+          PrivateStakeBallot.createBallot(pctx, proposalID, DirectVote(choice), sharedPubKey, stake = proposalID, false).get
         }
 
       val votersDelegatedBallots = for (_ <- 0 until votersDelegatedNum) yield
-          PrivateStakeBallot.createBallot(pctx, proposalID, 0, sharedPubKey, stake = proposalID, false).get
+          PrivateStakeBallot.createBallot(pctx, proposalID, DelegatedVote(0), sharedPubKey, stake = proposalID, false).get
 
       val expertsBallots =
         for (expertId <- 0 until numberOfExperts) yield
-          ExpertBallot.createBallot(pctx, proposalID, expertId, 1, sharedPubKey, false).get
+          ExpertBallot.createBallot(pctx, proposalID, expertId, DirectVote(1), sharedPubKey, false).get
 
       (vAcc ++ votersBallots ++ votersDelegatedBallots) -> (eAcc ++ expertsBallots)
     }
@@ -121,18 +121,16 @@ class ElectionsScenario4(ctx: CryptoContext) extends Elections
   {
     proposalIDs.foldLeft((Seq[PublicStakeBallot](), Seq[ExpertBallot]())) { case ((vAcc, eAcc), proposalID) =>
       val votersBallots =
-        for (voterId <- 0 until votersNum) yield {
-          val vote = pctx.numberOfExperts + voterId % 5
-          PublicStakeBallot.createBallot(pctx, proposalID, vote, sharedPubKey, stake = proposalID, false).get
-        }
+        for (voterId <- 0 until votersNum) yield
+          PublicStakeBallot.createBallot(pctx, proposalID, DirectVote(voterId % 5), sharedPubKey, stake = proposalID, false).get
 
       val votersDelegatedBallots =
         for (voterId <- 0 until votersDelegatedNum) yield
-          PublicStakeBallot.createBallot(pctx, proposalID, voterId % 5, sharedPubKey, stake = proposalID, false).get
+          PublicStakeBallot.createBallot(pctx, proposalID, DelegatedVote(voterId % 5), sharedPubKey, stake = proposalID, false).get
 
       val expertsBallots =
         for (expertId <- 0 until pctx.numberOfExperts) yield
-          ExpertBallot.createBallot(pctx, proposalID, expertId, 1, sharedPubKey, false).get
+          ExpertBallot.createBallot(pctx, proposalID, expertId, DirectVote(1), sharedPubKey, false).get
 
       (vAcc ++ votersBallots ++ votersDelegatedBallots) -> (eAcc ++ expertsBallots)
     }

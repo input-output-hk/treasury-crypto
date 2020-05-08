@@ -15,7 +15,7 @@ class VoterBallotTest extends FunSuite {
   test("VoterBallot interface") {
     val pctx = new ProtocolContext(ctx, 3, 5)
     val stake = 13
-    val vote = 2
+    val vote = DelegatedVote(2)
 
     val ballots = Seq(
       PublicStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get,
@@ -27,12 +27,12 @@ class VoterBallotTest extends FunSuite {
 
       ballot.weightedUnitVector.combine.zipWithIndex.foreach { case (v, i) =>
         val r = LiftedElGamalEnc.decrypt(privKey, v).get
-        if (i == vote) require(r == stake)
+        if (i == vote.expertId) require(r == stake)
         else require(r == 0)
       }
       ballot.encryptedUnitVector.combine.zipWithIndex.foreach { case (v, i) =>
         val r = LiftedElGamalEnc.decrypt(privKey, v).get
-        if (i == vote) require(r == 1)
+        if (i == vote.expertId) require(r == 1)
         else require(r == 0)
       }
     }

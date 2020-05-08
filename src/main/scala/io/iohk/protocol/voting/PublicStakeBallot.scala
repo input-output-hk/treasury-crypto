@@ -41,19 +41,23 @@ object PublicStakeBallot {
 
   def createBallot(pctx: ProtocolContext,
                    proposalID: Int,
-                   vote: Int,
+                   vote: Vote,
                    ballotEncryptionKey: PubKey,
                    stake: BigInt,
                    withProof: Boolean = true): Try[PublicStakeBallot] = Try {
     import pctx.cryptoContext.{group, hash}
-    require(vote >= 0 && vote < pctx.numberOfChoices + pctx.numberOfExperts, "Invalid vote!")
+    require(vote.validate(pctx), "Invalid vote!")
     require(stake > 0, "Invalid stake amount!")
 
-    val (u, uRand) = Ballot.buildEncryptedUnitVector(pctx.numberOfExperts + pctx.numberOfChoices, vote, ballotEncryptionKey)
+    val nonZeroBitIndex = vote match {
+      case DirectVote(v) => pctx.numberOfExperts + v
+      case DelegatedVote(v) => v
+    }
+    val (u, uRand) = Ballot.buildEncryptedUnitVector(pctx.numberOfExperts + pctx.numberOfChoices, nonZeroBitIndex, ballotEncryptionKey)
     val (uDeleg, uChoice) = u.splitAt(pctx.numberOfExperts)
     val uVector = EncryptedUnitVector(uDeleg, uChoice)
     val uProof = withProof match {
-      case true => Some(new SHVZKGen(ballotEncryptionKey, u, vote, uRand).produceNIZK().get)
+      case true => Some(new SHVZKGen(ballotEncryptionKey, u, nonZeroBitIndex, uRand).produceNIZK().get)
       case _ => None
     }
 

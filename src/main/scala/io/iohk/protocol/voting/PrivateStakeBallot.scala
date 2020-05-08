@@ -51,28 +51,33 @@ object PrivateStakeBallot {
     */
   def createBallot(pctx: ProtocolContext,
                    proposalID: Int,
-                   vote: Int,
+                   vote: Vote,
                    ballotEncryptionKey: PubKey,
                    stake: BigInt,
                    withProof: Boolean = true): Try[PrivateStakeBallot] = Try {
     import pctx.cryptoContext.{group, hash}
-    require(vote >= 0 && vote < pctx.numberOfChoices + pctx.numberOfExperts, "Invalid vote!")
+    require(vote.validate(pctx), "Invalid vote!")
     require(stake > 0, "Invalid stake amount!")
+
+    val nonZeroBitIndex = vote match {
+      case DirectVote(v) => pctx.numberOfExperts + v
+      case DelegatedVote(v) => v
+    }
 
     val encryptedStake = LiftedElGamalEnc.encrypt(ballotEncryptionKey, stake).get._1
 
     // Step 1: building encrypted unit vector of voter's preference
-    val (u, uRand) = Ballot.buildEncryptedUnitVector(pctx.numberOfExperts + pctx.numberOfChoices, vote, ballotEncryptionKey)
+    val (u, uRand) = Ballot.buildEncryptedUnitVector(pctx.numberOfExperts + pctx.numberOfChoices, nonZeroBitIndex, ballotEncryptionKey)
     val (uDeleg, uChoice) = u.splitAt(pctx.numberOfExperts)
     val uVector = EncryptedUnitVector(uDeleg, uChoice)
     val uProof =
       if (withProof)
-        Some(new SHVZKGen(ballotEncryptionKey, u, vote, uRand).produceNIZK().get)
+        Some(new SHVZKGen(ballotEncryptionKey, u, nonZeroBitIndex, uRand).produceNIZK().get)
       else None
 
     // Step 2: building a vector of (a^e_i)*Enc(0), where 'a' is an encrypted stake and 'e_i' is a corresponding bit of a unit vector
     val plainUnitVector = Array.fill(u.size)(0)
-    plainUnitVector(vote) = 1
+    plainUnitVector(nonZeroBitIndex) = 1
 
     val vRand = Vector.fill(u.size)(group.createRandomNumber)
     val v = vRand.zip(plainUnitVector).map { case (r,bit) =>

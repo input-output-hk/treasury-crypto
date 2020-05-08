@@ -30,18 +30,24 @@ package object voting {
 
     /** In case of a delegated vote, it returns an integer representing the expert id, otherwise returns None */
     def getDelegatedVote: Option[Int]
+
+    def validate(implicit ctx: ProtocolContext): Boolean
   }
 
   case class DirectVote(choice: Int) extends Vote {
     override val isDirectVote = true
     override def getDirectVote = Some(choice)
     override def getDelegatedVote = None
+    override def validate(implicit ctx: ProtocolContext): Boolean =
+      choice >= 0 && choice < ctx.numberOfChoices
   }
 
   case class DelegatedVote(expertId: Int) extends Vote {
     override val isDirectVote = false
     override def getDirectVote = None
     override def getDelegatedVote = Some(expertId)
+    override def validate(implicit ctx: ProtocolContext): Boolean =
+      expertId >= 0 && expertId < ctx.numberOfExperts
   }
 
   /**
