@@ -21,6 +21,7 @@ abstract class Identifier[T](val pubKeys: Seq[PubKey]) {
 
   def getId(pubKey: PubKey): Option[T]
   def getPubKey(id: T): Option[PubKey]
+  def getPubKeysWithId: Map[T, PubKey]
 }
 
 class ExpertIdentifier(pubKeys: Seq[PubKey]) extends Identifier[Int](pubKeys) {
@@ -35,6 +36,8 @@ class ExpertIdentifier(pubKeys: Seq[PubKey]) extends Identifier[Int](pubKeys) {
   override def getPubKey(id: Int): Option[PubKey] = {
     keysMap.get(id)
   }
+
+  override def getPubKeysWithId: Map[Int, PubKey] = keysMap
 }
 
 class CommitteeIdentifier(pubKeys: Seq[PubKey]) extends ExpertIdentifier(pubKeys) {}
@@ -56,5 +59,9 @@ class SimpleIdentifier(pubKeys: Seq[PubKey]) extends Identifier[Int](pubKeys) {
     if (id >= 0 && id < pubKeys.size)
       Some(pubKeys(id))
     else None
+  }
+
+  override def getPubKeysWithId: Map[Int, PubKey] = {
+    pubKeys.zipWithIndex.map(_.swap)(collection.breakOut)
   }
 }
