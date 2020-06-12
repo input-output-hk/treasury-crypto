@@ -29,7 +29,7 @@ class ElGamalEncTest extends FunSuite with TableDrivenPropertyChecks with Matche
   val messages =
     Table(
       "message",
-      BigInt(0), BigInt(1), BigInt(2), BigInt(100), BigInt(23534), BigInt(LiftedElGamalEnc.MSG_RANGE-1)
+      BigInt(0), BigInt(1), BigInt(2), BigInt(100), BigInt(23534), BigInt(65536)
     )
 
   test("LiftedElGamalEnc should correctly encrypt and decrypt messages") {

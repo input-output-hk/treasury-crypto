@@ -11,7 +11,7 @@ import scala.util.Try
 object LiftedElGamalEnc {
 
   /* Message to be encrypted should be in range: msg (mod G) = [0 .. MSG_RANGE-1], G is a group order */
-  val MSG_RANGE = scala.math.pow(2, 16).toInt
+  val MSG_RANGE = BigInt("1048576") // 2^20
 
   /* Lifted ElGamal is based on classical ElGamal where point for dectyption is derived by epnonentiating group generator to msg */
   def encrypt(pubKey: PubKey, rand: Randomness, msg: BigInt)(implicit dlogGroup: DiscreteLogGroup): Try[ElGamalCiphertext] =  {
