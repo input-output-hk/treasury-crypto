@@ -23,14 +23,14 @@ class BallotCreationPerformance {
       val ballotSize = ballot.bytes.size
 
       println("\tVoter ballot size: " + ballotSize + " bytes")
-      println("\tVoter ballot proof size: " + ballot.uProof.size + " bytes")
+      println("\tVoter ballot proof size: " + ballot.uProof.get.size + " bytes")
 
       TimeUtils.accurate_time("\tExpert ballot creation: ", ExpertBallot.createBallot(pctx, 0, 0, DirectVote(0), pubKey).get)
 
       val exballot = ExpertBallot.createBallot(pctx, 0, 0, DirectVote(0), pubKey).get
-      val exballotSize = exballot.bytes
+      val exballotSize = exballot.bytes.size
       println("\tExpert ballot size: " + exballotSize + " bytes")
-      println("\tExpert ballot proof size: " + exballot.uProof.size + " bytes")
+      println("\tExpert ballot proof size: " + exballot.uProof.get.size + " bytes")
     }
   }
 }
