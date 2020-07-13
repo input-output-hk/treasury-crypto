@@ -25,8 +25,15 @@ case class ElGamalCiphertext(c1: GroupElement, c2: GroupElement) extends BytesSe
     ElGamalCiphertext(c1.multiply(that.c1).get, c2.multiply(that.c2).get)
   }
 
+  def divide(that: ElGamalCiphertext)(implicit dlog: DiscreteLogGroup): Try[ElGamalCiphertext] = Try {
+    ElGamalCiphertext(c1.divide(that.c1).get, c2.divide(that.c2).get)
+  }
+
   @throws[Exception]("if underlying multiply failed")
   def * (that: ElGamalCiphertext)(implicit dlog: DiscreteLogGroup): ElGamalCiphertext = this.multiply(that).get
+
+  @throws[Exception]("if underlying divide failed")
+  def / (that: ElGamalCiphertext)(implicit dlog: DiscreteLogGroup): ElGamalCiphertext = this.divide(that).get
 }
 
 object ElGamalCiphertextSerializer extends Serializer[ElGamalCiphertext, DiscreteLogGroup] {
