@@ -56,8 +56,8 @@ class PreferentialExpertBallotTest extends FunSuite {
     require(maliciousBallot.verifyBallot(pctx, pubKey) == false)
   }
 
-  // This test will fail, because the current version of ZK proof does not check duplicates. Restore the test when the proof is fixed.
-  ignore("duplicated proposal id should not be allowed") {
+  // This test will fail, because the current version of ZK proof does not check duplicates. Restore the test when the proof is improved.
+  ignore("the same proposal id should not be duplicated in the ranking list") {
     val pctx = new PreferentialContext(ctx, 10, 5, 3)
 
     val vote = DirectPreferentialVote(List(1,5,9,0,2))
