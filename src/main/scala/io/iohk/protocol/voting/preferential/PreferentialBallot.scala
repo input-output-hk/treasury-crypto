@@ -2,8 +2,10 @@ package io.iohk.protocol.voting.preferential
 
 import com.google.common.primitives.Bytes
 import io.iohk.core.crypto.encryption.PubKey
+import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
+import io.iohk.protocol.nizk.shvzk.SHVZKProof
 import io.iohk.protocol.voting.{ExpertBallot, ExpertBallotSerializer, PrivateStakeBallot, PrivateVoterBallotSerializer, PublicStakeBallot, PublicStakeBallotSerializer}
 import io.iohk.protocol.voting.preferential.PreferentialBallot.PreferentialBallotTypes
 
@@ -16,6 +18,8 @@ trait PreferentialBallot extends BytesSerializable {
 
   def verifyBallot(pctx: PreferentialContext, pubKey: PubKey): Boolean
 }
+
+case class RankVector(rank: Vector[ElGamalCiphertext], z: ElGamalCiphertext, proof: Option[SHVZKProof])
 
 object PreferentialBallot {
   object PreferentialBallotTypes extends Enumeration {

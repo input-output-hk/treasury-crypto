@@ -2,16 +2,14 @@ package io.iohk.protocol.voting.preferential
 
 import com.google.common.primitives.{Bytes, Ints, Shorts}
 import io.iohk.core.crypto.encryption.PubKey
-import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalCiphertextSerializer}
+import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertextSerializer
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.Serializer
-import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKProofSerializer, SHVZKVerifier}
+import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProofSerializer, SHVZKVerifier}
 import io.iohk.protocol.voting.Ballot
 import io.iohk.protocol.voting.preferential.PreferentialBallot.PreferentialBallotTypes
 
 import scala.util.Try
-
-case class RankVector(rank: Vector[ElGamalCiphertext], z: ElGamalCiphertext, proof: Option[SHVZKProof])
 
 case class PreferentialExpertBallot (expertId: Int,
                                      rankVectors: List[RankVector],
