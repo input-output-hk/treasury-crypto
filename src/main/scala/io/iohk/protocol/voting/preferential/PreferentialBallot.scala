@@ -1,29 +1,18 @@
 package io.iohk.protocol.voting.preferential
 
 import io.iohk.core.crypto.encryption.PubKey
-import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
-import io.iohk.protocol.nizk.shvzk.{SHVZKProof, SHVZKVerifier}
 import io.iohk.protocol.voting.preferential.PreferentialBallot.PreferentialBallotTypes
 
 import scala.util.Try
 
-abstract class PreferentialBallot (rankVectors: List[Vector[ElGamalCiphertext]],
-                                   rankVectorsProofs: Option[List[SHVZKProof]]
-                                  ) extends BytesSerializable {
+trait PreferentialBallot extends BytesSerializable {
   override type DECODER = DiscreteLogGroup
 
   def ballotTypeId: Byte
 
-  def verifyBallot(pctx: PreferentialContext, pubKey: PubKey): Boolean = Try {
-    import pctx.cryptoContext.{group, hash}
-    require(rankVectors.size == pctx.numberOfRankedProposals)
-    rankVectors.foreach(v => require(v.size == pctx.numberOfProposals))
-    rankVectors.indices.foreach { i =>
-      require(new SHVZKVerifier(pubKey, rankVectors(i), rankVectorsProofs.get(i)).verifyProof())
-    }
-  }.isSuccess
+  def verifyBallot(pctx: PreferentialContext, pubKey: PubKey): Boolean
 }
 
 object PreferentialBallot {

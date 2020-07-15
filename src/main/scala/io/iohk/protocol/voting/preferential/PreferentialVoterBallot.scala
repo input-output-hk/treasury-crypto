@@ -17,7 +17,7 @@ case class PreferentialVoterBallot(delegVector: Vector[ElGamalCiphertext],
                                    delegVectorProof: Option[SHVZKProof],
                                    rankVectorsProofs: Option[List[SHVZKProof]],
                                    stake: BigInt
-                                  ) extends PreferentialBallot(rankVectors, rankVectorsProofs) {
+                                  ) extends PreferentialBallot {
   override type M = PreferentialBallot
   override val serializer = PreferentialBallotSerializer
 
