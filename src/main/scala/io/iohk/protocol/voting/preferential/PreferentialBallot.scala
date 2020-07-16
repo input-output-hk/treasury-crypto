@@ -29,14 +29,14 @@ object PreferentialBallot {
 
 object PreferentialBallotSerializer extends Serializer[PreferentialBallot, DiscreteLogGroup] {
   override def toBytes(b: PreferentialBallot): Array[Byte] = b match {
-    case v: PreferentialVoterBallot => ??? //Bytes.concat(Array(v.ballotTypeId), PreferentialVoterBallotSerializer.toBytes(v))
+    case v: PreferentialVoterBallot => Bytes.concat(Array(v.ballotTypeId), PreferentialVoterBallotSerializer.toBytes(v))
     case e: PreferentialExpertBallot => Bytes.concat(Array(e.ballotTypeId), PreferentialExpertBallotSerializer.toBytes(e))
   }
 
   override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[PreferentialBallot] = {
     val ballotTypeId = bytes(0).toInt
     PreferentialBallotTypes(ballotTypeId) match {
-      case PreferentialBallotTypes.Voter => ???
+      case PreferentialBallotTypes.Voter => PreferentialVoterBallotSerializer.parseBytes(bytes.drop(1), decoder)
       case PreferentialBallotTypes.Expert => PreferentialExpertBallotSerializer.parseBytes(bytes.drop(1), decoder)
     }
   }

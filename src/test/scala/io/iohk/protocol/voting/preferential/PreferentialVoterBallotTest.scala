@@ -132,4 +132,28 @@ class PreferentialVoterBallotTest extends FunSuite {
 
     require(maliciousBallot.verifyBallot(pctx, pubKey) == false)
   }
+
+  test("serialization") {
+    val pctx = new PreferentialContext(ctx, 10, 5, 4)
+
+    val vote = DirectPreferentialVote(List(1,5,9,0,2))
+    val ballot = PreferentialVoterBallot.createBallot(pctx, vote, pubKey, 34).get
+
+    val bytes = ballot.bytes
+    val recoveredBallot = PreferentialBallotSerializer.parseBytes(bytes, Option(group)).get.asInstanceOf[PreferentialVoterBallot]
+
+    require(recoveredBallot.stake == 34)
+    require(recoveredBallot.verifyBallot(pctx, pubKey))
+
+    val ballotWithoutProofs = PreferentialVoterBallot.createBallot(pctx, vote, pubKey, 35, false).get
+    val recoveredBallot2 = PreferentialBallotSerializer.parseBytes(ballotWithoutProofs.bytes, Option(group)).get.asInstanceOf[PreferentialVoterBallot]
+    require(recoveredBallot2.stake == 35)
+    require(recoveredBallot2.rankVectors.size == pctx.numberOfProposals)
+    recoveredBallot2.rankVectors.foreach { rv =>
+      require(rv.rank.size == pctx.numberOfRankedProposals)
+      require(rv.proof.isEmpty)
+    }
+    require(recoveredBallot2.delegVector.size == pctx.numberOfExperts)
+    require(recoveredBallot2.delegVectorProof.isEmpty)
+  }
 }

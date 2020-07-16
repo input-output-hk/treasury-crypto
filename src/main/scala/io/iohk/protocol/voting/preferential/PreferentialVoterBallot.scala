@@ -1,8 +1,11 @@
 package io.iohk.protocol.voting.preferential
 
-import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
+import com.google.common.primitives.{Bytes, Ints, Shorts}
+import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalCiphertextSerializer, LiftedElGamalEnc}
 import io.iohk.core.crypto.encryption.{PubKey, Randomness}
-import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKVerifier}
+import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
+import io.iohk.core.serialization.Serializer
+import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKProofSerializer, SHVZKVerifier}
 import io.iohk.protocol.voting.Ballot
 import io.iohk.protocol.voting.preferential.PreferentialBallot.PreferentialBallotTypes
 
@@ -105,5 +108,98 @@ object PreferentialVoterBallot {
         val rankVectors= prepareRankVectors(None, w, w_rand)
         PreferentialVoterBallot(delegVector, delegVectorProof, rankVectors, w, stake)
     }
+  }
+}
+
+/* PreferentialBallotSerializer should be used to deserialize PreferentialVoterBallot */
+private[voting] object PreferentialVoterBallotSerializer extends Serializer[PreferentialVoterBallot, DiscreteLogGroup] {
+
+  override def toBytes(ballot: PreferentialVoterBallot): Array[Byte] = {
+    val rankVectorsBytes = ballot.rankVectors.foldLeft(Array[Byte]()) { (acc, v) =>
+      val vectorBytes = (v.z +: v.rank).foldLeft(Array[Byte]()) { (acc2, b) =>
+        val bytes = b.bytes
+        Bytes.concat(acc2, Array(bytes.length.toByte), bytes)
+      }
+      val proofBytes = v.proof match {
+        case Some(p) => p.bytes
+        case None => Array[Byte]()
+      }
+      Bytes.concat(acc,
+        Shorts.toByteArray((v.rank.length+1).toShort), vectorBytes,
+        Ints.toByteArray(proofBytes.length), proofBytes)
+    }
+
+    val delegVectorBytes = ballot.delegVector.foldLeft(Array[Byte]()) { (acc, b) =>
+      val bytes = b.bytes
+      Bytes.concat(acc, Array(bytes.length.toByte), bytes)
+    }
+    val delegProofBytes = ballot.delegVectorProof match {
+      case Some(p) => p.bytes
+      case None => Array[Byte]()
+    }
+    val wBytes = ballot.w.bytes
+
+    val stakeBytes = ballot.stake.toByteArray
+
+    Bytes.concat(
+      Shorts.toByteArray(ballot.delegVector.size.toShort), delegVectorBytes,
+      Ints.toByteArray(delegProofBytes.size), delegProofBytes,
+      Shorts.toByteArray(ballot.rankVectors.length.toShort), rankVectorsBytes,
+      Array(wBytes.length.toByte), wBytes,
+      Array(stakeBytes.length.toByte), stakeBytes
+    )
+  }
+
+  override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[PreferentialVoterBallot] = Try {
+    val delegVectorLen = Shorts.fromByteArray(bytes.slice(0,2))
+    var position = 2
+
+    val delegVector = (0 until delegVectorLen).map { _ =>
+      val len = bytes(position)
+      val c = ElGamalCiphertextSerializer.parseBytes(bytes.slice(position+1, position+1+len), decoder).get
+      position = position + len + 1
+      c
+    }.toVector
+
+    val delegVectorProofLen =  Ints.fromByteArray(bytes.slice(position,position+4))
+    position += 4
+    val delegVectorProof = delegVectorProofLen match {
+      case 0 => None
+      case l =>
+        position = position + l
+        Some(SHVZKProofSerializer.parseBytes(bytes.slice(position - l, position), decoder).get)
+    }
+
+    val rankVectorsLen = Shorts.fromByteArray(bytes.slice(position,position+2))
+    position += 2
+
+    val rankVectors = (0 until rankVectorsLen).map { _ =>
+      val vectorLen = Shorts.fromByteArray(bytes.slice(position,position+2))
+      position += 2
+      val vector = (0 until vectorLen).map { _ =>
+        val len = bytes(position)
+        val c = ElGamalCiphertextSerializer.parseBytes(bytes.slice(position+1, position+1+len), decoder).get
+        position = position + len + 1
+        c
+      }.toVector
+      val proofLen = Ints.fromByteArray(bytes.slice(position,position+4))
+      position += 4
+      val proof = proofLen match {
+        case 0 => None
+        case l =>
+          position = position + l
+          Some(SHVZKProofSerializer.parseBytes(bytes.slice(position - l, position), decoder).get)
+      }
+      RankVector(vector.tail, vector.head, proof)
+    }.toList
+
+    val wLen = bytes(position)
+    val w = ElGamalCiphertextSerializer.parseBytes(bytes.slice(position+1, position+1+wLen), decoder).get
+    position += 1 + wLen
+
+    val stakeLen = bytes(position)
+    val stake = BigInt(bytes.slice(position+1, position+1+stakeLen))
+
+    PreferentialVoterBallot(delegVector, delegVectorProof, rankVectors, w, stake)
   }
 }

@@ -15,5 +15,5 @@ trait Serializer[M,D] {
     * @param decoder special decoder if needed
     * @return reconstructed object in Try
     */
-  def parseBytes(bytes: Array[Byte], decoder: Option[D] = None): Try[M]
+  def parseBytes(bytes: Array[Byte], decoder: Option[D]): Try[M]
 }
