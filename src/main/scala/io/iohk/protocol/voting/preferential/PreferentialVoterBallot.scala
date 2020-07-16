@@ -23,13 +23,14 @@ case class PreferentialVoterBallot(delegVector: Vector[ElGamalCiphertext],
 
   override val ballotTypeId: Byte = PreferentialBallotTypes.Voter.id.toByte
 
-//
-//  def weightedUnitVector(implicit group: DiscreteLogGroup): EncryptedUnitVector = {
-//    EncryptedUnitVector(
-//      uVector.delegations.map(v => v.pow(stake).get),
-//      uVector.choice.map(v => v.pow(stake).get)
-//    )
-//  }
+
+  def weightedDelegationVector(implicit group: DiscreteLogGroup): Vector[ElGamalCiphertext] = {
+    delegVector.map(v => v.pow(stake).get)
+  }
+
+  def weightedRankVectors(implicit group: DiscreteLogGroup): List[Vector[ElGamalCiphertext]] = {
+    rankVectors.map(rv => rv.rank.map(v => v.pow(stake).get))
+  }
 
   override def verifyBallot(pctx: PreferentialContext, pubKey: PubKey): Boolean = Try {
     import pctx.cryptoContext.{group, hash}

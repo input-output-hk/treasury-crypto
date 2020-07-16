@@ -156,4 +156,40 @@ class PreferentialVoterBallotTest extends FunSuite {
     require(recoveredBallot2.delegVector.size == pctx.numberOfExperts)
     require(recoveredBallot2.delegVectorProof.isEmpty)
   }
+
+  test("weightedDelegationVector") {
+    val pctx = new PreferentialContext(ctx, 10, 5, 4)
+
+    val vote = DelegatedPreferentialVote(0)
+    val ballot = PreferentialVoterBallot.createBallot(pctx, vote, pubKey, 34).get
+
+    val weightedDelegVector = ballot.weightedDelegationVector
+
+    weightedDelegVector.tail.foreach { v =>
+      require(LiftedElGamalEnc.decrypt(privKey, v).get == 0)
+    }
+    require(LiftedElGamalEnc.decrypt(privKey, weightedDelegVector.head).get == 34)
+  }
+
+  test("weightedRankVectors") {
+    val pctx = new PreferentialContext(ctx, 10, 5, 4)
+
+    val ranking = List(0,1,2,3,4)
+    val vote = DirectPreferentialVote(ranking)
+    val ballot = PreferentialVoterBallot.createBallot(pctx, vote, pubKey, 34).get
+
+    val weightedRankVectors = ballot.weightedRankVectors
+
+    (0 until pctx.numberOfProposals).map { proposalId =>
+        ranking.indexOf(proposalId) match {
+          case -1 => weightedRankVectors(proposalId).foreach { b =>
+            require(LiftedElGamalEnc.decrypt(privKey, b).get == 0)
+          }
+          case r => (0 until pctx.numberOfRankedProposals).foreach { i =>
+            val res = LiftedElGamalEnc.decrypt(privKey, weightedRankVectors(proposalId)(i)).get
+            if (i == r) require(res == 34) else require(res == 0)
+          }
+        }
+    }
+  }
 }
