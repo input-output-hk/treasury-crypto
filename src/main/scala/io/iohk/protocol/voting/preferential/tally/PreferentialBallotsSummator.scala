@@ -8,17 +8,19 @@ import scala.util.Try
 class PreferentialBallotsSummator(ctx: PreferentialContext) {
   import ctx.cryptoContext.group
 
-  private val neutralCiphertext = ElGamalCiphertext(group.groupIdentity, group.groupIdentity)
+  val neutralCiphertext = ElGamalCiphertext(group.groupIdentity, group.groupIdentity)
 
-  private var delegationsSum: Vector[ElGamalCiphertext] =
-    Vector.fill[ElGamalCiphertext](ctx.numberOfExperts)(neutralCiphertext)
-  private var rankingsSum: List[Vector[ElGamalCiphertext]] =
+  private var delegationsSum: Option[Vector[ElGamalCiphertext]] = None
+  private var rankingsSum: Option[List[Vector[ElGamalCiphertext]]] = None
+
+  private def initRankingsSum: List[Vector[ElGamalCiphertext]] =
     (0 until ctx.numberOfProposals).map { _ =>
       Vector.fill[ElGamalCiphertext](ctx.numberOfRankedProposals)(neutralCiphertext)
     }.toList
+  private def initDelegationsSum = Vector.fill[ElGamalCiphertext](ctx.numberOfExperts)(neutralCiphertext)
 
-  def getDelegationsSum: Vector[ElGamalCiphertext] = delegationsSum
-  def getRankingsSum: List[Vector[ElGamalCiphertext]] = rankingsSum
+  def getDelegationsSum: Option[Vector[ElGamalCiphertext]] = delegationsSum
+  def getRankingsSum: Option[List[Vector[ElGamalCiphertext]]] = rankingsSum
 
   def addVoterBallot(ballot: PreferentialVoterBallot): Try[PreferentialBallotsSummator] = Try {
     require(ballot.delegVector.length == ctx.numberOfExperts, "Invalid preferential voter ballot: invalid number of delegation bits in the unit vector")
@@ -26,15 +28,17 @@ class PreferentialBallotsSummator(ctx: PreferentialContext) {
     ballot.rankVectors.foreach(v =>
       require(v.rank.length == ctx.numberOfRankedProposals, "Invalid voter ballot: invalid number of choice bits in the unit vector"))
 
-    val updatedDelegationsSum = delegationsSum.zip(ballot.weightedDelegationVector).map { case (c1, c2) =>
+    val updatedDelegationsSum = delegationsSum.getOrElse(initDelegationsSum)
+      .zip(ballot.weightedDelegationVector).map { case (c1, c2) =>
       c1.multiply(c2).get
     }
-    val updatedRankingsSum = rankingsSum.zip(ballot.weightedRankVectors).map { case (v1, v2) =>
+    val updatedRankingsSum = rankingsSum.getOrElse(initRankingsSum)
+      .zip(ballot.weightedRankVectors).map { case (v1, v2) =>
       v1.zip(v2).map(c => c._1.multiply(c._2).get)
     }
 
-    delegationsSum = updatedDelegationsSum
-    rankingsSum = updatedRankingsSum
+    delegationsSum = Some(updatedDelegationsSum)
+    rankingsSum = Some(updatedRankingsSum)
     this
   }
 }

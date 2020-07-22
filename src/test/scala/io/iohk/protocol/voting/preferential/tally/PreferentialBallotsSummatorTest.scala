@@ -26,15 +26,15 @@ class PreferentialBallotsSummatorTest extends FunSuite{
       summator.addVoterBallot(
         PreferentialVoterBallot.createBallot(pctx, DirectPreferentialVote(ranking), pubKey, stake).get)
 
-    require(summator.getDelegationsSum.size == numberOfExperts)
-    require(summator.getRankingsSum.size == numberOfProposals)
-    summator.getRankingsSum.foreach(r => require(r.length == numberOfRankedProposals))
+    require(summator.getDelegationsSum.get.size == numberOfExperts)
+    require(summator.getRankingsSum.get.size == numberOfProposals)
+    summator.getRankingsSum.get.foreach(r => require(r.length == numberOfRankedProposals))
 
-    summator.getDelegationsSum.foreach { b =>
+    summator.getDelegationsSum.get.foreach { b =>
       require(LiftedElGamalEnc.decrypt(privKey, b).get == 0)
     }
 
-    summator.getRankingsSum.zipWithIndex.foreach { case (rv, proposalId) =>
+    summator.getRankingsSum.get.zipWithIndex.foreach { case (rv, proposalId) =>
       val rank = ranking.indexOf(proposalId)
       for (i <- 0 until numberOfRankedProposals) {
         val b = LiftedElGamalEnc.decrypt(privKey, rv(i)).get
@@ -59,16 +59,16 @@ class PreferentialBallotsSummatorTest extends FunSuite{
         PreferentialVoterBallot.createBallot(pctx, DelegatedPreferentialVote(expertId), pubKey, stake).get)
     }
 
-    require(summator.getDelegationsSum.size == numberOfExperts)
-    require(summator.getRankingsSum.size == numberOfProposals)
-    summator.getRankingsSum.foreach(r => require(r.length == numberOfRankedProposals))
+    require(summator.getDelegationsSum.get.size == numberOfExperts)
+    require(summator.getRankingsSum.get.size == numberOfProposals)
+    summator.getRankingsSum.get.foreach(r => require(r.length == numberOfRankedProposals))
 
-    summator.getDelegationsSum.zipWithIndex.foreach { case (b, i) =>
+    summator.getDelegationsSum.get.zipWithIndex.foreach { case (b, i) =>
       val d = LiftedElGamalEnc.decrypt(privKey, b).get
       if (i == expertId) require(d == numberOfVoters * stake)
     }
 
-    summator.getRankingsSum.foreach { v =>
+    summator.getRankingsSum.get.foreach { v =>
       v.foreach { b =>
         require(LiftedElGamalEnc.decrypt(privKey, b).get == 0)
       }

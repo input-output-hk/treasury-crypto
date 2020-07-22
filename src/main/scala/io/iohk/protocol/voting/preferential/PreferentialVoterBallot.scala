@@ -15,7 +15,7 @@ import scala.util.Try
 case class PreferentialVoterBallot(delegVector: Vector[ElGamalCiphertext],
                                    delegVectorProof: Option[SHVZKProof],
                                    rankVectors: List[RankVector],
-                                   w: ElGamalCiphertext,
+                                   w: Option[ElGamalCiphertext],
                                    stake: BigInt
                                   ) extends PreferentialBallot {
   override type M = PreferentialBallot
@@ -37,15 +37,17 @@ case class PreferentialVoterBallot(delegVector: Vector[ElGamalCiphertext],
 
     require(stake >= 0)
     require(delegVector.size == pctx.numberOfExperts)
-    require(new SHVZKVerifier(pubKey, w +: delegVector, delegVectorProof.get).verifyProof())
-
-    val one = LiftedElGamalEnc.encrypt(pubKey, 1, 1).get
-    val neg_w = one / w
+    val neg_w =
+      if (pctx.numberOfExperts > 0) {
+        require(new SHVZKVerifier(pubKey, w.get +: delegVector, delegVectorProof.get).verifyProof())
+        val one = LiftedElGamalEnc.encrypt(pubKey, 1, 1).get
+        Vector(one / w.get)
+      } else Vector()
 
     require(rankVectors.size == pctx.numberOfProposals)
     rankVectors.foreach { rv =>
       require(rv.rank.size == pctx.numberOfRankedProposals)
-      val v = neg_w +: rv.z +: rv.rank
+      val v = neg_w ++ (rv.z +: rv.rank)
       require(new SHVZKVerifier(pubKey, v, rv.proof.get).verifyProof())
     }
   }.isSuccess
@@ -60,12 +62,12 @@ object PreferentialVoterBallot {
                    withProof: Boolean = true): Try[PreferentialVoterBallot] = Try {
     import pctx.cryptoContext.{group, hash}
 
-    def prepareRankVectors(ranking: Option[List[Int]], w: ElGamalCiphertext, w_rand: Randomness) = {
+    def prepareRankVectors(ranking: Option[List[Int]], w: Option[ElGamalCiphertext], w_rand: Option[Randomness]) = {
       import pctx.cryptoContext.{group, hash}
 
       val one = LiftedElGamalEnc.encrypt(ballotEncryptionKey, 1, 1).get
-      val neg_w = one / w
-      val neg_w_rand = 1 - w_rand
+      val neg_w = w.map(w => Vector(one / w)).getOrElse(Vector())
+      val neg_w_rand = w_rand.map(w_rand => Vector(1 - w_rand)).getOrElse(Vector())
 
       (0 until pctx.numberOfProposals).map { proposalId =>
         val nonZeroPos = ranking match {
@@ -78,7 +80,7 @@ object PreferentialVoterBallot {
         val (vector, rand) =
           Ballot.buildEncryptedUnitVector(size = pctx.numberOfRankedProposals + 1, nonZeroPos, ballotEncryptionKey)
         val proof = withProof match {
-          case true => Some(new SHVZKGen(ballotEncryptionKey, neg_w +: vector, nonZeroPos + 1, neg_w_rand +: rand).produceNIZK().get)
+          case true => Some(new SHVZKGen(ballotEncryptionKey, neg_w ++ vector, nonZeroPos + neg_w.size, neg_w_rand ++ rand).produceNIZK().get)
           case _ => None
         }
         RankVector(vector.tail, vector.head, proof)
@@ -86,14 +88,18 @@ object PreferentialVoterBallot {
     }
 
     def prepareDelegationVectorWithProof(expertId: Option[Int]) = {
-      val nonZeroBitPosition = expertId.map(_ + 1).getOrElse(0)
-      val (vector, rand) =
-        Ballot.buildEncryptedUnitVector(size = pctx.numberOfExperts + 1, nonZeroBitPosition, ballotEncryptionKey)
-      val proof = withProof match {
-        case true => Some(new SHVZKGen(ballotEncryptionKey, vector, nonZeroBitPosition, rand).produceNIZK().get)
-        case _ => None
+      if (pctx.numberOfExperts <= 0)
+        (None, None, Vector(), None)
+      else {
+        val nonZeroBitPosition = expertId.map(_ + 1).getOrElse(0)
+        val (vector, rand) =
+          Ballot.buildEncryptedUnitVector(size = pctx.numberOfExperts + 1, nonZeroBitPosition, ballotEncryptionKey)
+        val proof = withProof match {
+          case true => Some(new SHVZKGen(ballotEncryptionKey, vector, nonZeroBitPosition, rand).produceNIZK().get)
+          case _ => None
+        }
+        (Some(vector.head), Some(rand.head), vector.tail, proof)
       }
-      (vector.head, rand.head, vector.tail, proof)
     }
 
     require(stake > 0)
@@ -138,7 +144,7 @@ private[voting] object PreferentialVoterBallotSerializer extends Serializer[Pref
       case Some(p) => p.bytes
       case None => Array[Byte]()
     }
-    val wBytes = ballot.w.bytes
+    val wBytes = ballot.w.map(_.bytes).getOrElse(Array[Byte]())
 
     val stakeBytes = ballot.stake.toByteArray
 
@@ -195,8 +201,13 @@ private[voting] object PreferentialVoterBallotSerializer extends Serializer[Pref
     }.toList
 
     val wLen = bytes(position)
-    val w = ElGamalCiphertextSerializer.parseBytes(bytes.slice(position+1, position+1+wLen), decoder).get
-    position += 1 + wLen
+    position += 1
+    val w = wLen match {
+      case 0 => None
+      case l =>
+        position += wLen
+        Some(ElGamalCiphertextSerializer.parseBytes(bytes.slice(position - wLen, position), decoder).get)
+    }
 
     val stakeLen = bytes(position)
     val stake = BigInt(bytes.slice(position+1, position+1+stakeLen))

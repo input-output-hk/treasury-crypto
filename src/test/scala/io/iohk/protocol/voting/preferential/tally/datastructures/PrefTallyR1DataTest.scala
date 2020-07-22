@@ -27,6 +27,12 @@ class PrefTallyR1DataTest extends FunSuite {
     val bogusProof = ElgamalDecrNIZK.produceNIZK(bogusCiphertext, privKey).get
     val badR1Data = PrefTallyR1Data(0, (r1Data.delegDecryptedC1.head._1, bogusProof) +: r1Data.delegDecryptedC1.tail)
     require(badR1Data.validate(ctx, pubKey, ciphertexts) == false)
+
+    val badR1Data2 = PrefTallyR1Data(0, (r1Data.delegDecryptedC1.tail.head._1, r1Data.delegDecryptedC1.tail.head._2) +: r1Data.delegDecryptedC1.tail)
+    require(badR1Data2.validate(ctx, pubKey, ciphertexts) == false)
+
+    val badR1Data3 = PrefTallyR1Data(0, r1Data.delegDecryptedC1.tail)
+    require(badR1Data3.validate(ctx, pubKey, ciphertexts) == false)
   }
 
   test("PrefTallyR1Data serialization") {

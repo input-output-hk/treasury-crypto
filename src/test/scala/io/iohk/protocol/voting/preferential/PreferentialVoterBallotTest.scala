@@ -36,7 +36,7 @@ class PreferentialVoterBallotTest extends FunSuite {
       require(bit == 0)
     }
 
-    require(1 == LiftedElGamalEnc.decrypt(privKey, ballot.w).get)
+    require(1 == LiftedElGamalEnc.decrypt(privKey, ballot.w.get).get)
   }
 
   test("creation of VoterBallot with delegated vote") {
@@ -53,12 +53,40 @@ class PreferentialVoterBallotTest extends FunSuite {
       require(LiftedElGamalEnc.decrypt(privKey, vector.z).get == 0)
     }
 
-    require(0 == LiftedElGamalEnc.decrypt(privKey, ballot.w).get)
+    require(0 == LiftedElGamalEnc.decrypt(privKey, ballot.w.get).get)
 
     ballot.delegVector.zipWithIndex.foreach{ case (b,i) =>
       val bit = LiftedElGamalEnc.decrypt(privKey, b).get
       if (i == expertId) require(bit == 1) else require(bit == 0)
     }
+  }
+
+  test("creation of VoterBallot when there are no experts") {
+    val pctx = new PreferentialContext(ctx, 10, 5, 0)
+
+    require(DelegatedPreferentialVote(0).validate(pctx) == false, "Delegation is impossible")
+
+    val ranking = List(0,1,2,3,4)
+    val vote = DirectPreferentialVote(ranking)
+    val ballot = PreferentialVoterBallot.createBallot(pctx, vote, pubKey, 2).get
+
+    require(ballot.verifyBallot(pctx, pubKey))
+
+    ballot.rankVectors.zipWithIndex.foreach { case (vector,proposalId) =>
+      val rank = vote.ranking.indexOf(proposalId)
+      for(i <- 0 until pctx.numberOfRankedProposals) {
+        val bit = LiftedElGamalEnc.decrypt(privKey, vector.rank(i)).get
+        if (i == rank) require(bit == 1)
+        else require(bit == 0)
+      }
+      val z = LiftedElGamalEnc.decrypt(privKey, vector.z).get
+      if (rank >= 0) require(z == 0)
+      else require(z == 1)
+    }
+
+    require(ballot.delegVector.size == 0)
+    require(ballot.delegVectorProof.isEmpty)
+    require(ballot.w.isEmpty)
   }
 
   test("invalid ballots") {
@@ -100,10 +128,12 @@ class PreferentialVoterBallotTest extends FunSuite {
 
     val vote = DelegatedPreferentialVote(0)
     val ballot = PreferentialVoterBallot.createBallot(pctx,vote, pubKey, 2).get
-    val neg_w = LiftedElGamalEnc.encrypt(pubKey, 1, 1).get / ballot.w
-    val maliciousBallot = ballot.copy(w = neg_w)
-
+    val neg_w = LiftedElGamalEnc.encrypt(pubKey, 1, 1).get / ballot.w.get
+    val maliciousBallot = ballot.copy(w = Some(neg_w))
     require(maliciousBallot.verifyBallot(pctx, pubKey) == false)
+
+    val maliciousBallot2 = ballot.copy(w = None)
+    require(maliciousBallot2.verifyBallot(pctx, pubKey) == false)
   }
 
   test("invalid z bit") {
@@ -155,6 +185,22 @@ class PreferentialVoterBallotTest extends FunSuite {
     }
     require(recoveredBallot2.delegVector.size == pctx.numberOfExperts)
     require(recoveredBallot2.delegVectorProof.isEmpty)
+  }
+
+  test("serialization of ballot when there are no experts") {
+    val pctx = new PreferentialContext(ctx, 10, 5, 0)
+
+    val vote = DirectPreferentialVote(List(1,5,9,0,2))
+    val ballot = PreferentialVoterBallot.createBallot(pctx, vote, pubKey, 34).get
+
+    val bytes = ballot.bytes
+    val recoveredBallot = PreferentialBallotSerializer.parseBytes(bytes, Option(group)).get.asInstanceOf[PreferentialVoterBallot]
+
+    require(recoveredBallot.stake == 34)
+    require(recoveredBallot.verifyBallot(pctx, pubKey))
+    require(recoveredBallot.delegVector.size == 0)
+    require(recoveredBallot.delegVectorProof.isEmpty)
+    require(recoveredBallot.w.isEmpty)
   }
 
   test("weightedDelegationVector") {
