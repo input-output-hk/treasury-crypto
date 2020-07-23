@@ -1,11 +1,12 @@
-package io.iohk.protocol.tally.datastructures
+package io.iohk.protocol.keygen
 
 import io.iohk.core.crypto.encryption.hybrid.HybridPlaintext
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen.datastructures.round4.OpenedShare
+import io.iohk.protocol.keygen.datastructures.round5_1.{ViolatorsSharesData, ViolatorsSharesDataSerializer}
 import org.scalatest.FunSuite
 
-class TallyR2DataTest extends FunSuite {
+class ViolatorsSharesDataTest extends FunSuite {
   val ctx = new CryptoContext(None)
   import ctx.group
 
@@ -13,10 +14,10 @@ class TallyR2DataTest extends FunSuite {
     val mockHybridPlaintext = HybridPlaintext(ctx.group.groupGenerator, Array.fill[Byte](5)(31))
     val mockOpenedShare = OpenedShare(receiverID = 5, mockHybridPlaintext)
     val issuerId = 134
-    val tallyR2Data = TallyR2Data(issuerId, Array((2, mockOpenedShare), (5, mockOpenedShare)))
+    val tallyR2Data = new ViolatorsSharesData(issuerId, Array((2, mockOpenedShare), (5, mockOpenedShare)))
 
     val bytes = tallyR2Data.bytes
-    val recoveredData = TallyR2DataSerializer.parseBytes(bytes, Option(group)).get
+    val recoveredData = ViolatorsSharesDataSerializer.parseBytes(bytes, Option(group)).get
 
     require(recoveredData.issuerID == issuerId)
     require(recoveredData.violatorsShares.length == tallyR2Data.violatorsShares.length)

@@ -52,7 +52,7 @@ import scala.util.Try
   */
 class Tally(ctx: ProtocolContext,
             cmIdentifier: Identifier[Int],
-            disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]]) {
+            disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]]) extends TallyCommon(ctx.cryptoContext, cmIdentifier) {
   import ctx.cryptoContext.{group, hash}
 
   private var currentRound = Stages.Init
@@ -324,53 +324,6 @@ class Tally(ctx: ProtocolContext,
     choicesSharesSum = updatedChoicesSharesSum
     currentRound = Stages.TallyR4
     this
-  }
-
-  private def restorePrivateKeys(disqualifiedCommitteeIds: Set[Int],
-                                 r4DataAll: Seq[TallyR4Data]): Try[Map[PubKey, PrivKey]] = Try {
-    val restoredKeys = disqualifiedCommitteeIds.map{ id =>
-      val pubKey = cmIdentifier.getPubKey(id).get
-      val recoveryShares = r4DataAll.map(_.violatorsShares.find(_._1 == id).map(_._2)).flatten
-
-      // note that there should be at least t/2 recovery shares, where t is the size of the committee, otherwise recovery will fail
-      val privKey = DistrKeyGen.recoverPrivateKeyByOpenedShares(ctx.cryptoContext, cmIdentifier.pubKeys.size, recoveryShares, Some(pubKey)).get
-      (pubKey -> privKey)
-    }.toMap
-
-    restoredKeys
-  }
-
-  private def prepareRecoverySharesData(committeeMemberKey: KeyPair,
-                                        disqualifiedCommitteeIds: Set[Int],
-                                        dkgR1DataAll: Seq[R1Data]): Try[TallyR2Data] = Try {
-
-    val myId = cmIdentifier.getId(committeeMemberKey._2).get
-    if (disqualifiedCommitteeIds.nonEmpty) {
-      // we need to act only if there are committee members that failed during Tally Round 1
-      val recoveryShares = disqualifiedCommitteeIds.toSeq.map { id =>
-        val recoveryShare = DistrKeyGen.generateRecoveryKeyShare(ctx.cryptoContext, cmIdentifier,
-          committeeMemberKey, cmIdentifier.getPubKey(id).get, dkgR1DataAll).get
-        (id, recoveryShare)
-      }
-      TallyR2Data(myId, recoveryShares)
-    } else {
-      // there are no failed memebers, so nothing to add
-      TallyR2Data(myId, Seq())
-    }
-  }
-
-  private def verifyRecoverySharesData(committePubKey: PubKey,
-                                       r2Data: TallyR2Data,
-                                       disqualifiedCommitteeIds: Set[Int],
-                                       dkgR1DataAll: Seq[R1Data]): Try[Unit] = Try {
-    val committeID = cmIdentifier.getId (committePubKey).get
-    require (r2Data.issuerID == committeID, "Committee identifier in TallyR2Data is invalid")
-    require (r2Data.violatorsShares.map (_._1).toSet == disqualifiedCommitteeIds, "Unexpected set of recovery shares")
-
-    r2Data.violatorsShares.foreach { s =>
-      val violatorPubKey = cmIdentifier.getPubKey (s._1).get
-      require (DistrKeyGen.validateRecoveryKeyShare (ctx.cryptoContext, cmIdentifier, committePubKey, violatorPubKey, dkgR1DataAll, s._2).isSuccess)
-    }
   }
 }
 

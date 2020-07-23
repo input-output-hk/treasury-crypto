@@ -1,7 +1,7 @@
 package io.iohk.protocol.tally
 
+import io.iohk.protocol.keygen.datastructures.round5_1.ViolatorsSharesData
 import io.iohk.protocol.tally.Tally.Stages
-import io.iohk.protocol.tally.datastructures.TallyR2Data
 import org.scalatest.FunSuite
 
 private class TallyRound2Test extends FunSuite with TallyTestSetup {
@@ -45,21 +45,21 @@ private class TallyRound2Test extends FunSuite with TallyTestSetup {
     }
 
     val key = committeeKeys.tail.head._2
-    val badR2Data = TallyR2Data(cmIdentifier.getId(key).get, Seq())
+    val badR2Data = new ViolatorsSharesData(cmIdentifier.getId(key).get, Seq())
     require(tally.verifyRound2Data(key, badR2Data, dkgR1DataAll).isFailure)
 
     // failed member identifier is used with valid payload
-    val badR2Data2 = TallyR2Data(cmIdentifier.getId(committeeKeys.head._2).get, tallyR2DataAll.head.violatorsShares)
+    val badR2Data2 = new ViolatorsSharesData(cmIdentifier.getId(committeeKeys.head._2).get, tallyR2DataAll.head.violatorsShares)
     require(tally.verifyRound2Data(key, badR2Data2, dkgR1DataAll).isFailure)
 
     // incorrect issuer identifier
-    val badR2Data3 = TallyR2Data(3345, tallyR2DataAll.head.violatorsShares)
+    val badR2Data3 = new ViolatorsSharesData(3345, tallyR2DataAll.head.violatorsShares)
     require(tally.verifyRound2Data(key, badR2Data3, dkgR1DataAll).isFailure)
 
     // bad share
     val validR2Data = tallyR2DataAll.head
     val validShare = validR2Data.violatorsShares.head
-    val badR2Data4 = TallyR2Data(validR2Data.issuerID, Seq((validShare._1 + 1, validShare._2)))
+    val badR2Data4 = new ViolatorsSharesData(validR2Data.issuerID, Seq((validShare._1 + 1, validShare._2)))
     require(tally.verifyRound2Data(key, badR2Data4, dkgR1DataAll).isFailure)
   }
 
