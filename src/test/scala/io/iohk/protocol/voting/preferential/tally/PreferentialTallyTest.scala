@@ -4,17 +4,70 @@ import io.iohk.core.crypto.encryption.KeyPair
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, DiscreteLogGroupFactory}
 import io.iohk.protocol.keygen.{DistrKeyGen, RoundsData}
-import io.iohk.protocol.tally.TallyTestSetup
 import io.iohk.protocol.voting.preferential._
 import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
 import org.scalatest.FunSuite
 
 import scala.util.Try
 
-class PreferentialTallyTest extends FunSuite with TallyTestSetup {
+class PreferentialTallyTest extends FunSuite with PreferentialTallyTestSetup {
 
-  test("Full preferential tally test") {
+  test("Full PreferentialTally integration test") {
+    val tally = new PreferentialTally(pctx, cmIdentifier, Map())
 
+    // Each committee member generates PrefTallyR1Data
+    val tallyR1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
+
+    // Everyone in the system verifies PrefTallyR1Data from each member
+    val verifiedTallyR1DataAll = tallyR1DataAll.filter { r1Data =>
+      val pubKey = cmIdentifier.getPubKey(r1Data.issuerID).get
+      tally.verifyRound1Data(summator, pubKey, r1Data)
+    }
+
+    // Everyone in the system executes Round 1 with a set of verified PrefTallyR1Data from committee members
+    tally.executeRound1(summator, verifiedTallyR1DataAll).get
+
+    // Each committee member generates PrefTallyR2Data with recovery shares for the committee members that failed on Round 1
+    // (in this test we don't have failed members on Round 1, so PrefTallyR2Data will be empty
+    val tallyR2DataAll = committeeKeys.map(keys => tally.generateR2Data(keys, dkgR1DataAll).get)
+
+    // Everyone in the system verifies PrefTallyR2Data from each member
+    val verifiedTallyR2DataAll = tallyR2DataAll.filter { r2Data =>
+      val pubKey = cmIdentifier.getPubKey(r2Data.issuerID).get
+      tally.verifyRound2Data(pubKey, r2Data, dkgR1DataAll).isSuccess
+    }
+
+    // Everyone in the system executes Round 2 with a set of verified PrefTallyR2Data from committee members
+    // After this round we will now how much stake were delegated to each expert
+    tally.executeRound2(verifiedTallyR2DataAll, expertBallots).get
+
+    // Each committee member generates PrefTallyR3Data
+    val tallyR3DataAll = committeeKeys.map(keys => tally.generateR3Data(keys).get)
+
+    // Everyone in the system verifies PrefTallyR3Data from each member
+    val verifiedTallyR3DataAll = tallyR3DataAll.filter { r3Data =>
+      val pubKey = cmIdentifier.getPubKey(r3Data.issuerID).get
+      tally.verifyRound3Data(pubKey, r3Data).isSuccess
+    }
+
+    // Everyone in the system executes Round 3 with a set of verified PrefTallyR3Data from committee members
+    tally.executeRound3(verifiedTallyR3DataAll).get
+
+    // Each committee member generates PrefTallyR4Data
+    val tallyR4DataAll = committeeKeys.map(keys => tally.generateR4Data(keys, dkgR1DataAll).get)
+
+    // Everyone in the system verifies PrefTallyR4Data from each member
+    val verifiedTallyR4DataAll = tallyR4DataAll.filter { r4Data =>
+      val pubKey = cmIdentifier.getPubKey(r4Data.issuerID).get
+      tally.verifyRound4Data(pubKey, r4Data, dkgR1DataAll).isSuccess
+    }
+
+    // Everyone in the system executes Round 4 with a set of verified PrefTallyR4Data from committee members
+    // After this step tally result will be available for each proposal
+    tally.executeRound4(verifiedTallyR4DataAll).get
+
+    val winner = tally.getSortedScores.get.head
+    require(winner._1 == 2) // actually both 2 and 3 will have the same score
   }
 }
 
@@ -73,6 +126,19 @@ trait PreferentialTallyTestSetup {
         } else 0
         require(rankings(i)(j) == (scoreVoter + scoreExpert))
       }
+    }
+  }.isSuccess
+
+  def verifyScores(scores: Seq[BigInt]): Boolean = Try {
+    def score(ranking: List[Int], id: Int) = ranking.indexOf(id) match {
+      case -1 => 0
+      case n => (pctx.numberOfRankedProposals - n) * numberOfVoters * stake
+    }
+
+    for(i <- 0 until numberOfProposals) {
+      val votersScore = score(voterRanking, i)
+      val expertsScore = score(expertRanking, i)
+      require(scores(i) == (votersScore + expertsScore))
     }
   }.isSuccess
 }

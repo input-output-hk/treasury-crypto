@@ -7,12 +7,11 @@ import io.iohk.protocol.Identifier
 import io.iohk.protocol.keygen.DistrKeyGen
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
-import io.iohk.protocol.tally.Tally.Stages
-import io.iohk.protocol.tally.{Tally, TallyCommon}
-import io.iohk.protocol.tally.datastructures.{DecryptionShare, TallyR1Data, TallyR2Data, TallyR3Data, TallyR4Data}
-import io.iohk.protocol.voting.preferential.{PreferentialContext, PreferentialExpertBallot}
+import io.iohk.protocol.tally.TallyCommon
+import io.iohk.protocol.tally.datastructures.TallyR2Data
 import io.iohk.protocol.voting.preferential.tally.PreferentialTally.PrefStages
 import io.iohk.protocol.voting.preferential.tally.datastructures.{PrefTallyR1Data, PrefTallyR3Data, PrefTallyR4Data}
+import io.iohk.protocol.voting.preferential.{PreferentialContext, PreferentialExpertBallot}
 
 import scala.util.Try
 
@@ -46,6 +45,27 @@ class PreferentialTally(ctx: PreferentialContext,
   def getRankingsSum = rankingsSum
   def getRankingsSharesSum = rankingsSharesSum
   def getRankings = rankings
+
+  /**
+    * Returns a list of proposals with their final scores. Index in the list is the proposal identifier.
+    */
+  def getScores: Try[List[BigInt]] = Try {
+    require(rankings.length == ctx.numberOfProposals)
+    rankings.map { v =>
+      require(v.length == ctx.numberOfRankedProposals)
+      v.zipWithIndex.foldLeft(BigInt(0)) { case (scoreAcc, (score, index)) =>
+        val rank = ctx.numberOfRankedProposals - index
+        scoreAcc + (score * rank)
+      }
+    }
+  }
+
+  /**
+    * Returns a sorted list of proposal identifiers, the head of the list is the proposal with the highest score
+    */
+  def getSortedScores: Try[List[(Int, BigInt)]] = Try {
+    getScores.get.zipWithIndex.map(x => x._2 -> x._1).sortWith( (x,y) => x._2 > y._2)
+  }
 
   def generateR1Data(summator: PreferentialBallotsSummator, committeeMemberKey: KeyPair): Try[PrefTallyR1Data] = Try {
     val (privKey, pubKey) = committeeMemberKey
