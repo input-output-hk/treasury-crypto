@@ -7,11 +7,12 @@ import io.iohk.protocol.Identifier
 import io.iohk.protocol.keygen.DistrKeyGen
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
-import io.iohk.protocol.tally.TallyCommon
-import io.iohk.protocol.tally.datastructures.TallyR2Data
+import io.iohk.protocol.tally.Tally.Stages
+import io.iohk.protocol.tally.{Tally, TallyCommon}
+import io.iohk.protocol.tally.datastructures.{DecryptionShare, TallyR1Data, TallyR2Data, TallyR3Data}
 import io.iohk.protocol.voting.preferential.{PreferentialContext, PreferentialExpertBallot}
 import io.iohk.protocol.voting.preferential.tally.PreferentialTally.PrefStages
-import io.iohk.protocol.voting.preferential.tally.datastructures.PrefTallyR1Data
+import io.iohk.protocol.voting.preferential.tally.datastructures.{PrefTallyR1Data, PrefTallyR3Data}
 
 import scala.util.Try
 
@@ -71,30 +72,25 @@ class PreferentialTally(ctx: PreferentialContext,
   def executeRound1(summator: PreferentialBallotsSummator, r1DataAll: Seq[PrefTallyR1Data]): Try[PreferentialTally] = Try {
     if (currentRound != PrefStages.Init)
       throw new IllegalStateException("Unexpected state! Round 1 should be executed only in the Init state.")
-
-    if (ctx.numberOfExperts <= 0) {
-      // there is nothing to do on Round 1 if there are no experts or no proposals
-      currentRound = PrefStages.TallyR1
-      return Try(this)
-    }
-
     require(summator.getRankingsSum.isDefined, "There are no ballots")
 
-    val submittedCommitteeIds = r1DataAll.map(_.issuerID).toSet
-    require(submittedCommitteeIds.size == r1DataAll.size, "More than one TallyR1Data from the same committee member is not allowed")
-    require(submittedCommitteeIds.intersect(getAllDisqualifiedCommitteeIds).isEmpty, "Disqualified members are not allowed to submit r1Data!")
+    if (ctx.numberOfExperts > 0) {
+      val submittedCommitteeIds = r1DataAll.map(_.issuerID).toSet
+      require(submittedCommitteeIds.size == r1DataAll.size, "More than one TallyR1Data from the same committee member is not allowed")
+      require(submittedCommitteeIds.intersect(getAllDisqualifiedCommitteeIds).isEmpty, "Disqualified members are not allowed to submit r1Data!")
 
-    val expectedCommitteeIds = allCommitteeIds.diff(getAllDisqualifiedCommitteeIds)
-    val failedCommitteeIds = expectedCommitteeIds.diff(submittedCommitteeIds)
+      val expectedCommitteeIds = allCommitteeIds.diff(getAllDisqualifiedCommitteeIds)
+      val failedCommitteeIds = expectedCommitteeIds.diff(submittedCommitteeIds)
 
-    delegationsSharesSum = Some(r1DataAll.foldLeft(Vector.fill(ctx.numberOfExperts)(group.groupIdentity)) { (acc, data) =>
-      val decryptionShares = data.delegDecryptedC1.map(_._1)
-      require(decryptionShares.size == acc.size)
-      decryptionShares.zip(acc).map(s => s._1.multiply(s._2).get).toVector
-    })
+      delegationsSharesSum = Some(r1DataAll.foldLeft(Vector.fill(ctx.numberOfExperts)(group.groupIdentity)) { (acc, data) =>
+        val decryptionShares = data.delegDecryptedC1.map(_._1)
+        require(decryptionShares.size == acc.size)
+        decryptionShares.zip(acc).map(s => s._1.multiply(s._2).get).toVector
+      })
 
-    disqualifiedOnTallyR1CommitteeIds = failedCommitteeIds
-    delegationsSum = summator.getDelegationsSum
+      disqualifiedOnTallyR1CommitteeIds = failedCommitteeIds
+      delegationsSum = summator.getDelegationsSum
+    }
     currentRound = PrefStages.TallyR1
     rankingsSum = summator.getRankingsSum.get
     this
@@ -177,6 +173,66 @@ class PreferentialTally(ctx: PreferentialContext,
     delegationsSharesSum = updatedDelegationsSharesSum
     delegations = delegationsDecrypted
     currentRound = PrefStages.TallyR2
+    this
+  }
+
+  def generateR3Data(committeeMemberKey: KeyPair): Try[PrefTallyR3Data] = Try {
+    if (currentRound != PrefStages.TallyR2)
+      throw new IllegalStateException("Unexpected state! Round 3 should be executed only in the TallyR2 state.")
+
+    val (privKey, pubKey) = committeeMemberKey
+    val decryptionShares = rankingsSum.map { v =>
+      v.map { b =>
+        val decryptedC1 = b.c1.pow(privKey).get
+        val proof = ElgamalDecrNIZK.produceNIZK(b, privKey).get
+        (decryptedC1, proof)
+      }
+    }
+
+    val committeeId = cmIdentifier.getId(pubKey).get
+    PrefTallyR3Data(committeeId, decryptionShares)
+  }
+
+  def verifyRound3Data(committePubKey: PubKey, r3Data: PrefTallyR3Data): Try[Unit] = Try {
+    val committeID = cmIdentifier.getId(committePubKey).get
+
+    require(r3Data.issuerID == committeID, "Committee identifier in R3Data is invalid")
+    require(!getAllDisqualifiedCommitteeIds.contains(r3Data.issuerID), "Committee member was disqualified")
+    require(r3Data.rankingsDecryptedC1.length == ctx.numberOfProposals, "Not all proposals are decrypted")
+    r3Data.rankingsDecryptedC1.foreach(v => require(v.length == ctx.numberOfRankedProposals))
+    require(r3Data.validate(ctx.cryptoContext, committePubKey, rankingsSum), "Invalid decryption shares")
+  }
+
+  def executeRound3(r3DataAll: Seq[PrefTallyR3Data]): Try[PreferentialTally] = Try {
+    if (currentRound != PrefStages.TallyR2)
+      throw new IllegalStateException("Unexpected state! Round 3 should be executed only in the PrefTallyR2 state.")
+
+    if (rankingsSum.isEmpty) {
+      // there is nothing to do on Round 3 if there is nothing to decrypt
+      currentRound = PrefStages.TallyR3
+      return Try(this)
+    }
+
+    val submittedCommitteeIds = r3DataAll.map(_.issuerID).toSet
+    require(submittedCommitteeIds.size == r3DataAll.size, "More than one PrefTallyR1Data from the same committee member is not allowed")
+    require(submittedCommitteeIds.intersect(getAllDisqualifiedCommitteeIds).isEmpty, "Disqualified members are not allowed to submit r1Data!")
+
+    val expectedCommitteeIds = allCommitteeIds.diff(getAllDisqualifiedCommitteeIds)
+    val failedCommitteeIds = expectedCommitteeIds.diff(submittedCommitteeIds)
+
+    val init = List.fill(ctx.numberOfProposals)(Vector.fill(ctx.numberOfRankedProposals)(group.groupIdentity))
+
+    rankingsSharesSum = r3DataAll.foldLeft(init) { (acc, r3Data) =>
+      assert(acc.length == r3Data.rankingsDecryptedC1.length)
+      acc.zip(r3Data.rankingsDecryptedC1).map { case (v1, v2) =>
+        assert(v1.length == v2.length)
+        v1.zip(v2).map(x => x._1.multiply(x._2._1).get)
+      }
+    }
+
+    disqualifiedOnTallyR3CommitteeIds = failedCommitteeIds
+    currentRound = PrefStages.TallyR3
+
     this
   }
 }

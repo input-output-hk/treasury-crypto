@@ -1,9 +1,8 @@
 package io.iohk.protocol.voting.preferential.tally
 
-import io.iohk.protocol.CommitteeIdentifier
 import io.iohk.protocol.keygen.datastructures.round5_1.ViolatorsSharesData
-import io.iohk.protocol.voting.preferential.{DirectPreferentialVote, PreferentialContext, PreferentialVoterBallot}
 import io.iohk.protocol.voting.preferential.tally.PreferentialTally.PrefStages
+import io.iohk.protocol.voting.preferential.{DirectPreferentialVote, PreferentialContext, PreferentialVoterBallot}
 import org.scalatest.FunSuite
 
 class PrefTallyRound2Test extends FunSuite with PreferentialTallyTestSetup {
@@ -72,7 +71,7 @@ class PrefTallyRound2Test extends FunSuite with PreferentialTallyTestSetup {
 
     val tallyR2DataAll = committeeKeys.map(keys => tally.generateR2Data(keys, dkgR1DataAll).get)
     require(tally.executeRound2(tallyR2DataAll, expertBallots).isSuccess)
-    require(tally.getDelegations.get(0) == numberOfVoters)
+    require(tally.getDelegations.get(0) == numberOfVoters * stake)
     tally.getDelegations.get.tail.foreach(d => require(d == 0))
 
 
@@ -96,7 +95,7 @@ class PrefTallyRound2Test extends FunSuite with PreferentialTallyTestSetup {
 
     val tallyR2DataAll = committeeKeys.drop(2).map(keys => tally.generateR2Data(keys, dkgR1DataAll).get)
     require(tally.executeRound2(tallyR2DataAll, expertBallots).isSuccess)
-    require(tally.getDelegations.get(0) == numberOfVoters)
+    require(tally.getDelegations.get(0) == numberOfVoters * stake)
     tally.getDelegations.get.tail.foreach(d => require(d == 0))
 
     require(tally.getAllDisqualifiedCommitteeIds.size == 2)
@@ -132,7 +131,7 @@ class PrefTallyRound2Test extends FunSuite with PreferentialTallyTestSetup {
 
     val tallyR2DataAll = committeeKeys.tail.map(keys => tally.generateR2Data(keys, dkgR1DataAll).get)
     require(tally.executeRound2(tallyR2DataAll, Seq()).isSuccess)
-    require(tally.getDelegations.get(0) == numberOfVoters)
+    require(tally.getDelegations.get(0) == numberOfVoters * stake)
     tally.getDelegations.get.tail.foreach(d => require(d == 0))
     require(tally.getCurrentRound == PrefStages.TallyR2)
   }

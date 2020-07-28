@@ -2,7 +2,7 @@ package io.iohk.protocol.voting.preferential.tally
 
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.protocol.CommitteeIdentifier
-import io.iohk.protocol.tally.Tally.Stages
+import io.iohk.protocol.voting.preferential.tally.PreferentialTally.PrefStages
 import io.iohk.protocol.voting.preferential.{DirectPreferentialVote, PreferentialContext, PreferentialVoterBallot}
 import org.scalatest.FunSuite
 
@@ -58,7 +58,7 @@ class PrefTallyRound1Test extends FunSuite with PreferentialTallyTestSetup {
         LiftedElGamalEnc.discreteLog(delegationsSum(i).c2.divide(delegationsSharesSum(i)).get).get
     }
 
-    require(delegations(0) == numberOfVoters) // all voters delegated to the expert 0
+    require(delegations(0) == numberOfVoters * stake) // all voters delegated to the expert 0
     delegations.tail.foreach(x => require(x == 0))
   }
 
@@ -121,26 +121,26 @@ class PrefTallyRound1Test extends FunSuite with PreferentialTallyTestSetup {
 
   test("executeRound1 should update tally phase properly") {
     val tally = new PreferentialTally(pctx, cmIdentifier, Map())
-    require(tally.getCurrentRound == Stages.Init)
+    require(tally.getCurrentRound == PrefStages.Init)
     val r1Data = tally.generateR1Data(summator, committeeKeys.head).get
     require(tally.executeRound1(summator, Seq(r1Data)).isSuccess)
     require(tally.executeRound1(summator, Seq(r1Data)).isFailure) // repeated execution should fail
-    require(tally.getCurrentRound == Stages.TallyR1)
+    require(tally.getCurrentRound == PrefStages.TallyR1)
 
     val tally2 = new PreferentialTally(pctx, cmIdentifier, Map())
     require(tally2.executeRound1(summator, Seq()).isSuccess) // our single member failed to submit r1Data, but that's fine
-    require(tally2.getCurrentRound == Stages.TallyR1) // executeRound1 failed so the phase should not be upcated
+    require(tally2.getCurrentRound == PrefStages.TallyR1) // executeRound1 failed so the phase should not be upcated
 
     val tally3 = new PreferentialTally(new PreferentialContext(ctx, numberOfProposals, numberOfRankedProposals, 0), cmIdentifier, Map())
     require(tally3.executeRound1(summator, Seq()).isSuccess) // we don't expect r1Data in case there is no experts
-    require(tally3.getCurrentRound == Stages.TallyR1)
+    require(tally3.getCurrentRound == PrefStages.TallyR1)
 
     val tally4 = new PreferentialTally(new PreferentialContext(ctx, numberOfProposals, numberOfRankedProposals, 0), cmIdentifier, committeeKeys.map(x => (x._2 -> Some(x._1))).toMap)
     require(tally4.executeRound1(summator, Seq()).isSuccess) // all our members were disqualified so we don't expect r1Data
-    require(tally4.getCurrentRound == Stages.TallyR1)
+    require(tally4.getCurrentRound == PrefStages.TallyR1)
 
     val tally5 = new PreferentialTally(pctx, cmIdentifier, Map())
     require(tally5.executeRound1(summator, Seq(r1Data, r1Data)).isFailure) // we duplicated r1Data, execution should fail
-    require(tally5.getCurrentRound == Stages.Init) // executeRound1 failed so the phase should not be updated
+    require(tally5.getCurrentRound == PrefStages.Init) // executeRound1 failed so the phase should not be updated
   }
 }

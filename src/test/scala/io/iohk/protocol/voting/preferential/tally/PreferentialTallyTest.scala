@@ -33,11 +33,12 @@ trait PreferentialTallyTestSetup {
   import ctx.group
 
   val numberOfExperts = 5
-  val numberOfVoters = 20
-  val numberOfProposals = 20
+  val numberOfVoters = 10
+  val stake = 2
+  val numberOfProposals = 10
   val numberOfRankedProposals = 5
-  val voterRanking = List(15,5,1,19,0)
-  val expertRanking = List(3,7,8,10,0)
+  val voterRanking = List(2,5,1,9,0)
+  val expertRanking = List(3,7,8,9,0)
   val pctx = new PreferentialContext(ctx, numberOfProposals, numberOfRankedProposals, numberOfExperts)
 
   val committeeKeys = PreferentialTallyTest.generateCommitteeKeys(5)
@@ -47,9 +48,9 @@ trait PreferentialTallyTestSetup {
   val summator = new PreferentialBallotsSummator(pctx)
   for (i <- 0 until numberOfVoters) {
       summator.addVoterBallot(
-        PreferentialVoterBallot.createBallot(pctx, DirectPreferentialVote(voterRanking), sharedVotingKey, 1).get)
+        PreferentialVoterBallot.createBallot(pctx, DirectPreferentialVote(voterRanking), sharedVotingKey, stake).get)
       summator.addVoterBallot(
-        PreferentialVoterBallot.createBallot(pctx, DelegatedPreferentialVote(0), sharedVotingKey, 1).get)
+        PreferentialVoterBallot.createBallot(pctx, DelegatedPreferentialVote(0), sharedVotingKey, stake).get)
     }
   val expertBallots = for (i <- 0 until numberOfExperts) yield
     PreferentialExpertBallot.createBallot(pctx, i, DirectPreferentialVote(expertRanking), sharedVotingKey).get
