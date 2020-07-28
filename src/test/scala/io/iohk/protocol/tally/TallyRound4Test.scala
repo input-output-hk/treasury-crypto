@@ -1,6 +1,8 @@
 package io.iohk.protocol.tally
 
+import io.iohk.protocol.ProtocolContext
 import io.iohk.protocol.tally.Tally.Stages
+import io.iohk.protocol.voting.{DirectVote, PublicStakeBallot}
 import org.scalatest.FunSuite
 
 class TallyRound4Test extends FunSuite with TallyTestSetup {
@@ -126,5 +128,39 @@ class TallyRound4Test extends FunSuite with TallyTestSetup {
     require(tally.getDelegations.isEmpty)
     require(tally.getChoices.isEmpty)
     require(tally.getCurrentRound == Stages.TallyR4)
+  }
+
+  test("execution Round 4 when there are no experts") {
+    val pctx = new ProtocolContext(ctx, 3, 0)
+    val tally = new Tally(pctx, cmIdentifier, Map())
+
+    val summator = new BallotsSummator(pctx)
+    for (i <- 0 until numberOfVoters)
+      for (j <- 0 until numberOfProposals) {
+        summator.addVoterBallot(
+          PublicStakeBallot.createBallot(pctx, j, DirectVote(0), sharedVotingKey, 1, false).get)
+      }
+
+    val tallyR1DataAll = committeeKeys.tail.map(keys => tally.generateR1Data(summator, keys).get)
+    tally.executeRound1(summator, tallyR1DataAll).get
+
+    val tallyR2DataAll = committeeKeys.tail.map(keys => tally.generateR2Data(keys, dkgR1DataAll).get)
+    tally.executeRound2(tallyR2DataAll, Seq()).get
+
+    val tallyR3DataAll = committeeKeys.drop(2).map(keys => tally.generateR3Data(keys).get)
+    tally.executeRound3(tallyR3DataAll).get
+
+    val tallyR4DataAll = committeeKeys.drop(2).map(keys => tally.generateR4Data(keys, dkgR1DataAll).get)
+    require(tally.executeRound4(tallyR4DataAll).isSuccess)
+
+    require(tally.getDelegations.isEmpty)
+    require(!tally.getChoices.isEmpty)
+    require(tally.getCurrentRound == Stages.TallyR4)
+
+    tally.getChoices.foreach { case (proposalId, tallyRes) =>
+      require(tallyRes(0) == numberOfVoters)
+      require(tallyRes(1) == 0)
+      require(tallyRes(2) == 0)
+    }
   }
 }

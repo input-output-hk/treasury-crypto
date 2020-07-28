@@ -108,25 +108,22 @@ class Tally(ctx: ProtocolContext,
     if (currentRound != Stages.Init)
       throw new IllegalStateException("Unexpected state! Round 1 should be executed only in the Init state.")
 
-    if (ctx.numberOfExperts <= 0 || summator.getDelegationsSum.isEmpty) {
-      // there is nothing to do on Round 1 if there are no experts or no proposals
-      currentRound = Stages.TallyR1
-      return Try(this)
+    if (ctx.numberOfExperts > 0 && !summator.getDelegationsSum.isEmpty) {
+
+      val submittedCommitteeIds = r1DataAll.map(_.issuerID).toSet
+      require(submittedCommitteeIds.size == r1DataAll.size, "More than one TallyR1Data from the same committee member is not allowed")
+      require(submittedCommitteeIds.intersect(getAllDisqualifiedCommitteeIds).isEmpty, "Disqualified members are not allowed to submit r1Data!")
+
+      val expectedCommitteeIds = allCommitteeIds.diff(getAllDisqualifiedCommitteeIds)
+      val failedCommitteeIds = expectedCommitteeIds.diff(submittedCommitteeIds)
+
+      val proposalIds = summator.getDelegationsSum.keys.toSeq
+
+      delegationsSharesSum = Tally.sumUpDecryptionShares(r1DataAll, ctx.numberOfExperts, proposalIds)
+      disqualifiedOnTallyR1CommitteeIds = failedCommitteeIds
+      delegationsSum = summator.getDelegationsSum
     }
 
-    val submittedCommitteeIds = r1DataAll.map(_.issuerID).toSet
-    require(submittedCommitteeIds.size == r1DataAll.size, "More than one TallyR1Data from the same committee member is not allowed")
-    require(submittedCommitteeIds.intersect(getAllDisqualifiedCommitteeIds).isEmpty, "Disqualified members are not allowed to submit r1Data!")
-
-    val expectedCommitteeIds = allCommitteeIds.diff(getAllDisqualifiedCommitteeIds)
-    val failedCommitteeIds = expectedCommitteeIds.diff(submittedCommitteeIds)
-
-    val proposalIds = summator.getDelegationsSum.keys.toSeq
-
-    delegationsSharesSum = Tally.sumUpDecryptionShares(r1DataAll, ctx.numberOfExperts, proposalIds)
-
-    disqualifiedOnTallyR1CommitteeIds = failedCommitteeIds
-    delegationsSum = summator.getDelegationsSum
     choicesSum = summator.getChoicesSum
     currentRound = Stages.TallyR1
     this
