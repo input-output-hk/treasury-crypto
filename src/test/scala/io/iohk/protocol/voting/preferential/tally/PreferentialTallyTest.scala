@@ -9,6 +9,8 @@ import io.iohk.protocol.voting.preferential._
 import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
 import org.scalatest.FunSuite
 
+import scala.util.Try
+
 class PreferentialTallyTest extends FunSuite with TallyTestSetup {
 
   test("Full preferential tally test") {
@@ -59,4 +61,18 @@ trait PreferentialTallyTestSetup {
     val dkg = new DistrKeyGen(ctx, keys, keys._1, keys._1.toByteArray, committeeKeys.map(_._2), cmIdentifier, RoundsData())
     dkg.doRound1().get
   }
+
+  def verifyRankings(rankings: Seq[Seq[BigInt]]): Boolean = Try {
+    for(i <- 0 until numberOfProposals) {
+      for(j <- 0 until numberOfRankedProposals) {
+        val scoreVoter = if (voterRanking.indexOf(i) == j) {
+          numberOfVoters * stake
+        } else 0
+        val scoreExpert = if (expertRanking.indexOf(i) == j) {
+          numberOfVoters * stake
+        } else 0
+        require(rankings(i)(j) == (scoreVoter + scoreExpert))
+      }
+    }
+  }.isSuccess
 }

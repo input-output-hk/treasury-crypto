@@ -14,7 +14,7 @@ import scala.util.Try
 class TallyCommon(ctx: CryptoContext, cmIdentifier: Identifier[Int]) {
 
   def restorePrivateKeys(disqualifiedCommitteeIds: Set[Int],
-                                 violatorsSharesData: Seq[ViolatorsSharesData]): Try[Map[PubKey, PrivKey]] = Try {
+                         violatorsSharesData: Seq[ViolatorsSharesData]): Try[Map[PubKey, PrivKey]] = Try {
     val restoredKeys = disqualifiedCommitteeIds.map{ id =>
       val pubKey = cmIdentifier.getPubKey(id).get
       val recoveryShares = violatorsSharesData.map(_.violatorsShares.find(_._1 == id).map(_._2)).flatten
@@ -28,8 +28,8 @@ class TallyCommon(ctx: CryptoContext, cmIdentifier: Identifier[Int]) {
   }
 
   def prepareRecoverySharesData(committeeMemberKey: KeyPair,
-                                        disqualifiedCommitteeIds: Set[Int],
-                                        dkgR1DataAll: Seq[R1Data]): Try[ViolatorsSharesData] = Try {
+                                disqualifiedCommitteeIds: Set[Int],
+                                dkgR1DataAll: Seq[R1Data]): Try[ViolatorsSharesData] = Try {
 
     val myId = cmIdentifier.getId(committeeMemberKey._2).get
     if (disqualifiedCommitteeIds.nonEmpty) {
@@ -47,9 +47,9 @@ class TallyCommon(ctx: CryptoContext, cmIdentifier: Identifier[Int]) {
   }
 
   def verifyRecoverySharesData(committePubKey: PubKey,
-                                       violatorsSharesData: ViolatorsSharesData,
-                                       disqualifiedCommitteeIds: Set[Int],
-                                       dkgR1DataAll: Seq[R1Data]): Try[Unit] = Try {
+                               violatorsSharesData: ViolatorsSharesData,
+                               disqualifiedCommitteeIds: Set[Int],
+                               dkgR1DataAll: Seq[R1Data]): Try[Unit] = Try {
     val committeID = cmIdentifier.getId (committePubKey).get
     require (violatorsSharesData.issuerID == committeID, "Committee identifier in TallyR2Data is invalid")
     require (violatorsSharesData.violatorsShares.map (_._1).toSet == disqualifiedCommitteeIds, "Unexpected set of recovery shares")

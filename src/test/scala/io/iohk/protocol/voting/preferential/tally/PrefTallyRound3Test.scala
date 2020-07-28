@@ -82,20 +82,7 @@ class PrefTallyRound3Test extends FunSuite with PreferentialTallyTestSetup {
         }
     }
 
-    for(i <- 0 until numberOfProposals) {
-      val voterRank = voterRanking.indexOf(i)
-      val expertRank = expertRanking.indexOf(i)
-
-      for(j <- 0 until numberOfRankedProposals) {
-        val scoreVoter = if (voterRank == j) {
-          numberOfVoters * stake
-        } else 0
-        val scoreExpert = if (expertRank == j) {
-          numberOfVoters * stake
-        } else 0
-        require(rankings(i)(j) == (scoreVoter + scoreExpert))
-      }
-    }
+    require(verifyRankings(rankings))
   }
 
   test("executeRound3 should detect failed committee members and disqualify them") {

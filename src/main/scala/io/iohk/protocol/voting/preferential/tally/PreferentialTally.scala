@@ -9,10 +9,10 @@ import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
 import io.iohk.protocol.tally.Tally.Stages
 import io.iohk.protocol.tally.{Tally, TallyCommon}
-import io.iohk.protocol.tally.datastructures.{DecryptionShare, TallyR1Data, TallyR2Data, TallyR3Data}
+import io.iohk.protocol.tally.datastructures.{DecryptionShare, TallyR1Data, TallyR2Data, TallyR3Data, TallyR4Data}
 import io.iohk.protocol.voting.preferential.{PreferentialContext, PreferentialExpertBallot}
 import io.iohk.protocol.voting.preferential.tally.PreferentialTally.PrefStages
-import io.iohk.protocol.voting.preferential.tally.datastructures.{PrefTallyR1Data, PrefTallyR3Data}
+import io.iohk.protocol.voting.preferential.tally.datastructures.{PrefTallyR1Data, PrefTallyR3Data, PrefTallyR4Data}
 
 import scala.util.Try
 
@@ -42,10 +42,10 @@ class PreferentialTally(ctx: PreferentialContext,
 
   private var rankingsSum = List[Vector[ElGamalCiphertext]]()        // For each proposal holds the summation of rankings of voters and experts.
   private var rankingsSharesSum = List[Vector[GroupElement]]()       // For each proposal holds the summation of decryption shares of committee members that are used to decrypt rankingsSum.
-  private var scores = Map[Int, Vector[BigInt]]()                   // For each proposal holds a voting result, e.g. number of votes
+  private var rankings = List[Vector[BigInt]]()                      // For each proposal holds a voting result, e.g. number of votes
   def getRankingsSum = rankingsSum
   def getRankingsSharesSum = rankingsSharesSum
-  def getScores = scores
+  def getRankings = rankings
 
   def generateR1Data(summator: PreferentialBallotsSummator, committeeMemberKey: KeyPair): Try[PrefTallyR1Data] = Try {
     val (privKey, pubKey) = committeeMemberKey
@@ -233,6 +233,51 @@ class PreferentialTally(ctx: PreferentialContext,
     disqualifiedOnTallyR3CommitteeIds = failedCommitteeIds
     currentRound = PrefStages.TallyR3
 
+    this
+  }
+
+  def generateR4Data(committeeMemberKey: KeyPair, dkgR1DataAll: Seq[R1Data]): Try[PrefTallyR4Data] = Try {
+    if (currentRound != PrefStages.TallyR3)
+      throw new IllegalStateException("Unexpected state! Round 4 should be executed only in the TallyR3 state.")
+
+    prepareRecoverySharesData(committeeMemberKey, disqualifiedOnTallyR3CommitteeIds, dkgR1DataAll).get
+  }
+
+  def verifyRound4Data(committePubKey: PubKey, r4Data: PrefTallyR4Data, dkgR1DataAll: Seq[R1Data]): Try[Unit] = Try {
+    if (currentRound != PrefStages.TallyR3)
+      throw new IllegalStateException("Unexpected state! Round 4 should be executed only in the TallyR3 state.")
+
+    require(verifyRecoverySharesData(committePubKey, r4Data, disqualifiedOnTallyR3CommitteeIds, dkgR1DataAll).isSuccess)
+  }
+
+  def executeRound4(r4DataAll: Seq[PrefTallyR4Data]): Try[PreferentialTally] = Try {
+    if (currentRound != PrefStages.TallyR3)
+      throw new IllegalStateException("Unexpected state! Round 4 should be executed only in the TallyR3 state.")
+
+    // Step 1: restore private keys of failed committee members
+    val restoredKeys = restorePrivateKeys(disqualifiedOnTallyR3CommitteeIds, r4DataAll).get
+    val updatedAllDisqualifiedCommitteeKeys = allDisqualifiedCommitteeKeys ++ restoredKeys
+
+    // Step 2: calculate decryption shares of disqualified committee members and at the same sum them up with already accumulated shares
+    val updatedRankingsSharesSum = rankingsSharesSum.zipWithIndex.map { case (shares, i) =>
+      updatedAllDisqualifiedCommitteeKeys.foldLeft(shares) { (acc, keys) =>
+        val decryptedC1 = rankingsSum(i).map(_.c1.pow(keys._2).get)
+        acc.zip(decryptedC1).map(x => x._1.multiply(x._2).get)
+      }
+    }
+
+    // Step 3: decrypt final result for each proposal
+    rankings = rankingsSum.zip(updatedRankingsSharesSum).map { case (v, shares) =>
+      assert(v.size == shares.size)
+      v.zip(shares).map { case (encr, decr) =>
+        LiftedElGamalEnc.discreteLog(encr.c2.divide(decr).get).get
+      }
+    }
+
+    // if we reached this point execution was successful, so update state variables
+    allDisqualifiedCommitteeKeys = updatedAllDisqualifiedCommitteeKeys
+    rankingsSharesSum = updatedRankingsSharesSum
+    currentRound = PrefStages.TallyR4
     this
   }
 }
