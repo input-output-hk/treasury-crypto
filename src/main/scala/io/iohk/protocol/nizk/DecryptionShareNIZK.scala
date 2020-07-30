@@ -6,7 +6,6 @@ import io.iohk.core.crypto.primitives.hash.CryptographicHash
 
 import scala.util.Try
 
-/* This is a version of the Decryption Share NIZK based on the new crypto core layer */
 object DecryptionShareNIZK {
 
   case class DecryptionShareNIZKProof(A1: GroupElement, A2: GroupElement, z: BigInt)
