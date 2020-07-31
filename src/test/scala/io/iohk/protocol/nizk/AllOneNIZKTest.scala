@@ -1,7 +1,7 @@
 package io.iohk.protocol.nizk
 
 import io.iohk.core.crypto.encryption
-import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
+import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
@@ -104,5 +104,31 @@ class AllOneNIZKTest extends FunSuite {
     val restoredProof = AllOneNIZKProofSerializer.parseBytes(bytes, Option(dlogGroup)).get
     require(proof.T1 == restoredProof.T1 && proof.T2 == restoredProof.T2 && proof.z == restoredProof.z)
     require(AllOneNIZK.verifyNIZK(pubKey, Seq(one._1), restoredProof))
+  }
+
+  test("summation of vectors") {
+    def one = {
+      val r = dlogGroup.createRandomNumber
+      (LiftedElGamalEnc.encrypt(pubKey, r, 1).get, r)
+    }
+    def zero = {
+      val r = dlogGroup.createRandomNumber
+      (LiftedElGamalEnc.encrypt(pubKey, r, 0).get, r)
+    }
+
+    val v1 = Seq(one, zero)
+    val v2 = Seq(zero, one)
+    val v3 = Seq(zero, zero)
+    val neutralCiphertext = ElGamalCiphertext(dlogGroup.groupIdentity, dlogGroup.groupIdentity)
+    val init = Seq((neutralCiphertext, BigInt(0)), (neutralCiphertext, BigInt(0)))
+
+    val sum = Seq(v1,v2,v3).foldLeft(init) { (acc, v) =>
+      acc.zip(v).map { case (e1, e2) =>
+        (e1._1.multiply(e2._1).get, e1._2 + e2._2)
+      }
+    }
+
+    val proof = AllOneNIZK.produceNIZK(pubKey, sum).get
+    require(AllOneNIZK.verifyNIZK(pubKey, sum.map(_._1), proof))
   }
 }
