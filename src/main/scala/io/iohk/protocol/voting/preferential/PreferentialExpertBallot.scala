@@ -2,10 +2,11 @@ package io.iohk.protocol.voting.preferential
 
 import com.google.common.primitives.{Bytes, Ints, Shorts}
 import io.iohk.core.crypto.encryption.PubKey
-import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertextSerializer
+import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalCiphertextSerializer}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.Serializer
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProofSerializer, SHVZKVerifier}
+import io.iohk.protocol.nizk.unitvectornizk.{AllOneNIZK, AllOneNIZKProof, AllOneNIZKProofSerializer}
 import io.iohk.protocol.voting.Ballot
 import io.iohk.protocol.voting.preferential.PreferentialBallot.PreferentialBallotTypes
 
@@ -13,6 +14,7 @@ import scala.util.Try
 
 case class PreferentialExpertBallot (expertId: Int,
                                      rankVectors: List[RankVector],
+                                     rankVectorsProof: Option[AllOneNIZKProof],
                                     ) extends PreferentialBallot {
   override type M = PreferentialBallot
   override val serializer = PreferentialBallotSerializer
@@ -28,6 +30,12 @@ case class PreferentialExpertBallot (expertId: Int,
       require(v.rank.size == pctx.numberOfRankedProposals)
       require(new SHVZKVerifier(pubKey, v.z+:v.rank, v.proof.get).verifyProof())
     }
+
+    val init = Vector.fill(pctx.numberOfRankedProposals)(ElGamalCiphertext(group.groupIdentity, group.groupIdentity))
+    val rankVectorsSum = rankVectors.foldLeft(init) { (acc, rv) =>
+      acc.zip(rv.rank).map(x => x._1.multiply(x._2).get)
+    }
+    require(AllOneNIZK.verifyNIZK(pubKey, rankVectorsSum, rankVectorsProof.get))
   }.isSuccess
 }
 
@@ -42,6 +50,10 @@ object PreferentialExpertBallot {
     require(expertId >= 0 && expertId < pctx.numberOfExperts)
     require(vote.validate(pctx))
 
+    val neutralCiphertext = ElGamalCiphertext(group.groupIdentity, group.groupIdentity)
+    var rankVectorsSum = Vector.fill(pctx.numberOfRankedProposals)(neutralCiphertext)
+    var randomnessSum = Vector.fill(pctx.numberOfRankedProposals)(BigInt(0))
+
     val rankVectors = (0 until pctx.numberOfProposals).map { proposalId =>
       val nonZeroPos = vote.ranking.indexOf(proposalId) match {
         case -1 => 0 // there is no rank for proposal, in this case set z=1 and all other zeros. z bit is the first bit in vector
@@ -51,12 +63,19 @@ object PreferentialExpertBallot {
         Ballot.buildEncryptedUnitVector(size = pctx.numberOfRankedProposals + 1, nonZeroPos, ballotEncryptionKey)
       val proof = withProof match {
         case false => None
-        case true => Some(new SHVZKGen(ballotEncryptionKey, vector, nonZeroPos, rand).produceNIZK().get)
+        case true =>
+          rankVectorsSum = rankVectorsSum.zip(vector.tail).map(x => x._1.multiply(x._2).get) // sum up vectors without z bit
+          randomnessSum = randomnessSum.zip(rand.tail).map(x => x._1 + x._2)
+          Some(new SHVZKGen(ballotEncryptionKey, vector, nonZeroPos, rand).produceNIZK().get)
       }
       RankVector(rank = vector.tail, z = vector.head, proof)
     }.toList
 
-    PreferentialExpertBallot(expertId, rankVectors)
+    val rankVectorsProof = if (withProof)
+      Some(AllOneNIZK.produceNIZK(ballotEncryptionKey, rankVectorsSum.zip(randomnessSum)).get)
+    else None
+
+    PreferentialExpertBallot(expertId, rankVectors, rankVectorsProof)
   }
 }
 
@@ -78,9 +97,12 @@ private[voting] object PreferentialExpertBallotSerializer extends Serializer[Pre
         Ints.toByteArray(proofBytes.length), proofBytes)
     }
 
+    val rankVectorsProofBytes = ballot.rankVectorsProof.map(_.bytes).getOrElse(Array[Byte]())
+
     Bytes.concat(
       Ints.toByteArray(ballot.expertId),
       Shorts.toByteArray(ballot.rankVectors.length.toShort), rankVectorsBytes,
+      Shorts.toByteArray(rankVectorsProofBytes.size.toShort), rankVectorsProofBytes
     )
   }
 
@@ -109,6 +131,15 @@ private[voting] object PreferentialExpertBallotSerializer extends Serializer[Pre
       RankVector(vector.tail, vector.head, proof)
     }.toList
 
-    PreferentialExpertBallot(expertId, rankVectors)
+    val rankVectorsProofLen =  Shorts.fromByteArray(bytes.slice(position,position+2))
+    position += 2
+    val rankVectorsProof = rankVectorsProofLen match {
+      case 0 => None
+      case l =>
+        position = position + l
+        Some(AllOneNIZKProofSerializer.parseBytes(bytes.slice(position - l, position), decoder).get)
+    }
+
+    PreferentialExpertBallot(expertId, rankVectors, rankVectorsProof)
   }
 }
