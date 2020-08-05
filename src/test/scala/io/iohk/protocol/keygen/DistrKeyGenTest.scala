@@ -5,7 +5,8 @@ import io.iohk.core.crypto.primitives.dlog.GroupElement
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.keygen.datastructures.round3.R3Data
 import io.iohk.protocol.keygen.math.LagrangeInterpolation
-import io.iohk.protocol.{CommitteeIdentifier, CryptoContext, ProtocolContext}
+import io.iohk.protocol.voting.approval.ApprovalContext
+import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
 import org.scalatest.FunSuite
 
 import scala.collection.mutable.ArrayBuffer
@@ -15,7 +16,7 @@ class DistrKeyGenTest  extends FunSuite {
 
   val crs = CryptoContext.generateRandomCRS
   val ctx = new CryptoContext(Option(crs))
-  val pctx = new ProtocolContext(ctx, 3, 3)
+  val pctx = new ApprovalContext(ctx, 3, 3)
   import ctx.{group, hash}
 
   test("dkg_interpolation") {

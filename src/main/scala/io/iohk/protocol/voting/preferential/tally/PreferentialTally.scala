@@ -4,11 +4,10 @@ import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalE
 import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
 import io.iohk.core.crypto.primitives.dlog.GroupElement
 import io.iohk.protocol.Identifier
-import io.iohk.protocol.keygen.DistrKeyGen
+import io.iohk.protocol.keygen.{DistrKeyGen, KeyRecovery}
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
-import io.iohk.protocol.tally.TallyCommon
-import io.iohk.protocol.tally.datastructures.TallyR2Data
+import io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures.TallyR2Data
 import io.iohk.protocol.voting.preferential.tally.PreferentialTally.PrefStages
 import io.iohk.protocol.voting.preferential.tally.datastructures.{PrefTallyR1Data, PrefTallyR3Data, PrefTallyR4Data}
 import io.iohk.protocol.voting.preferential.{PreferentialContext, PreferentialExpertBallot}
@@ -17,7 +16,7 @@ import scala.util.Try
 
 class PreferentialTally(ctx: PreferentialContext,
                         cmIdentifier: Identifier[Int],
-                        disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]]) extends TallyCommon(ctx.cryptoContext, cmIdentifier) {
+                        disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]]) extends KeyRecovery(ctx.cryptoContext, cmIdentifier) {
   import ctx.cryptoContext.{group, hash}
 
   private var currentRound = PrefStages.Init

@@ -1,7 +1,9 @@
 package io.iohk.protocol
 
 import io.iohk.core.utils.TimeUtils
-import io.iohk.protocol.voting.{DelegatedVote, DirectVote, ExpertBallot, PublicStakeBallot}
+import io.iohk.protocol.voting.approval.ApprovalContext
+import io.iohk.protocol.voting.approval.multi_delegation.approval.{DelegatedVote, DirectVote}
+import io.iohk.protocol.voting.approval.multi_delegation.{ExpertBallot, PublicStakeBallot}
 
 /* Benchmarking ballot creation */
 class BallotCreationPerformance {
@@ -15,7 +17,7 @@ class BallotCreationPerformance {
     for (experts <- numberOfExperts) {
       println("Running test for " + experts + " experts ...")
 
-      val pctx = new ProtocolContext(ctx, 3, experts)
+      val pctx = new ApprovalContext(ctx, 3, experts)
 
       TimeUtils.accurate_time("\tVoter ballot creation: ", PublicStakeBallot.createBallot(pctx,0, DelegatedVote(0),pubKey,1).get)
 

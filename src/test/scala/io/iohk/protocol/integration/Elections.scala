@@ -1,22 +1,24 @@
 package io.iohk.protocol.integration
 
 import io.iohk.core.crypto.encryption.PubKey
-import io.iohk.protocol.voting.{DelegatedVote, DirectVote, ExpertBallot, PrivateStakeBallot, PublicStakeBallot, VoterBallot}
-import io.iohk.protocol.{CryptoContext, ProtocolContext}
+import io.iohk.protocol.CryptoContext
+import io.iohk.protocol.voting.approval._
+import io.iohk.protocol.voting.approval.multi_delegation.approval.{DelegatedVote, DirectVote}
+import io.iohk.protocol.voting.approval.multi_delegation.{ExpertBallot, PrivateStakeBallot, PublicStakeBallot, VoterBallot}
 
 import scala.util.Try
 
 trait Elections {
   def run(sharedPubKey: PubKey): (Seq[VoterBallot], Seq[ExpertBallot])
   def verify(tallyRes: Map[Int, Vector[BigInt]]): Boolean
-  def getContext: ProtocolContext
+  def getContext: ApprovalContext
 }
 
 class ElectionsScenario1(ctx: CryptoContext) extends Elections {
   private val proposalID = 1
   private val votersNum = 2
   private val numberOfExperts = 2
-  val pctx = new ProtocolContext(ctx, 3, numberOfExperts)
+  val pctx = new ApprovalContext(ctx, 3, numberOfExperts)
 
   def getContext = pctx
 
@@ -47,7 +49,7 @@ class ElectionsScenario2(ctx: CryptoContext) extends Elections
   val votersNum = 10
   val votersDelegatedNum = 20
   val numberOfExperts = 5
-  val pctx = new ProtocolContext(ctx, 3, numberOfExperts)
+  val pctx = new ApprovalContext(ctx, 3, numberOfExperts)
 
   def getContext = pctx
 
@@ -113,7 +115,7 @@ class ElectionsScenario4(ctx: CryptoContext) extends Elections
   val proposalIDs = Set(3, 8)
   val votersNum = 30
   val votersDelegatedNum = 20
-  val pctx = new ProtocolContext(ctx, numberOfChoices = 5, numberOfExperts = 5)
+  val pctx = new ApprovalContext(ctx, numberOfChoices = 5, numberOfExperts = 5)
 
   def getContext = pctx
 

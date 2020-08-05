@@ -6,7 +6,7 @@ import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen._
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.keygen.datastructures.round3.R3Data
-import io.iohk.protocol.voting.{ExpertBallot, VoterBallot}
+import io.iohk.protocol.voting.approval.multi_delegation.{ExpertBallot, VoterBallot}
 import org.scalatest.FunSuite
 
 import scala.util.Random

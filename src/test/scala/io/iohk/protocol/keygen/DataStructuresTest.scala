@@ -1,13 +1,14 @@
 package io.iohk.protocol.keygen
 
 import io.iohk.core.crypto.encryption
-import io.iohk.protocol.{CryptoContext, ProtocolContext}
+import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen.datastructures.round1.R1DataSerializer
 import io.iohk.protocol.keygen.datastructures.round2.R2DataSerializer
 import io.iohk.protocol.keygen.datastructures.round3.R3DataSerializer
 import io.iohk.protocol.keygen.datastructures.round4.R4DataSerializer
 import io.iohk.protocol.keygen.datastructures.round5_1.R5_1DataSerializer
 import io.iohk.protocol.keygen.datastructures.round5_2.R5_2DataSerializer
+import io.iohk.protocol.voting.approval.ApprovalContext
 import org.scalatest.FunSuite
 
 class DataStructuresTest extends FunSuite {
@@ -16,7 +17,7 @@ class DataStructuresTest extends FunSuite {
 
     val crs = CryptoContext.generateRandomCRS
     val ctx = new CryptoContext(Option(crs))
-    val pctx = new ProtocolContext(ctx, 3, 5)
+    val pctx = new ApprovalContext(ctx, 3, 5)
     import ctx.group
 
     val keyPairs = for(id <- 1 to 10) yield encryption.createKeyPair.get

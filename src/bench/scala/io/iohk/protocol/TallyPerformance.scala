@@ -4,7 +4,9 @@ import io.iohk.core.crypto.encryption
 import io.iohk.core.utils.TimeUtils
 import io.iohk.protocol.integration.ProtocolTest
 import io.iohk.protocol.keygen._
-import io.iohk.protocol.voting.{DelegatedVote, DirectVote, ExpertBallot, PublicStakeBallot}
+import io.iohk.protocol.voting.approval.ApprovalContext
+import io.iohk.protocol.voting.approval.multi_delegation.approval.{DelegatedVote, DirectVote}
+import io.iohk.protocol.voting.approval.multi_delegation.{ExpertBallot, PublicStakeBallot}
 
 class TallyPerformance {
 
@@ -18,7 +20,7 @@ class TallyPerformance {
 
     val numberOfExperts = 100
     val numberOfVoters = 1000
-    val pctx = new ProtocolContext(ctx, 3, numberOfExperts)
+    val pctx = new ApprovalContext(ctx, 3, numberOfExperts)
 
     println("Commitee members:\t" + commiteeMembersNum)
     println("Commitee violators:\t" + violatorsNum + " (" + violatorsPercentage + "%)")

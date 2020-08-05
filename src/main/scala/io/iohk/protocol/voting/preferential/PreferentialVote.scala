@@ -1,6 +1,6 @@
 package io.iohk.protocol.voting.preferential
 
-import io.iohk.protocol.ProtocolContext
+import io.iohk.protocol.voting.approval.ApprovalContext
 
 import scala.util.Try
 
@@ -31,7 +31,7 @@ case class DirectPreferentialVote(ranking: List[Int]) extends PreferentialVote {
   override def getDelegatedVote = None
   override def validate(implicit ctx: PreferentialContext): Boolean = Try {
     require(ranking.size == ctx.numberOfRankedProposals)
-    require(ranking.distinct.size == ranking.size) // comment this for now because it will not be verified by the proof
+    require(ranking.distinct.size == ranking.size)
     ranking.foreach(p => require(p >=0 && p < ctx.numberOfProposals))
   }.isSuccess
 

@@ -6,7 +6,6 @@ import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.protocol.nizk.shvzk.SHVZKProof
-import io.iohk.protocol.voting.{ExpertBallot, ExpertBallotSerializer, PrivateStakeBallot, PrivateVoterBallotSerializer, PublicStakeBallot, PublicStakeBallotSerializer}
 import io.iohk.protocol.voting.preferential.PreferentialBallot.PreferentialBallotTypes
 
 import scala.util.Try

@@ -4,12 +4,13 @@ import io.iohk.core.crypto.encryption
 import io.iohk.core.utils.{SizeUtils, TimeUtils}
 import io.iohk.protocol.integration.ProtocolTest
 import io.iohk.protocol.keygen._
+import io.iohk.protocol.voting.approval.ApprovalContext
 
 class DistrKeyGenPerformance {
 
   val crs = CryptoContext.generateRandomCRS
   val ctx = new CryptoContext(Option(crs))
-  val pctx = new ProtocolContext(ctx, 3, 0)
+  val pctx = new ApprovalContext(ctx, 3, 0)
   import ctx.group
 
   def Run(commiteeMembersNum: Int, violatorsPercentage: Int): Unit = {

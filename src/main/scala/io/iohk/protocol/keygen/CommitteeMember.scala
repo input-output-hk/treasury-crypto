@@ -1,16 +1,17 @@
 package io.iohk.protocol.keygen
 
 import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
+import io.iohk.protocol.CommitteeIdentifier
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.keygen.datastructures.round2.R2Data
 import io.iohk.protocol.keygen.datastructures.round3.R3Data
 import io.iohk.protocol.keygen.datastructures.round4.R4Data
 import io.iohk.protocol.keygen.datastructures.round5_1.R5_1Data
 import io.iohk.protocol.keygen.datastructures.round5_2.R5_2Data
-import io.iohk.protocol.tally.datastructures.{TallyR1Data, TallyR2Data, TallyR3Data, TallyR4Data}
-import io.iohk.protocol.tally.{BallotsSummator, Tally}
-import io.iohk.protocol.voting.{ExpertBallot, VoterBallot}
-import io.iohk.protocol.{CommitteeIdentifier, ProtocolContext}
+import io.iohk.protocol.voting.approval.ApprovalContext
+import io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures.{TallyR1Data, TallyR2Data, TallyR3Data, TallyR4Data}
+import io.iohk.protocol.voting.approval.multi_delegation.tally.{BallotsSummator, Tally}
+import io.iohk.protocol.voting.approval.multi_delegation.{ExpertBallot, VoterBallot}
 
 import scala.util.Try
 
@@ -32,7 +33,7 @@ import scala.util.Try
   * @param committeeMembersPubKeys public keys of all committee members
   * @param roundsData
   */
-class CommitteeMember(val ctx: ProtocolContext,
+class CommitteeMember(val ctx: ApprovalContext,
                       val transportKeyPair: KeyPair,
                       val committeeMembersPubKeys: Seq[PubKey],
                       roundsData: RoundsData = RoundsData()) {
