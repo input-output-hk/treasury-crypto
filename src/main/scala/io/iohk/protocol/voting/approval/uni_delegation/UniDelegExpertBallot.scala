@@ -11,14 +11,14 @@ import io.iohk.protocol.voting.approval.{ApprovalBallot, ApprovalContext}
 
 import scala.util.Try
 
-case class ExpertBallot(
+case class UniDelegExpertBallot(
   expertId: Int,
   choices: List[Vector[ElGamalCiphertext]],
   choicesProofs: Option[List[SHVZKProof]]
 ) extends ApprovalBallot {
 
-  override type M = ExpertBallot
-  override val serializer = ExpertBallotSerializer
+  override type M = UniDelegExpertBallot
+  override val serializer = UniDelegExpertBallotSerializer
 
   override val ballotTypeId: Byte = ApprovalBallotTypes.UniExpert.id.toByte
 
@@ -33,13 +33,13 @@ case class ExpertBallot(
   }.isSuccess
 }
 
-object ExpertBallot {
+object UniDelegExpertBallot {
 
   def createBallot(pctx: ApprovalContext,
                    expertID: Int,
-                   vote: DirectUniApprovalVote,
+                   vote: DirectUniDelegVote,
                    ballotEncryptionKey: PubKey,
-                   withProof: Boolean = true): Try[ExpertBallot] = Try {
+                   withProof: Boolean = true): Try[UniDelegExpertBallot] = Try {
     import pctx.cryptoContext.{group, hash}
     require(vote.validate(pctx), "Invalid vote!")
     require(expertID >= 0 && expertID < pctx.numberOfExperts, "Invalid expert ID!")
@@ -56,13 +56,12 @@ object ExpertBallot {
       case _ => None
     }
 
-    ExpertBallot(expertID, encryptedChoices.map(_._2), proofs)
+    UniDelegExpertBallot(expertID, encryptedChoices.map(_._2), proofs)
   }
 }
 
-/* BallotSerializer should be used to deserialize ExpertBallot */
-private[voting] object ExpertBallotSerializer extends Serializer[ExpertBallot, DiscreteLogGroup] {
-  override def toBytes(ballot: ExpertBallot): Array[Byte] = {
+private[voting] object UniDelegExpertBallotSerializer extends Serializer[UniDelegExpertBallot, DiscreteLogGroup] {
+  override def toBytes(ballot: UniDelegExpertBallot): Array[Byte] = {
     val choicesBytes = ballot.choices.foldLeft(Array[Byte]()) { (acc, v) =>
       val vectorBytes = v.foldLeft(Array[Byte]()) { (acc2, b) =>
         val bytes = b.bytes
@@ -74,18 +73,18 @@ private[voting] object ExpertBallotSerializer extends Serializer[ExpertBallot, D
     val proofBytes = ballot.choicesProofs.map { proofs =>
       proofs.foldLeft(Array[Byte]()) { (acc, p) =>
         val bytes = p.bytes
-        Bytes.concat(acc, Array(bytes.length.toByte), bytes)
+        Bytes.concat(acc, Shorts.toByteArray(bytes.length.toShort), bytes)
       }
-    }
+    }.getOrElse(Array[Byte]())
 
     Bytes.concat(
       Ints.toByteArray(ballot.expertId),
       Shorts.toByteArray(ballot.choices.length.toShort), choicesBytes,
-      Shorts.toByteArray(ballot.choicesProofs.map(_.length.toShort).getOrElse(0)), choicesBytes
+      Shorts.toByteArray(ballot.choicesProofs.map(_.length.toShort).getOrElse(0)), proofBytes
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[ExpertBallot] = Try {
+  override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[UniDelegExpertBallot] = Try {
     val expertId = Ints.fromByteArray(bytes.slice(0,4))
     val choicesLen = Shorts.fromByteArray(bytes.slice(4,6))
     var position = 6
@@ -107,13 +106,13 @@ private[voting] object ExpertBallotSerializer extends Serializer[ExpertBallot, D
       case 0 => None
       case len => Some({
         (0 until len).map { _ =>
-          val l = bytes(position)
-          position = position + l + 1
-          SHVZKProofSerializer.parseBytes(bytes.slice(position-l-1, position), decoder).get
+          val l = Shorts.fromByteArray(bytes.slice(position, position+2))
+          position = position + l + 2
+          SHVZKProofSerializer.parseBytes(bytes.slice(position-l, position), decoder).get
         }.toList
       })
     }
 
-    ExpertBallot(expertId, choices, proofs)
+    UniDelegExpertBallot(expertId, choices, proofs)
   }
 }

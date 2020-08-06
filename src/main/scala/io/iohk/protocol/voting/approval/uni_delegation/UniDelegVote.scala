@@ -7,7 +7,7 @@ import scala.util.Try
 /**
   * A uni delegation approval vote represents the choice for many proposals at once. The delegation is unified for all proposals.
   */
-trait UniApprovalVote {
+trait UniDelegVote {
 
   def isDirectVote: Boolean
   def isDelegatedVote: Boolean = !isDirectVote
@@ -24,7 +24,7 @@ trait UniApprovalVote {
 /**
   * @param ranking an ordered list of proposal ids depending on their priorities. The head is top priority.
   */
-case class DirectUniApprovalVote(choices: List[Int]) extends UniApprovalVote {
+case class DirectUniDelegVote(choices: List[Int]) extends UniDelegVote {
   override val isDirectVote = true
   override def getDirectVote = Some(choices)
   override def getDelegatedVote = None
@@ -35,7 +35,7 @@ case class DirectUniApprovalVote(choices: List[Int]) extends UniApprovalVote {
 
 }
 
-case class DelegatedUniApprovalVote(expertId: Int) extends UniApprovalVote {
+case class DelegatedUniDelegVote(expertId: Int) extends UniDelegVote {
   override val isDirectVote = false
   override def getDirectVote = None
   override def getDelegatedVote = Some(expertId)
