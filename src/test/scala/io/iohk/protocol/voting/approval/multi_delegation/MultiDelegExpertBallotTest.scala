@@ -22,7 +22,7 @@ class MultiDelegExpertBallotTest extends FunSuite {
       val ballot = MultiDelegExpertBallot.createBallot(pctx, 0, 2, DirectMultiDelegVote(vote), pubKey).get
 
       require(ballot.uChoiceVector.size == pctx.numberOfChoices)
-      require(ballot.verifyBallot(pctx, pubKey).isSuccess)
+      require(ballot.verifyBallot(pctx, pubKey))
 
       ballot.uChoiceVector.zipWithIndex.foreach { case (v,i) =>
         val r = LiftedElGamalEnc.decrypt(privKey, v).get
@@ -49,7 +49,7 @@ class MultiDelegExpertBallotTest extends FunSuite {
 
     require(recoveredBallot.proposalId == 0)
     require(recoveredBallot.expertId == 0)
-    require(recoveredBallot.verifyBallot(pctx, pubKey).isSuccess)
+    require(recoveredBallot.verifyBallot(pctx, pubKey))
 
     val ballotWithoutProofs = ballot.copy(uProof = None)
     val recoveredBallot2 = MultiDelegBallotSerializer.parseBytes(ballotWithoutProofs.bytes, Option(group)).get.asInstanceOf[MultiDelegExpertBallot]

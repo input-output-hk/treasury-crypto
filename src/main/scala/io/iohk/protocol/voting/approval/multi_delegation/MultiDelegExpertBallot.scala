@@ -7,7 +7,8 @@ import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.Serializer
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKProofSerializer, SHVZKVerifier}
 import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.voting.approval.multi_delegation.MultiDelegBallot.BallotTypes
+import io.iohk.protocol.voting.approval.multi_delegation.MultiDelegBallot.MultiDelegBallotTypes
+import io.iohk.protocol.voting.buildEncryptedUnitVector
 
 import scala.util.Try
 
@@ -21,14 +22,14 @@ case class MultiDelegExpertBallot(
   override type M = MultiDelegBallot
   override val serializer = MultiDelegBallotSerializer
 
-  override val ballotTypeId: Byte = BallotTypes.Expert.id.toByte
+  override val ballotTypeId: Byte = MultiDelegBallotTypes.Expert.id.toByte
 
-  override def verifyBallot(pctx: ApprovalContext, pubKey: PubKey): Try[Unit] = Try {
+  override def verifyBallot(pctx: ApprovalContext, pubKey: PubKey): Boolean = Try {
     import pctx.cryptoContext.{group, hash}
     require(uChoiceVector.size == pctx.numberOfChoices)
     require(expertId >= 0 && expertId < pctx.numberOfExperts)
     require(new SHVZKVerifier(pubKey, uChoiceVector, uProof.get).verifyProof())
-  }
+  }.isSuccess
 }
 
 object MultiDelegExpertBallot {
@@ -44,7 +45,7 @@ object MultiDelegExpertBallot {
     require(expertID >= 0 && expertID < pctx.numberOfExperts, "Invalid expert ID!")
 
     val vectorNonZeroBit = vote.getDirectVote.get
-    val (uVector, uRand) = MultiDelegBallot.buildEncryptedUnitVector(pctx.numberOfChoices, vectorNonZeroBit, ballotEncryptionKey)
+    val (uVector, uRand) = buildEncryptedUnitVector(pctx.numberOfChoices, vectorNonZeroBit, ballotEncryptionKey)
     val uProof = withProof match {
       case true => Some(new SHVZKGen(ballotEncryptionKey, uVector, vectorNonZeroBit, uRand).produceNIZK().get)
       case _ => None

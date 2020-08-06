@@ -7,7 +7,8 @@ import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.Serializer
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKProofSerializer, SHVZKVerifier}
 import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.voting.approval.multi_delegation.MultiDelegBallot.BallotTypes
+import io.iohk.protocol.voting.approval.multi_delegation.MultiDelegBallot.MultiDelegBallotTypes
+import io.iohk.protocol.voting.buildEncryptedUnitVector
 
 import scala.util.Try
 
@@ -18,7 +19,7 @@ case class MultiDelegPublicStakeBallot(override val proposalId: Int,
   override type M = MultiDelegBallot
   override val serializer = MultiDelegBallotSerializer
 
-  override val ballotTypeId: Byte = BallotTypes.Voter.id.toByte
+  override val ballotTypeId: Byte = MultiDelegBallotTypes.Voter.id.toByte
 
   def encryptedUnitVector = uVector
 
@@ -29,12 +30,12 @@ case class MultiDelegPublicStakeBallot(override val proposalId: Int,
     )
   }
 
-  override def verifyBallot(pctx: ApprovalContext, pubKey: PubKey): Try[Unit] = Try {
+  override def verifyBallot(pctx: ApprovalContext, pubKey: PubKey): Boolean = Try {
     import pctx.cryptoContext.{group, hash}
     require(uVector.delegations.size == pctx.numberOfExperts)
     require(uVector.choice.size == pctx.numberOfChoices)
     require(new SHVZKVerifier(pubKey, uVector.combine, uProof.get).verifyProof())
-  }
+  }.isSuccess
 }
 
 object MultiDelegPublicStakeBallot {
@@ -53,7 +54,7 @@ object MultiDelegPublicStakeBallot {
       case DirectMultiDelegVote(v) => pctx.numberOfExperts + v
       case DelegatedMultiDelegVote(v) => v
     }
-    val (u, uRand) = MultiDelegBallot.buildEncryptedUnitVector(pctx.numberOfExperts + pctx.numberOfChoices, nonZeroBitIndex, ballotEncryptionKey)
+    val (u, uRand) = buildEncryptedUnitVector(pctx.numberOfExperts + pctx.numberOfChoices, nonZeroBitIndex, ballotEncryptionKey)
     val (uDeleg, uChoice) = u.splitAt(pctx.numberOfExperts)
     val uVector = EncryptedUnitVector(uDeleg, uChoice)
     val uProof = withProof match {

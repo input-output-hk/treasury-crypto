@@ -26,7 +26,7 @@ class MultiDelegPublicStakeBallotTest extends FunSuite {
       require(ballot.uVector.choice.size == pctx.numberOfChoices)
       require(ballot.uVector.combine.size == pctx.numberOfExperts + pctx.numberOfChoices)
 
-      require(ballot.verifyBallot(pctx, pubKey).isSuccess)
+      require(ballot.verifyBallot(pctx, pubKey))
       require(ballot.stake == stake)
 
       ballot.uVector.combine.zipWithIndex.foreach { case (v,j) =>
@@ -62,7 +62,7 @@ class MultiDelegPublicStakeBallotTest extends FunSuite {
     val recoveredBallot = MultiDelegBallotSerializer.parseBytes(bytes, Option(group)).get.asInstanceOf[MultiDelegPublicStakeBallot]
 
     require(recoveredBallot.proposalId == 0)
-    require(recoveredBallot.verifyBallot(pctx, pubKey).isSuccess)
+    require(recoveredBallot.verifyBallot(pctx, pubKey))
 
     val ballotWithoutProofs = ballot.copy(uProof = None)
     val recoveredBallot2 = MultiDelegBallotSerializer.parseBytes(ballotWithoutProofs.bytes, Option(group)).get.asInstanceOf[MultiDelegPublicStakeBallot]
@@ -78,7 +78,7 @@ class MultiDelegPublicStakeBallotTest extends FunSuite {
     val bytes = ballot.bytes
     val recoveredBallot = MultiDelegBallotSerializer.parseBytes(bytes, Option(ctx.group)).get.asInstanceOf[MultiDelegPublicStakeBallot]
 
-    require(recoveredBallot.verifyBallot(pctx, pubKey).isSuccess)
+    require(recoveredBallot.verifyBallot(pctx, pubKey))
     require(recoveredBallot.proposalId == 0)
     require(recoveredBallot.uVector.delegations.length == pctx.numberOfExperts)
     require(recoveredBallot.uVector.choice.length == pctx.numberOfChoices)

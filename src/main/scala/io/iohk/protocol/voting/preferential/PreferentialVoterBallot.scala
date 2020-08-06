@@ -7,6 +7,7 @@ import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.Serializer
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKProofSerializer, SHVZKVerifier}
 import io.iohk.protocol.nizk.unitvectornizk.{AllOneNIZK, AllOneNIZKProof, AllOneNIZKProofSerializer}
+import io.iohk.protocol.voting.buildEncryptedUnitVector
 import io.iohk.protocol.voting.approval.multi_delegation.MultiDelegBallot
 import io.iohk.protocol.voting.preferential.PreferentialBallot.PreferentialBallotTypes
 
@@ -92,7 +93,7 @@ object PreferentialVoterBallot {
           case None => -1
         }
         val (vector, rand) =
-          MultiDelegBallot.buildEncryptedUnitVector(size = pctx.numberOfRankedProposals + 1, nonZeroPos, ballotEncryptionKey)
+          buildEncryptedUnitVector(size = pctx.numberOfRankedProposals + 1, nonZeroPos, ballotEncryptionKey)
         val proof = withProof match {
           case true =>
             rankVectorsSum = rankVectorsSum.zip(vector.tail).map(x => x._1.multiply(x._2).get) // sum up vectors without z bit
@@ -116,7 +117,7 @@ object PreferentialVoterBallot {
       else {
         val nonZeroBitPosition = expertId.map(_ + 1).getOrElse(0)
         val (vector, rand) =
-          MultiDelegBallot.buildEncryptedUnitVector(size = pctx.numberOfExperts + 1, nonZeroBitPosition, ballotEncryptionKey)
+          buildEncryptedUnitVector(size = pctx.numberOfExperts + 1, nonZeroBitPosition, ballotEncryptionKey)
         val proof = withProof match {
           case true => Some(new SHVZKGen(ballotEncryptionKey, vector, nonZeroBitPosition, rand).produceNIZK().get)
           case _ => None

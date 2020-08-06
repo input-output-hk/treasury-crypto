@@ -9,7 +9,8 @@ import io.iohk.protocol.nizk.MultRelationNIZK.MultRelationNIZKProof
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKProofSerializer, SHVZKVerifier}
 import io.iohk.protocol.nizk.{MultRelationNIZK, MultRelationNIZKProofSerializer}
 import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.voting.approval.multi_delegation.MultiDelegBallot.BallotTypes
+import io.iohk.protocol.voting.approval.multi_delegation.MultiDelegBallot.MultiDelegBallotTypes
+import io.iohk.protocol.voting.buildEncryptedUnitVector
 
 import scala.util.Try
 
@@ -24,12 +25,12 @@ case class MultiDelegPrivateStakeBallot(override val proposalId: Int,
   override type M = MultiDelegBallot
   override val serializer = MultiDelegBallotSerializer
 
-  override val ballotTypeId: Byte = BallotTypes.PrivateVoter.id.toByte
+  override val ballotTypeId: Byte = MultiDelegBallotTypes.PrivateVoter.id.toByte
 
   override def encryptedUnitVector = uVector
   override def weightedUnitVector(implicit g: DiscreteLogGroup) = vVector
 
-  override def verifyBallot(pctx: ApprovalContext, pubKey: PubKey): Try[Unit] = Try {
+  override def verifyBallot(pctx: ApprovalContext, pubKey: PubKey): Boolean = Try {
     import pctx.cryptoContext.{group, hash}
     require(uVector.delegations.size == pctx.numberOfExperts)
     require(uVector.choice.size == pctx.numberOfChoices)
@@ -38,7 +39,7 @@ case class MultiDelegPrivateStakeBallot(override val proposalId: Int,
 
     require(new SHVZKVerifier(pubKey, uVector.combine, uProof.get).verifyProof())
     require(MultRelationNIZK.verifyNIZK(pubKey, encryptedStake, uVector.combine, vVector.combine, vProof.get))
-  }
+  }.isSuccess
 }
 
 object MultiDelegPrivateStakeBallot {
@@ -67,7 +68,7 @@ object MultiDelegPrivateStakeBallot {
     val encryptedStake = LiftedElGamalEnc.encrypt(ballotEncryptionKey, stake).get._1
 
     // Step 1: building encrypted unit vector of voter's preference
-    val (u, uRand) = MultiDelegBallot.buildEncryptedUnitVector(pctx.numberOfExperts + pctx.numberOfChoices, nonZeroBitIndex, ballotEncryptionKey)
+    val (u, uRand) = buildEncryptedUnitVector(pctx.numberOfExperts + pctx.numberOfChoices, nonZeroBitIndex, ballotEncryptionKey)
     val (uDeleg, uChoice) = u.splitAt(pctx.numberOfExperts)
     val uVector = EncryptedUnitVector(uDeleg, uChoice)
     val uProof =

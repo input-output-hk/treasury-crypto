@@ -6,8 +6,9 @@ import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalCiphert
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.Serializer
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKProofSerializer, SHVZKVerifier}
-import io.iohk.protocol.voting.approval.ApprovalBallot.ApprovalBallotTypes
-import io.iohk.protocol.voting.approval.{ApprovalBallot, ApprovalContext}
+import io.iohk.protocol.voting.buildEncryptedUnitVector
+import io.iohk.protocol.voting.approval.ApprovalContext
+import io.iohk.protocol.voting.approval.uni_delegation.UniDelegBallot.UniBallotTypes
 
 import scala.util.Try
 
@@ -15,12 +16,12 @@ case class UniDelegExpertBallot(
   expertId: Int,
   choices: List[Vector[ElGamalCiphertext]],
   choicesProofs: Option[List[SHVZKProof]]
-) extends ApprovalBallot {
+) extends UniDelegBallot {
 
   override type M = UniDelegExpertBallot
   override val serializer = UniDelegExpertBallotSerializer
 
-  override val ballotTypeId: Byte = ApprovalBallotTypes.UniExpert.id.toByte
+  override val ballotTypeId: Byte = UniBallotTypes.Expert.id.toByte
 
   override def verifyBallot(pctx: ApprovalContext, pubKey: PubKey): Boolean = Try {
     import pctx.cryptoContext.{group, hash}
@@ -45,7 +46,7 @@ object UniDelegExpertBallot {
     require(expertID >= 0 && expertID < pctx.numberOfExperts, "Invalid expert ID!")
 
     val encryptedChoices = vote.getDirectVote.get.map { choice =>
-      val (vector, rand) = ApprovalBallot.buildEncryptedUnitVector(pctx.numberOfChoices, choice, ballotEncryptionKey)
+      val (vector, rand) = buildEncryptedUnitVector(pctx.numberOfChoices, choice, ballotEncryptionKey)
       (choice, vector, rand)
     }
     val proofs = withProof match {
