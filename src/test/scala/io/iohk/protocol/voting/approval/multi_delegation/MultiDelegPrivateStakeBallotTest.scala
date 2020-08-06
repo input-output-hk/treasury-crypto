@@ -1,13 +1,12 @@
-package io.iohk.protocol.voting.approval
+package io.iohk.protocol.voting.approval.multi_delegation
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.voting.approval.multi_delegation.approval.{DelegatedVote, DirectVote}
-import io.iohk.protocol.voting.approval.multi_delegation.{BallotSerializer, PrivateStakeBallot}
+import io.iohk.protocol.voting.approval.ApprovalContext
 import org.scalatest.FunSuite
 
-class PrivateStakeBallotTest extends FunSuite {
+class MultiDelegPrivateStakeBallotTest extends FunSuite {
   val ctx = new CryptoContext(None)
   import ctx.group
 
@@ -19,8 +18,8 @@ class PrivateStakeBallotTest extends FunSuite {
 
     // test all possible votes
     for (i <- 0 until (pctx.numberOfExperts + pctx.numberOfChoices)) {
-      val vote = if (i < pctx.numberOfExperts) DelegatedVote(i) else DirectVote(i - pctx.numberOfExperts)
-      val ballot = PrivateStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get
+      val vote = if (i < pctx.numberOfExperts) DelegatedMultiDelegVote(i) else DirectMultiDelegVote(i - pctx.numberOfExperts)
+      val ballot = MultiDelegPrivateStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get
 
       require(ballot.uVector.delegations.size == pctx.numberOfExperts)
       require(ballot.uVector.choice.size == pctx.numberOfChoices)
@@ -47,16 +46,16 @@ class PrivateStakeBallotTest extends FunSuite {
 
     // test invalid votes
     val invalidVotes = Seq(
-      DelegatedVote(-1),
-      DelegatedVote(pctx.numberOfExperts),
-      DelegatedVote(pctx.numberOfExperts + pctx.numberOfChoices),
-      DelegatedVote(100),
-      DirectVote(-1),
-      DirectVote(pctx.numberOfChoices),
-      DirectVote(2355))
+      DelegatedMultiDelegVote(-1),
+      DelegatedMultiDelegVote(pctx.numberOfExperts),
+      DelegatedMultiDelegVote(pctx.numberOfExperts + pctx.numberOfChoices),
+      DelegatedMultiDelegVote(100),
+      DirectMultiDelegVote(-1),
+      DirectMultiDelegVote(pctx.numberOfChoices),
+      DirectMultiDelegVote(2355))
 
     for (vote <- invalidVotes) {
-      val badBallot = PrivateStakeBallot.createBallot(pctx, 0, vote, pubKey, stake)
+      val badBallot = MultiDelegPrivateStakeBallot.createBallot(pctx, 0, vote, pubKey, stake)
       require(badBallot.isFailure)
     }
   }
@@ -64,17 +63,17 @@ class PrivateStakeBallotTest extends FunSuite {
   test("serialization") {
     val pctx = new ApprovalContext(ctx, 3, 5)
     val stake = 13
-    val vote = DelegatedVote(2)
+    val vote = DelegatedMultiDelegVote(2)
 
-    val ballot = PrivateStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get
+    val ballot = MultiDelegPrivateStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get
     val bytes = ballot.bytes
-    val recoveredBallot = BallotSerializer.parseBytes(bytes, Option(group)).get.asInstanceOf[PrivateStakeBallot]
+    val recoveredBallot = MultiDelegBallotSerializer.parseBytes(bytes, Option(group)).get.asInstanceOf[MultiDelegPrivateStakeBallot]
 
     require(recoveredBallot.proposalId == 0)
     require(recoveredBallot.verifyBallot(pctx, pubKey).isSuccess)
 
     val ballotWithoutProofs = ballot.copy(uProof = None, vProof = None)
-    val recoveredBallot2 = BallotSerializer.parseBytes(ballotWithoutProofs.bytes, Option(group)).get.asInstanceOf[PrivateStakeBallot]
+    val recoveredBallot2 = MultiDelegBallotSerializer.parseBytes(ballotWithoutProofs.bytes, Option(group)).get.asInstanceOf[MultiDelegPrivateStakeBallot]
     require(recoveredBallot2.proposalId == 0)
     require(recoveredBallot2.uVector.delegations.size == 5 && recoveredBallot2.uVector.choice.size == 3)
     require(recoveredBallot2.vVector.delegations.size == 5 && recoveredBallot2.vVector.choice.size == 3)

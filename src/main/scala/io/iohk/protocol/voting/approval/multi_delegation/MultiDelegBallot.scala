@@ -6,12 +6,12 @@ import io.iohk.core.crypto.encryption.{PubKey, Randomness}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.voting.approval.multi_delegation.Ballot.BallotTypes
+import io.iohk.protocol.voting.approval.multi_delegation.MultiDelegBallot.BallotTypes
 
 import scala.util.Try
 
 
-trait Ballot extends BytesSerializable {
+trait MultiDelegBallot extends BytesSerializable {
 
   override type DECODER = DiscreteLogGroup
 
@@ -21,7 +21,7 @@ trait Ballot extends BytesSerializable {
   def verifyBallot(pctx: ApprovalContext, pubKey: PubKey): Try[Unit]
 }
 
-object Ballot {
+object MultiDelegBallot {
   object BallotTypes extends Enumeration {
     val Voter, Expert, PrivateVoter = Value
   }
@@ -37,19 +37,19 @@ object Ballot {
   }
 }
 
-object BallotSerializer extends Serializer[Ballot, DiscreteLogGroup] {
-  override def toBytes(b: Ballot): Array[Byte] = b match {
-    case v: PublicStakeBallot => Bytes.concat(Array(v.ballotTypeId), PublicStakeBallotSerializer.toBytes(v))
-    case e: ExpertBallot => Bytes.concat(Array(e.ballotTypeId), ExpertBallotSerializer.toBytes(e))
-    case pv: PrivateStakeBallot => Bytes.concat(Array(pv.ballotTypeId), PrivateVoterBallotSerializer.toBytes(pv))
+object MultiDelegBallotSerializer extends Serializer[MultiDelegBallot, DiscreteLogGroup] {
+  override def toBytes(b: MultiDelegBallot): Array[Byte] = b match {
+    case v: MultiDelegPublicStakeBallot => Bytes.concat(Array(v.ballotTypeId), MultiDelegPublicStakeBallotSerializer.toBytes(v))
+    case e: MultiDelegExpertBallot => Bytes.concat(Array(e.ballotTypeId), MultiDelegExpertBallotSerializer.toBytes(e))
+    case pv: MultiDelegPrivateStakeBallot => Bytes.concat(Array(pv.ballotTypeId), MultiDelegPrivateStakeBallotSerializer.toBytes(pv))
   }
 
-  override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[Ballot] = Try {
+  override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[MultiDelegBallot] = Try {
     val ballotTypeId = bytes(0).toInt
     BallotTypes(ballotTypeId) match {
-      case BallotTypes.Voter => PublicStakeBallotSerializer.parseBytes(bytes.drop(1), decoder).get
-      case BallotTypes.Expert => ExpertBallotSerializer.parseBytes(bytes.drop(1), decoder).get
-      case BallotTypes.PrivateVoter => PrivateVoterBallotSerializer.parseBytes(bytes.drop(1), decoder).get
+      case BallotTypes.Voter => MultiDelegPublicStakeBallotSerializer.parseBytes(bytes.drop(1), decoder).get
+      case BallotTypes.Expert => MultiDelegExpertBallotSerializer.parseBytes(bytes.drop(1), decoder).get
+      case BallotTypes.PrivateVoter => MultiDelegPrivateStakeBallotSerializer.parseBytes(bytes.drop(1), decoder).get
     }
   }
 }

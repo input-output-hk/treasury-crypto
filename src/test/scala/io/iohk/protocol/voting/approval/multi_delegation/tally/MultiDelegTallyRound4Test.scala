@@ -1,16 +1,15 @@
 package io.iohk.protocol.voting.approval.multi_delegation.tally
 
 import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.voting.approval.multi_delegation.PublicStakeBallot
-import io.iohk.protocol.voting.approval.multi_delegation.approval.DirectVote
-import io.iohk.protocol.voting.approval.multi_delegation.tally.Tally.Stages
+import io.iohk.protocol.voting.approval.multi_delegation.{DirectMultiDelegVote, MultiDelegPublicStakeBallot}
+import io.iohk.protocol.voting.approval.multi_delegation.tally.MultiDelegTally.Stages
 import org.scalatest.FunSuite
 
-class TallyRound4Test extends FunSuite with TallyTestSetup {
+class MultiDelegTallyRound4Test extends FunSuite with TallyTestSetup {
 
   // prepare tally initialized to Round 2
   def prepareTallyRound2() = {
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
 
     val tallyR1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get
@@ -93,7 +92,7 @@ class TallyRound4Test extends FunSuite with TallyTestSetup {
   }
 
   test("execution Round 4 with key recovery") {
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
 
     val tallyR1DataAll = committeeKeys.tail.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get
@@ -118,8 +117,8 @@ class TallyRound4Test extends FunSuite with TallyTestSetup {
   }
 
   test("execution Round 4 when there are no voter ballots") {
-    val summator = new BallotsSummator(pctx)
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val summator = new MultiDelegBallotsSummator(pctx)
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
 
     tally.executeRound1(summator, Seq()).get
     tally.executeRound2(Seq(), Seq()).get
@@ -133,13 +132,13 @@ class TallyRound4Test extends FunSuite with TallyTestSetup {
 
   test("execution Round 4 when there are no experts") {
     val pctx = new ApprovalContext(ctx, 3, 0)
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
 
-    val summator = new BallotsSummator(pctx)
+    val summator = new MultiDelegBallotsSummator(pctx)
     for (i <- 0 until numberOfVoters)
       for (j <- 0 until numberOfProposals) {
         summator.addVoterBallot(
-          PublicStakeBallot.createBallot(pctx, j, DirectVote(0), sharedVotingKey, 1, false).get)
+          MultiDelegPublicStakeBallot.createBallot(pctx, j, DirectMultiDelegVote(0), sharedVotingKey, 1, false).get)
       }
 
     val tallyR1DataAll = committeeKeys.tail.map(keys => tally.generateR1Data(summator, keys).get)

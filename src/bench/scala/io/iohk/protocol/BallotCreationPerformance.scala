@@ -2,8 +2,7 @@ package io.iohk.protocol
 
 import io.iohk.core.utils.TimeUtils
 import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.voting.approval.multi_delegation.approval.{DelegatedVote, DirectVote}
-import io.iohk.protocol.voting.approval.multi_delegation.{ExpertBallot, PublicStakeBallot}
+import io.iohk.protocol.voting.approval.multi_delegation.{DelegatedMultiDelegVote, DirectMultiDelegVote, MultiDelegExpertBallot, MultiDelegPublicStakeBallot}
 
 /* Benchmarking ballot creation */
 class BallotCreationPerformance {
@@ -19,17 +18,17 @@ class BallotCreationPerformance {
 
       val pctx = new ApprovalContext(ctx, 3, experts)
 
-      TimeUtils.accurate_time("\tVoter ballot creation: ", PublicStakeBallot.createBallot(pctx,0, DelegatedVote(0),pubKey,1).get)
+      TimeUtils.accurate_time("\tVoter ballot creation: ", MultiDelegPublicStakeBallot.createBallot(pctx,0, DelegatedMultiDelegVote(0),pubKey,1).get)
 
-      val ballot = PublicStakeBallot.createBallot(pctx,0, DelegatedVote(0), pubKey,1).get
+      val ballot = MultiDelegPublicStakeBallot.createBallot(pctx,0, DelegatedMultiDelegVote(0), pubKey,1).get
       val ballotSize = ballot.bytes.size
 
       println("\tVoter ballot size: " + ballotSize + " bytes")
       println("\tVoter ballot proof size: " + ballot.uProof.get.size + " bytes")
 
-      TimeUtils.accurate_time("\tExpert ballot creation: ", ExpertBallot.createBallot(pctx, 0, 0, DirectVote(0), pubKey).get)
+      TimeUtils.accurate_time("\tExpert ballot creation: ", MultiDelegExpertBallot.createBallot(pctx, 0, 0, DirectMultiDelegVote(0), pubKey).get)
 
-      val exballot = ExpertBallot.createBallot(pctx, 0, 0, DirectVote(0), pubKey).get
+      val exballot = MultiDelegExpertBallot.createBallot(pctx, 0, 0, DirectMultiDelegVote(0), pubKey).get
       val exballotSize = exballot.bytes.size
       println("\tExpert ballot size: " + exballotSize + " bytes")
       println("\tExpert ballot proof size: " + exballot.uProof.get.size + " bytes")

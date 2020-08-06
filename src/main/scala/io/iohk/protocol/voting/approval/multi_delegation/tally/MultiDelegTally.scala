@@ -8,11 +8,11 @@ import io.iohk.protocol.keygen.{DistrKeyGen, KeyRecovery}
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
 import io.iohk.protocol.storage.RoundsDataStorage
-import io.iohk.protocol.voting.approval.multi_delegation.tally.Tally.Stages
+import io.iohk.protocol.voting.approval.multi_delegation.tally.MultiDelegTally.Stages
 import io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures._
 import io.iohk.protocol.voting.approval.ApprovalContext
 import io.iohk.protocol.Identifier
-import io.iohk.protocol.voting.approval.multi_delegation.ExpertBallot
+import io.iohk.protocol.voting.approval.multi_delegation.MultiDelegExpertBallot
 
 import scala.util.Try
 
@@ -51,9 +51,9 @@ import scala.util.Try
   *                                             restored (depending on what round of DKG they were disqualified). They
   *                                             are passed here because they will be needed for generating decryption shares.
   */
-class Tally(ctx: ApprovalContext,
-            cmIdentifier: Identifier[Int],
-            disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]]) extends KeyRecovery(ctx.cryptoContext, cmIdentifier) {
+class MultiDelegTally(ctx: ApprovalContext,
+                      cmIdentifier: Identifier[Int],
+                      disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]]) extends KeyRecovery(ctx.cryptoContext, cmIdentifier) {
   import ctx.cryptoContext.{group, hash}
 
   private var currentRound = Stages.Init
@@ -83,14 +83,14 @@ class Tally(ctx: ApprovalContext,
   def getChoices = choices
 
 
-  def generateR1Data(summator: BallotsSummator, committeeMemberKey: KeyPair): Try[TallyR1Data] = Try {
+  def generateR1Data(summator: MultiDelegBallotsSummator, committeeMemberKey: KeyPair): Try[MultiDelegTallyR1Data] = Try {
     val (privKey, pubKey) = committeeMemberKey
-    val decryptionShares = Tally.generateDecryptionShares(summator.getDelegationsSum, privKey)
+    val decryptionShares = MultiDelegTally.generateDecryptionShares(summator.getDelegationsSum, privKey)
     val committeeId = cmIdentifier.getId(pubKey).get
-    TallyR1Data(committeeId, decryptionShares)
+    MultiDelegTallyR1Data(committeeId, decryptionShares)
   }
 
-  def verifyRound1Data(summator: BallotsSummator, committePubKey: PubKey, r1Data: TallyR1Data): Try[Unit] = Try {
+  def verifyRound1Data(summator: MultiDelegBallotsSummator, committePubKey: PubKey, r1Data: MultiDelegTallyR1Data): Try[Unit] = Try {
     val uvDelegationsSum = summator.getDelegationsSum
     val proposalIds = uvDelegationsSum.keySet
     val committeID = cmIdentifier.getId(committePubKey).get
@@ -105,7 +105,7 @@ class Tally(ctx: ApprovalContext,
     }
   }
 
-  def executeRound1(summator: BallotsSummator, r1DataAll: Seq[TallyR1Data]): Try[Tally] = Try {
+  def executeRound1(summator: MultiDelegBallotsSummator, r1DataAll: Seq[MultiDelegTallyR1Data]): Try[MultiDelegTally] = Try {
     if (currentRound != Stages.Init)
       throw new IllegalStateException("Unexpected state! Round 1 should be executed only in the Init state.")
 
@@ -120,7 +120,7 @@ class Tally(ctx: ApprovalContext,
 
       val proposalIds = summator.getDelegationsSum.keys.toSeq
 
-      delegationsSharesSum = Tally.sumUpDecryptionShares(r1DataAll, ctx.numberOfExperts, proposalIds)
+      delegationsSharesSum = MultiDelegTally.sumUpDecryptionShares(r1DataAll, ctx.numberOfExperts, proposalIds)
       disqualifiedOnTallyR1CommitteeIds = failedCommitteeIds
       delegationsSum = summator.getDelegationsSum
     }
@@ -159,7 +159,7 @@ class Tally(ctx: ApprovalContext,
     * At the end of the Round 2, all decryption shares should be available and, thus, the delegations can be decrypted.
     * Given that delegations are available we can sum up all the experts ballot weighted by delegated voting power.
     */
-  def executeRound2(r2DataAll: Seq[TallyR2Data], expertBallots: Seq[ExpertBallot]): Try[Tally] = Try {
+  def executeRound2(r2DataAll: Seq[TallyR2Data], expertBallots: Seq[MultiDelegExpertBallot]): Try[MultiDelegTally] = Try {
     if (currentRound != Stages.TallyR1)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
     expertBallots.foreach(b => assert(b.expertId >= 0 && b.expertId < ctx.numberOfExperts))
@@ -228,9 +228,9 @@ class Tally(ctx: ApprovalContext,
       throw new IllegalStateException("Unexpected state! Round 3 should be executed only in the TallyR2 state.")
 
     val (privKey, pubKey) = committeeMemberKey
-    val decryptionShares = Tally.generateDecryptionShares(choicesSum, privKey)
+    val decryptionShares = MultiDelegTally.generateDecryptionShares(choicesSum, privKey)
     val committeeId = cmIdentifier.getId(pubKey).get
-    TallyR1Data(committeeId, decryptionShares)
+    MultiDelegTallyR1Data(committeeId, decryptionShares)
   }
 
   def verifyRound3Data(committePubKey: PubKey, r3Data: TallyR3Data): Try[Unit] = Try {
@@ -247,7 +247,7 @@ class Tally(ctx: ApprovalContext,
     }
   }
 
-  def executeRound3(r3DataAll: Seq[TallyR3Data]): Try[Tally] = Try {
+  def executeRound3(r3DataAll: Seq[TallyR3Data]): Try[MultiDelegTally] = Try {
     if (currentRound != Stages.TallyR2)
       throw new IllegalStateException("Unexpected state! Round 3 should be executed only in the TallyR2 state.")
 
@@ -266,7 +266,7 @@ class Tally(ctx: ApprovalContext,
 
     val proposalIds = choicesSum.keys.toSeq
 
-    choicesSharesSum = Tally.sumUpDecryptionShares(r3DataAll, ctx.numberOfChoices, proposalIds)
+    choicesSharesSum = MultiDelegTally.sumUpDecryptionShares(r3DataAll, ctx.numberOfChoices, proposalIds)
 
     disqualifiedOnTallyR3CommitteeIds = failedCommitteeIds
     currentRound = Stages.TallyR3
@@ -288,7 +288,7 @@ class Tally(ctx: ApprovalContext,
     require(verifyRecoverySharesData(committePubKey, r4Data, disqualifiedOnTallyR3CommitteeIds, dkgR1DataAll).isSuccess)
   }
 
-  def executeRound4(r4DataAll: Seq[TallyR4Data]): Try[Tally] = Try {
+  def executeRound4(r4DataAll: Seq[TallyR4Data]): Try[MultiDelegTally] = Try {
     if (currentRound != Stages.TallyR3)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
 
@@ -325,7 +325,7 @@ class Tally(ctx: ApprovalContext,
   }
 }
 
-object Tally {
+object MultiDelegTally {
   type Delegations = Seq[BigInt] // a sequence with the number of delegated coins to each expert
 
   object Stages extends Enumeration {
@@ -337,9 +337,9 @@ object Tally {
                    disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]],
                    stage: Stages.Value,
                    storage: RoundsDataStorage,
-                   summator: BallotsSummator): Try[Tally] = Try {
+                   summator: MultiDelegBallotsSummator): Try[MultiDelegTally] = Try {
 
-    val tally = new Tally(ctx, cmIdentifier, disqualifiedBeforeTallyCommitteeKeys)
+    val tally = new MultiDelegTally(ctx, cmIdentifier, disqualifiedBeforeTallyCommitteeKeys)
     if (stage > Stages.Init) {
       tally.executeRound1(summator, storage.getTallyR1).get
       if (stage > Stages.TallyR1) {
@@ -367,7 +367,7 @@ object Tally {
     }
   }
 
-  def sumUpDecryptionShares(dataAll: Seq[TallyR1Data],
+  def sumUpDecryptionShares(dataAll: Seq[MultiDelegTallyR1Data],
                             vectorSize: Int,
                             proposalIds: Seq[Int])
                            (implicit group: DiscreteLogGroup): Map[Int, Vector[GroupElement]] = {

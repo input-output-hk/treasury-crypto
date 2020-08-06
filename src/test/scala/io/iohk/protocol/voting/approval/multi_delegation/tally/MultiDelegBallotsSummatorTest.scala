@@ -4,11 +4,10 @@ import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.voting.approval.multi_delegation.approval.{DelegatedVote, DirectVote}
-import io.iohk.protocol.voting.approval.multi_delegation.{ExpertBallot, PrivateStakeBallot, PublicStakeBallot}
+import io.iohk.protocol.voting.approval.multi_delegation.{DelegatedMultiDelegVote, DirectMultiDelegVote, MultiDelegExpertBallot, MultiDelegPrivateStakeBallot, MultiDelegPublicStakeBallot}
 import org.scalatest.FunSuite
 
-class BallotsSummatorTest extends FunSuite {
+class MultiDelegBallotsSummatorTest extends FunSuite {
   val ctx = new CryptoContext(None)
   import ctx.group
 
@@ -19,15 +18,15 @@ class BallotsSummatorTest extends FunSuite {
     val numberOfExperts = 6
     val stake = 3
     val pctx = new ApprovalContext(ctx, 3, numberOfExperts)
-    val summator = new BallotsSummator(pctx)
+    val summator = new MultiDelegBallotsSummator(pctx)
 
     for(i <- 1 to numberOfVoters) {
       summator.addVoterBallot(
-        PublicStakeBallot.createBallot(pctx, 0, DirectVote(0), pubKey, stake).get)
+        MultiDelegPublicStakeBallot.createBallot(pctx, 0, DirectMultiDelegVote(0), pubKey, stake).get)
       summator.addVoterBallot(
-        PublicStakeBallot.createBallot(pctx, 1, DirectVote(1), pubKey, stake).get)
+        MultiDelegPublicStakeBallot.createBallot(pctx, 1, DirectMultiDelegVote(1), pubKey, stake).get)
       summator.addVoterBallot(
-        PublicStakeBallot.createBallot(pctx, 2, DirectVote(2), pubKey, stake).get)
+        MultiDelegPublicStakeBallot.createBallot(pctx, 2, DirectMultiDelegVote(2), pubKey, stake).get)
     }
 
     require(summator.getDelegationsSum.size == 3)
@@ -59,15 +58,15 @@ class BallotsSummatorTest extends FunSuite {
     val numberOfVoters = 13
     val stake = 2
     val pctx = new ApprovalContext(ctx, 3, numberOfExperts)
-    val summator = new BallotsSummator(pctx)
+    val summator = new MultiDelegBallotsSummator(pctx)
 
     for(i <- 1 to numberOfVoters) {
       summator.addVoterBallot(
-        PublicStakeBallot.createBallot(pctx, 0, DelegatedVote(0), pubKey, stake, false).get)
+        MultiDelegPublicStakeBallot.createBallot(pctx, 0, DelegatedMultiDelegVote(0), pubKey, stake, false).get)
       summator.addVoterBallot(
-        PublicStakeBallot.createBallot(pctx, 10, DelegatedVote(5), pubKey, stake, false).get)
+        MultiDelegPublicStakeBallot.createBallot(pctx, 10, DelegatedMultiDelegVote(5), pubKey, stake, false).get)
       summator.addVoterBallot(
-        PublicStakeBallot.createBallot(pctx, 22, DelegatedVote(7), pubKey, stake, false).get)
+        MultiDelegPublicStakeBallot.createBallot(pctx, 22, DelegatedMultiDelegVote(7), pubKey, stake, false).get)
     }
 
     require(summator.getDelegationsSum.size == 3)
@@ -95,12 +94,12 @@ class BallotsSummatorTest extends FunSuite {
 
   test("summation of private stake ballots") {
     val pctx = new ApprovalContext(ctx, 3, 5)
-    val summator = new BallotsSummator(pctx)
-    val vote = DelegatedVote(2)
+    val summator = new MultiDelegBallotsSummator(pctx)
+    val vote = DelegatedMultiDelegVote(2)
     val stake = 13
 
     val ballots = for (i <- 0 until 10) yield
-      PrivateStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get
+      MultiDelegPrivateStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get
 
     ballots.foreach(summator.addVoterBallot(_))
 
@@ -117,14 +116,14 @@ class BallotsSummatorTest extends FunSuite {
 
   test("summation of private and public stake ballots") {
     val pctx = new ApprovalContext(ctx, 3, 5)
-    val summator = new BallotsSummator(pctx)
-    val vote = DelegatedVote(2)
+    val summator = new MultiDelegBallotsSummator(pctx)
+    val vote = DelegatedMultiDelegVote(2)
     val stake = 13
 
     val publicBallots = for (i <- 0 until 10) yield
-      PublicStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get
+      MultiDelegPublicStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get
     val privateBallots = for (i <- 0 until 10) yield
-      PrivateStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get
+      MultiDelegPrivateStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get
 
     (publicBallots ++ privateBallots).foreach(summator.addVoterBallot(_))
 
@@ -142,12 +141,12 @@ class BallotsSummatorTest extends FunSuite {
   test("expert ballots summation") {
     val numberOfExperts = 6
     val pctx = new ApprovalContext(ctx, 3, numberOfExperts)
-    val summator = new BallotsSummator(pctx)
+    val summator = new MultiDelegBallotsSummator(pctx)
 
     for(i <- 1 to numberOfExperts) {
-      summator.addExpertBallot(ExpertBallot.createBallot(pctx, 0, 0, DirectVote(0), pubKey).get, 5)
-      summator.addExpertBallot(ExpertBallot.createBallot(pctx, 1, 0, DirectVote(1), pubKey).get, 5)
-      summator.addExpertBallot(ExpertBallot.createBallot(pctx, 2, 0, DirectVote(2), pubKey).get, 5)
+      summator.addExpertBallot(MultiDelegExpertBallot.createBallot(pctx, 0, 0, DirectMultiDelegVote(0), pubKey).get, 5)
+      summator.addExpertBallot(MultiDelegExpertBallot.createBallot(pctx, 1, 0, DirectMultiDelegVote(1), pubKey).get, 5)
+      summator.addExpertBallot(MultiDelegExpertBallot.createBallot(pctx, 2, 0, DirectMultiDelegVote(2), pubKey).get, 5)
     }
 
     require(summator.getChoicesSum.size == 3)

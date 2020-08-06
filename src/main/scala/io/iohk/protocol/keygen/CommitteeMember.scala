@@ -9,9 +9,9 @@ import io.iohk.protocol.keygen.datastructures.round4.R4Data
 import io.iohk.protocol.keygen.datastructures.round5_1.R5_1Data
 import io.iohk.protocol.keygen.datastructures.round5_2.R5_2Data
 import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures.{TallyR1Data, TallyR2Data, TallyR3Data, TallyR4Data}
-import io.iohk.protocol.voting.approval.multi_delegation.tally.{BallotsSummator, Tally}
-import io.iohk.protocol.voting.approval.multi_delegation.{ExpertBallot, VoterBallot}
+import io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures.{MultiDelegTallyR1Data, TallyR2Data, TallyR3Data, TallyR4Data}
+import io.iohk.protocol.voting.approval.multi_delegation.tally.{MultiDelegBallotsSummator, MultiDelegTally}
+import io.iohk.protocol.voting.approval.multi_delegation.{MultiDelegExpertBallot, MultiDelegVoterBallot}
 
 import scala.util.Try
 
@@ -51,9 +51,9 @@ class CommitteeMember(val ctx: ApprovalContext,
   private var dkgViolatorsKeys: Option[Map[PubKey, Option[PrivKey]]] = None
 
   // Tally should be initialized after DKG is finished, because it requires keys of committee members disqualified during DKG
-  private var tally: Option[Tally] = None
+  private var tally: Option[MultiDelegTally] = None
   private var tallyResult: Option[Map[Int,Vector[BigInt]]] = None // decrypted results of voting for each proposal (map of proposalId -> Result)
-  private val summator = new BallotsSummator(ctx) //TODO: probably we should pass summator as an input param
+  private val summator = new MultiDelegBallotsSummator(ctx) //TODO: probably we should pass summator as an input param
 
   val ownId: Int = dkg.ownID
 
@@ -97,16 +97,16 @@ class CommitteeMember(val ctx: ApprovalContext,
 
   /* Tally stage. It should be started only when all rounds of DKG are executed. */
 
-  def doTallyR1(ballots: Seq[VoterBallot]): Try[TallyR1Data] = Try {
+  def doTallyR1(ballots: Seq[MultiDelegVoterBallot]): Try[MultiDelegTallyR1Data] = Try {
     ballots.foreach(summator.addVoterBallot(_).get)
 
-    val newTally = new Tally(ctx, memberIdentifier, dkgViolatorsKeys.get)
+    val newTally = new MultiDelegTally(ctx, memberIdentifier, dkgViolatorsKeys.get)
     tally = Some(newTally)
 
     newTally.generateR1Data(summator, (secretKey, publicKey)).get
   }
 
-  def doTallyR2(tallyR1DataAll: Seq[TallyR1Data], dkgR1DataAll: Seq[R1Data]): Try[TallyR2Data] = Try {
+  def doTallyR2(tallyR1DataAll: Seq[MultiDelegTallyR1Data], dkgR1DataAll: Seq[R1Data]): Try[TallyR2Data] = Try {
     val tallyR1 = tally.get
     val verifiedR1DataAll = tallyR1DataAll.filter { r1Data =>
       memberIdentifier.getPubKey(r1Data.issuerID).flatMap { pubKey =>
@@ -120,7 +120,7 @@ class CommitteeMember(val ctx: ApprovalContext,
 
   def doTallyR3(tallyR2DataAll: Seq[TallyR2Data],
                 dkgR1DataAll: Seq[R1Data],
-                expertBallots: Seq[ExpertBallot]): Try[TallyR3Data] = Try {
+                expertBallots: Seq[MultiDelegExpertBallot]): Try[TallyR3Data] = Try {
     val tallyR2 = tally.get
     val verifiedR2DataAll = tallyR2DataAll.filter { r2Data =>
       memberIdentifier.getPubKey(r2Data.issuerID).flatMap { pubKey =>

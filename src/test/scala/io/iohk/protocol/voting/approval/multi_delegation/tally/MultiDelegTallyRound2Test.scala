@@ -1,13 +1,13 @@
 package io.iohk.protocol.voting.approval.multi_delegation.tally
 
 import io.iohk.protocol.keygen.datastructures.round5_1.ViolatorsSharesData
-import io.iohk.protocol.voting.approval.multi_delegation.tally.Tally.Stages
+import io.iohk.protocol.voting.approval.multi_delegation.tally.MultiDelegTally.Stages
 import org.scalatest.FunSuite
 
-private class TallyRound2Test extends FunSuite with TallyTestSetup {
+private class MultiDelegTallyRound2Test extends FunSuite with TallyTestSetup {
 
   test("generate TallyR2Data when there are no failed members") {
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
     val tallyR1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get
 
@@ -20,7 +20,7 @@ private class TallyRound2Test extends FunSuite with TallyTestSetup {
   }
 
   test("generate TallyR2Data when there are some failed members") {
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
     val tallyR1DataAll = committeeKeys.tail.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get // exclude 1 R1Data so that we have 1 disqualified member
 
@@ -34,7 +34,7 @@ private class TallyRound2Test extends FunSuite with TallyTestSetup {
   }
 
   test("verification of TallyR2Data") {
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
     val tallyR1DataAll = committeeKeys.tail.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get // exclude 1 R1Data so that we have 1 disqualified member
 
@@ -64,7 +64,7 @@ private class TallyRound2Test extends FunSuite with TallyTestSetup {
   }
 
   test("execution Round 2") {
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
     val tallyR1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get
 
@@ -81,7 +81,7 @@ private class TallyRound2Test extends FunSuite with TallyTestSetup {
   }
 
   test("execution Round 2 when there are not enough decryption shares") {
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
     val tallyR1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, Seq(tallyR1DataAll.head)).get //simulate that only 1 member submitted R1Data
 
@@ -90,7 +90,7 @@ private class TallyRound2Test extends FunSuite with TallyTestSetup {
   }
 
   test("execution Round 2 key recovery") {
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
     val tallyR1DataAll = committeeKeys.drop(2).map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get
 
@@ -109,8 +109,8 @@ private class TallyRound2Test extends FunSuite with TallyTestSetup {
   }
 
   test("execution Round 2 when there are no voter ballots") {
-    val summator = new BallotsSummator(pctx)
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val summator = new MultiDelegBallotsSummator(pctx)
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
     val tallyR1DataAll = committeeKeys.tail.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get //simulate that only 1 member submitted R1Data
 
@@ -122,7 +122,7 @@ private class TallyRound2Test extends FunSuite with TallyTestSetup {
   }
 
   test("execution Round 2 when there are no expert ballots") {
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
     val tallyR1DataAll = committeeKeys.tail.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get //simulate that only 1 member submitted R1Data
 

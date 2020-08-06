@@ -2,7 +2,7 @@ package io.iohk.protocol.voting.approval.multi_delegation.tally
 
 import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
 import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.voting.approval.multi_delegation.{ExpertBallot, VoterBallot}
+import io.iohk.protocol.voting.approval.multi_delegation.{MultiDelegExpertBallot, MultiDelegVoterBallot}
 
 import scala.util.Try
 
@@ -12,7 +12,7 @@ import scala.util.Try
   *
   * @param ctx
   */
-class BallotsSummator(ctx: ApprovalContext) {
+class MultiDelegBallotsSummator(ctx: ApprovalContext) {
   import ctx.cryptoContext.group
 
   private val neutralCiphertext = ElGamalCiphertext(group.groupIdentity, group.groupIdentity)
@@ -23,7 +23,7 @@ class BallotsSummator(ctx: ApprovalContext) {
   private var delegationsSums: Map[Int, Vector[ElGamalCiphertext]] = Map()
   private var choicesSums: Map[Int, Vector[ElGamalCiphertext]] = Map()
 
-  def addVoterBallot(ballot: VoterBallot): Try[BallotsSummator] = Try {
+  def addVoterBallot(ballot: MultiDelegVoterBallot): Try[MultiDelegBallotsSummator] = Try {
     require(ballot.weightedUnitVector.delegations.length == ctx.numberOfExperts, "Invalid voter ballot: invalid number of delegation bits in the unit vector")
     require(ballot.weightedUnitVector.choice.length == ctx.numberOfChoices, "Invalid voter ballot: invalid number of choice bits in the unit vector")
 
@@ -46,7 +46,7 @@ class BallotsSummator(ctx: ApprovalContext) {
     this
   }
   
-  def addExpertBallot(ballot: ExpertBallot, delegatedVotingPower: BigInt): Try[BallotsSummator] = Try {
+  def addExpertBallot(ballot: MultiDelegExpertBallot, delegatedVotingPower: BigInt): Try[MultiDelegBallotsSummator] = Try {
     require(ballot.uChoiceVector.length == ctx.numberOfChoices, "Invalid expert ballot: invalid number of choice bits in the unit vector")
     require(delegatedVotingPower > 0, "Invalid expert ballot: inconsistent voting power")
 

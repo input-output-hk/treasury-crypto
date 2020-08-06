@@ -6,8 +6,8 @@ import io.iohk.protocol.keygen.datastructures.round3.R3Data
 import io.iohk.protocol.keygen.datastructures.round4.R4Data
 import io.iohk.protocol.keygen.datastructures.round5_1.R5_1Data
 import io.iohk.protocol.keygen.datastructures.round5_2.R5_2Data
-import io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures.{TallyR1Data, TallyR2Data, TallyR3Data, TallyR4Data}
-import io.iohk.protocol.voting.approval.multi_delegation.{ExpertBallot, VoterBallot}
+import io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures.{MultiDelegTallyR1Data, TallyR2Data, TallyR3Data, TallyR4Data}
+import io.iohk.protocol.voting.approval.multi_delegation.{MultiDelegExpertBallot, MultiDelegVoterBallot}
 
 import scala.util.Try
 
@@ -54,18 +54,18 @@ trait RoundsDataStorage {
    * We differentiate between regular voter and expert, because their ballots are handled differently.
    */
 
-  def getVoterBallots: Seq[VoterBallot]
-  def updateVotersBallots(data: Seq[VoterBallot]): Try[Unit]
+  def getVoterBallots: Seq[MultiDelegVoterBallot]
+  def updateVotersBallots(data: Seq[MultiDelegVoterBallot]): Try[Unit]
 
-  def getExpertBallots: Seq[ExpertBallot]
-  def updateExpertBallots(data: Seq[ExpertBallot]): Try[Unit]
+  def getExpertBallots: Seq[MultiDelegExpertBallot]
+  def updateExpertBallots(data: Seq[MultiDelegExpertBallot]): Try[Unit]
 
   /*
    * Tally data. Tally protocol has 4 rounds. At each round, each committe member generates and submits a package with
    * corresponding data.
    */
-  def getTallyR1: Seq[TallyR1Data]
-  def updateTallyR1(data: Seq[TallyR1Data]): Try[Unit]
+  def getTallyR1: Seq[MultiDelegTallyR1Data]
+  def updateTallyR1(data: Seq[MultiDelegTallyR1Data]): Try[Unit]
 
   def getTallyR2: Seq[TallyR2Data]
   def updateTallyR2(data: Seq[TallyR2Data]): Try[Unit]

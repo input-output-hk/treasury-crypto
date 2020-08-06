@@ -7,17 +7,16 @@ import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.Serializer
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKProofSerializer, SHVZKVerifier}
 import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.voting.approval.multi_delegation.Ballot.BallotTypes
-import io.iohk.protocol.voting.approval.multi_delegation.approval.{DelegatedVote, DirectVote, EncryptedUnitVector, Vote}
+import io.iohk.protocol.voting.approval.multi_delegation.MultiDelegBallot.BallotTypes
 
 import scala.util.Try
 
-case class PublicStakeBallot(override val proposalId: Int,
-                             uVector: EncryptedUnitVector,
-                             uProof: Option[SHVZKProof],
-                             stake: BigInt) extends VoterBallot {
-  override type M = Ballot
-  override val serializer = BallotSerializer
+case class MultiDelegPublicStakeBallot(override val proposalId: Int,
+                                       uVector: EncryptedUnitVector,
+                                       uProof: Option[SHVZKProof],
+                                       stake: BigInt) extends MultiDelegVoterBallot {
+  override type M = MultiDelegBallot
+  override val serializer = MultiDelegBallotSerializer
 
   override val ballotTypeId: Byte = BallotTypes.Voter.id.toByte
 
@@ -38,23 +37,23 @@ case class PublicStakeBallot(override val proposalId: Int,
   }
 }
 
-object PublicStakeBallot {
+object MultiDelegPublicStakeBallot {
 
   def createBallot(pctx: ApprovalContext,
                    proposalID: Int,
-                   vote: Vote,
+                   vote: MultiDelegVote,
                    ballotEncryptionKey: PubKey,
                    stake: BigInt,
-                   withProof: Boolean = true): Try[PublicStakeBallot] = Try {
+                   withProof: Boolean = true): Try[MultiDelegPublicStakeBallot] = Try {
     import pctx.cryptoContext.{group, hash}
     require(vote.validate(pctx), "Invalid vote!")
     require(stake > 0, "Invalid stake amount!")
 
     val nonZeroBitIndex = vote match {
-      case DirectVote(v) => pctx.numberOfExperts + v
-      case DelegatedVote(v) => v
+      case DirectMultiDelegVote(v) => pctx.numberOfExperts + v
+      case DelegatedMultiDelegVote(v) => v
     }
-    val (u, uRand) = Ballot.buildEncryptedUnitVector(pctx.numberOfExperts + pctx.numberOfChoices, nonZeroBitIndex, ballotEncryptionKey)
+    val (u, uRand) = MultiDelegBallot.buildEncryptedUnitVector(pctx.numberOfExperts + pctx.numberOfChoices, nonZeroBitIndex, ballotEncryptionKey)
     val (uDeleg, uChoice) = u.splitAt(pctx.numberOfExperts)
     val uVector = EncryptedUnitVector(uDeleg, uChoice)
     val uProof = withProof match {
@@ -62,14 +61,14 @@ object PublicStakeBallot {
       case _ => None
     }
 
-    PublicStakeBallot(proposalID, uVector, uProof, stake)
+    MultiDelegPublicStakeBallot(proposalID, uVector, uProof, stake)
   }
 }
 
 /* BallotSerializer should be used to deserialize VoterBallot */
 private[voting]
-object PublicStakeBallotSerializer extends Serializer[PublicStakeBallot, DiscreteLogGroup] {
-  override def toBytes(b: PublicStakeBallot): Array[Byte] = {
+object MultiDelegPublicStakeBallotSerializer extends Serializer[MultiDelegPublicStakeBallot, DiscreteLogGroup] {
+  override def toBytes(b: MultiDelegPublicStakeBallot): Array[Byte] = {
     val uBytes = b.uVector.combine.foldLeft(Array[Byte]()) { (acc, b) =>
       val bytes = b.bytes
       Bytes.concat(acc, Array(bytes.length.toByte), bytes)
@@ -87,7 +86,7 @@ object PublicStakeBallotSerializer extends Serializer[PublicStakeBallot, Discret
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[PublicStakeBallot] = Try {
+  override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[MultiDelegPublicStakeBallot] = Try {
     val proposalId = Ints.fromByteArray(bytes.slice(0,4))
     val delegVectorLen = Shorts.fromByteArray(bytes.slice(4,6))
     val choiceVectorLen = Shorts.fromByteArray(bytes.slice(6,8))
@@ -115,6 +114,6 @@ object PublicStakeBallotSerializer extends Serializer[PublicStakeBallot, Discret
     val stakeLen = bytes(position)
     val stake = BigInt(bytes.slice(position+1, position+1+stakeLen))
 
-    PublicStakeBallot(proposalId, EncryptedUnitVector(uDelegations, uChoices), proof, stake)
+    MultiDelegPublicStakeBallot(proposalId, EncryptedUnitVector(uDelegations, uChoices), proof, stake)
   }
 }

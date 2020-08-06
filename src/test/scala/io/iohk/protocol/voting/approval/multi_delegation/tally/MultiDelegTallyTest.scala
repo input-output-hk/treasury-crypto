@@ -6,16 +6,15 @@ import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, DiscreteLogGroupFa
 import io.iohk.protocol.keygen.{DistrKeyGen, RoundsData}
 import io.iohk.protocol.storage.RoundsDataInMemoryStorage
 import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.voting.approval.multi_delegation.approval.{DelegatedVote, DirectVote}
-import io.iohk.protocol.voting.approval.multi_delegation.{ExpertBallot, PublicStakeBallot}
+import io.iohk.protocol.voting.approval.multi_delegation.{DelegatedMultiDelegVote, DirectMultiDelegVote, MultiDelegExpertBallot, MultiDelegPublicStakeBallot}
 import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
 import org.scalatest.FunSuite
 
 
-class TallyTest extends FunSuite with TallyTestSetup {
+class MultiDelegTallyTest extends FunSuite with TallyTestSetup {
 
   test("Full Tally integration test") {
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
 
     // Each committee member generates TallyR1Data
     val tallyR1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
@@ -76,9 +75,9 @@ class TallyTest extends FunSuite with TallyTestSetup {
   }
 
   test("state recovery") {
-    val summator = new BallotsSummator(pctx)
+    val summator = new MultiDelegBallotsSummator(pctx)
 
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
     val tallyR1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get
 
@@ -98,24 +97,24 @@ class TallyTest extends FunSuite with TallyTestSetup {
     storage.updateTallyR3(tallyR3DataAll).get
     storage.updateTallyR4(tallyR4DataAll).get
 
-    val tallyRecovered0 = Tally.recoverState(pctx, cmIdentifier, Map(), Tally.Stages.Init, storage, summator).get
-    require(tallyRecovered0.getCurrentRound == Tally.Stages.Init)
+    val tallyRecovered0 = MultiDelegTally.recoverState(pctx, cmIdentifier, Map(), MultiDelegTally.Stages.Init, storage, summator).get
+    require(tallyRecovered0.getCurrentRound == MultiDelegTally.Stages.Init)
 
-    val tallyRecovered1 = Tally.recoverState(pctx, cmIdentifier, Map(), Tally.Stages.TallyR1, storage, summator).get
-    require(tallyRecovered1.getCurrentRound == Tally.Stages.TallyR1)
+    val tallyRecovered1 = MultiDelegTally.recoverState(pctx, cmIdentifier, Map(), MultiDelegTally.Stages.TallyR1, storage, summator).get
+    require(tallyRecovered1.getCurrentRound == MultiDelegTally.Stages.TallyR1)
 
-    val tallyRecovered2 = Tally.recoverState(pctx, cmIdentifier, Map(), Tally.Stages.TallyR2, storage, summator).get
-    require(tallyRecovered2.getCurrentRound == Tally.Stages.TallyR2)
+    val tallyRecovered2 = MultiDelegTally.recoverState(pctx, cmIdentifier, Map(), MultiDelegTally.Stages.TallyR2, storage, summator).get
+    require(tallyRecovered2.getCurrentRound == MultiDelegTally.Stages.TallyR2)
 
-    val tallyRecovered3 = Tally.recoverState(pctx, cmIdentifier, Map(), Tally.Stages.TallyR3, storage, summator).get
-    require(tallyRecovered3.getCurrentRound == Tally.Stages.TallyR3)
+    val tallyRecovered3 = MultiDelegTally.recoverState(pctx, cmIdentifier, Map(), MultiDelegTally.Stages.TallyR3, storage, summator).get
+    require(tallyRecovered3.getCurrentRound == MultiDelegTally.Stages.TallyR3)
 
-    val tallyRecovered4 = Tally.recoverState(pctx, cmIdentifier, Map(), Tally.Stages.TallyR4, storage, summator).get
-    require(tallyRecovered4.getCurrentRound == Tally.Stages.TallyR4)
+    val tallyRecovered4 = MultiDelegTally.recoverState(pctx, cmIdentifier, Map(), MultiDelegTally.Stages.TallyR4, storage, summator).get
+    require(tallyRecovered4.getCurrentRound == MultiDelegTally.Stages.TallyR4)
   }
 }
 
-object TallyTest {
+object MultiDelegTallyTest {
 
   def generateCommitteeKeys(committeeSize: Int)(implicit group: DiscreteLogGroup): Seq[KeyPair] = {
     for (i <- 0 until committeeSize) yield {
@@ -136,20 +135,20 @@ trait TallyTestSetup {
   val numberOfProposals = 3
   val pctx = new ApprovalContext(ctx, 3, numberOfExperts)
 
-  val committeeKeys = TallyTest.generateCommitteeKeys(5)
+  val committeeKeys = MultiDelegTallyTest.generateCommitteeKeys(5)
   val cmIdentifier = new CommitteeIdentifier(committeeKeys.map(_._2))
   val sharedVotingKey = committeeKeys.foldLeft(group.groupIdentity)((acc, key) => acc.multiply(key._2).get)
 
-  val summator = new BallotsSummator(pctx)
+  val summator = new MultiDelegBallotsSummator(pctx)
   for (i <- 0 until numberOfVoters)
     for (j <- 0 until numberOfProposals) {
       summator.addVoterBallot(
-        PublicStakeBallot.createBallot(pctx, j, DirectVote(0), sharedVotingKey, 1, false).get)
+        MultiDelegPublicStakeBallot.createBallot(pctx, j, DirectMultiDelegVote(0), sharedVotingKey, 1, false).get)
       summator.addVoterBallot(
-        PublicStakeBallot.createBallot(pctx, j, DelegatedVote(0), sharedVotingKey, 1, false).get)
+        MultiDelegPublicStakeBallot.createBallot(pctx, j, DelegatedMultiDelegVote(0), sharedVotingKey, 1, false).get)
     }
   val expertBallots = for (i <- 0 until numberOfExperts; j <- 0 until numberOfProposals) yield
-    ExpertBallot.createBallot(pctx, j, i, DirectVote(0), sharedVotingKey, false).get
+    MultiDelegExpertBallot.createBallot(pctx, j, i, DirectMultiDelegVote(0), sharedVotingKey, false).get
 
   val dkgR1DataAll = committeeKeys.map { keys =>
     val dkg = new DistrKeyGen(ctx, keys, keys._1, keys._1.toByteArray, committeeKeys.map(_._2), cmIdentifier, RoundsData())

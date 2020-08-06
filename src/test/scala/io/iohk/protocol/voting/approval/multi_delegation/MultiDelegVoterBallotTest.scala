@@ -1,13 +1,12 @@
-package io.iohk.protocol.voting.approval
+package io.iohk.protocol.voting.approval.multi_delegation
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.voting.approval.multi_delegation.approval.DelegatedVote
-import io.iohk.protocol.voting.approval.multi_delegation.{PrivateStakeBallot, PublicStakeBallot}
+import io.iohk.protocol.voting.approval.ApprovalContext
 import org.scalatest.FunSuite
 
-class VoterBallotTest extends FunSuite {
+class MultiDelegVoterBallotTest extends FunSuite {
 
   val ctx = new CryptoContext(None)
   import ctx.group
@@ -17,11 +16,11 @@ class VoterBallotTest extends FunSuite {
   test("VoterBallot interface") {
     val pctx = new ApprovalContext(ctx, 3, 5)
     val stake = 13
-    val vote = DelegatedVote(2)
+    val vote = DelegatedMultiDelegVote(2)
 
     val ballots = Seq(
-      PublicStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get,
-      PrivateStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get)
+      MultiDelegPublicStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get,
+      MultiDelegPrivateStakeBallot.createBallot(pctx, 0, vote, pubKey, stake).get)
 
     for (ballot <- ballots) {
       require(ballot.weightedUnitVector.delegations.size == pctx.numberOfExperts)

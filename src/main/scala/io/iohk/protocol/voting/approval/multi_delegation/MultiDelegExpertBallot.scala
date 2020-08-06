@@ -7,20 +7,19 @@ import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.Serializer
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKProofSerializer, SHVZKVerifier}
 import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.voting.approval.multi_delegation.Ballot.BallotTypes
-import io.iohk.protocol.voting.approval.multi_delegation.approval.DirectVote
+import io.iohk.protocol.voting.approval.multi_delegation.MultiDelegBallot.BallotTypes
 
 import scala.util.Try
 
-case class ExpertBallot(
+case class MultiDelegExpertBallot(
   override val proposalId: Int,
   expertId: Int,
   uChoiceVector: Vector[ElGamalCiphertext],
   uProof: Option[SHVZKProof]
-) extends Ballot {
+) extends MultiDelegBallot {
 
-  override type M = Ballot
-  override val serializer = BallotSerializer
+  override type M = MultiDelegBallot
+  override val serializer = MultiDelegBallotSerializer
 
   override val ballotTypeId: Byte = BallotTypes.Expert.id.toByte
 
@@ -32,32 +31,32 @@ case class ExpertBallot(
   }
 }
 
-object ExpertBallot {
+object MultiDelegExpertBallot {
 
   def createBallot(pctx: ApprovalContext,
                    proposalID: Int,
                    expertID: Int,
-                   vote: DirectVote,
+                   vote: DirectMultiDelegVote,
                    ballotEncryptionKey: PubKey,
-                   withProof: Boolean = true): Try[ExpertBallot] = Try {
+                   withProof: Boolean = true): Try[MultiDelegExpertBallot] = Try {
     import pctx.cryptoContext.{group, hash}
     require(vote.validate(pctx), "Invalid vote!")
     require(expertID >= 0 && expertID < pctx.numberOfExperts, "Invalid expert ID!")
 
     val vectorNonZeroBit = vote.getDirectVote.get
-    val (uVector, uRand) = Ballot.buildEncryptedUnitVector(pctx.numberOfChoices, vectorNonZeroBit, ballotEncryptionKey)
+    val (uVector, uRand) = MultiDelegBallot.buildEncryptedUnitVector(pctx.numberOfChoices, vectorNonZeroBit, ballotEncryptionKey)
     val uProof = withProof match {
       case true => Some(new SHVZKGen(ballotEncryptionKey, uVector, vectorNonZeroBit, uRand).produceNIZK().get)
       case _ => None
     }
 
-    ExpertBallot(proposalID, expertID, uVector, uProof)
+    MultiDelegExpertBallot(proposalID, expertID, uVector, uProof)
   }
 }
 
-/* BallotSerializer should be used to deserialize ExpertBallot */
-private[voting] object ExpertBallotSerializer extends Serializer[ExpertBallot, DiscreteLogGroup] {
-  override def toBytes(b: ExpertBallot): Array[Byte] = {
+/* MultiDelegBallotSerializer should be used to deserialize ExpertBallot */
+private[voting] object MultiDelegExpertBallotSerializer extends Serializer[MultiDelegExpertBallot, DiscreteLogGroup] {
+  override def toBytes(b: MultiDelegExpertBallot): Array[Byte] = {
     val uvBytes = b.uChoiceVector.foldLeft(Array[Byte]()) { (acc, b) =>
       val bytes = b.bytes
       Bytes.concat(acc, Array(bytes.length.toByte), bytes)
@@ -72,7 +71,7 @@ private[voting] object ExpertBallotSerializer extends Serializer[ExpertBallot, D
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[ExpertBallot] = Try {
+  override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[MultiDelegExpertBallot] = Try {
     val proposalId = Ints.fromByteArray(bytes.slice(0,4))
     val expertId = Ints.fromByteArray(bytes.slice(4,8))
     val vectorLen = Shorts.fromByteArray(bytes.slice(8,10))
@@ -95,6 +94,6 @@ private[voting] object ExpertBallotSerializer extends Serializer[ExpertBallot, D
       }
     }
 
-    ExpertBallot(proposalId, expertId, uvChoice, proof)
+    MultiDelegExpertBallot(proposalId, expertId, uvChoice, proof)
   }
 }

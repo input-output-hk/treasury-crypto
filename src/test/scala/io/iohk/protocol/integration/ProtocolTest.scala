@@ -6,7 +6,7 @@ import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen._
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
 import io.iohk.protocol.keygen.datastructures.round3.R3Data
-import io.iohk.protocol.voting.approval.multi_delegation.{ExpertBallot, VoterBallot}
+import io.iohk.protocol.voting.approval.multi_delegation.{MultiDelegExpertBallot, MultiDelegVoterBallot}
 import org.scalatest.FunSuite
 
 import scala.util.Random
@@ -84,8 +84,8 @@ object ProtocolTest {
   }
 
   def runTally(committeeMembers: Seq[CommitteeMember],
-               voterBallots: Seq[VoterBallot],
-               expertBallots: Seq[ExpertBallot],
+               voterBallots: Seq[MultiDelegVoterBallot],
+               expertBallots: Seq[MultiDelegExpertBallot],
                dkgR1DataAll: Seq[R1Data]): Map[Int, Vector[BigInt]] = {
     // let's simulate 1 failed CM at each round
     val r1DataAll = committeeMembers.drop(1).map(_.doTallyR1(voterBallots).get)

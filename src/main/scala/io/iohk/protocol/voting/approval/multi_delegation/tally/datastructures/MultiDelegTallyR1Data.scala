@@ -6,18 +6,18 @@ import io.iohk.core.serialization.{BytesSerializable, Serializer}
 
 import scala.util.Try
 
-case class TallyR1Data(issuerID: Int,            // id of the committee member
-                       decryptionShares: Map[Int, DecryptionShare]  // proposalId -> Decryption Share
-                      ) extends BytesSerializable {
+case class MultiDelegTallyR1Data(issuerID: Int, // id of the committee member
+                                 decryptionShares: Map[Int, DecryptionShare] // proposalId -> Decryption Share
+                                ) extends BytesSerializable {
 
-  override type M = TallyR1Data
+  override type M = MultiDelegTallyR1Data
   override type DECODER = DiscreteLogGroup
-  override val serializer: Serializer[M, DECODER] = TallyR1DataSerializer
+  override val serializer: Serializer[M, DECODER] = MultiDelegTallyR1DataSerializer
 }
 
-object TallyR1DataSerializer extends Serializer[TallyR1Data, DiscreteLogGroup] {
+object MultiDelegTallyR1DataSerializer extends Serializer[MultiDelegTallyR1Data, DiscreteLogGroup] {
 
-  override def toBytes(obj: TallyR1Data): Array[Byte] = {
+  override def toBytes(obj: MultiDelegTallyR1Data): Array[Byte] = {
 
     val sharesBytes = obj.decryptionShares.foldLeft(Array[Byte]()) { (acc, s) =>
       val bytes = s._2.bytes
@@ -29,7 +29,7 @@ object TallyR1DataSerializer extends Serializer[TallyR1Data, DiscreteLogGroup] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[TallyR1Data] = Try {
+  override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[MultiDelegTallyR1Data] = Try {
 
     val issuerId = Ints.fromByteArray(bytes.slice(0, 4))
     val sharesNum = Shorts.fromByteArray(bytes.slice(4, 6))
@@ -42,6 +42,6 @@ object TallyR1DataSerializer extends Serializer[TallyR1Data, DiscreteLogGroup] {
     }
 
     val sharesMap = shares.map(s => (s.proposalId -> s)).toMap
-    TallyR1Data(issuerId, sharesMap)
+    MultiDelegTallyR1Data(issuerId, sharesMap)
   }
 }

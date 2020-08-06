@@ -5,8 +5,7 @@ import io.iohk.core.utils.TimeUtils
 import io.iohk.protocol.integration.ProtocolTest
 import io.iohk.protocol.keygen._
 import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.voting.approval.multi_delegation.approval.{DelegatedVote, DirectVote}
-import io.iohk.protocol.voting.approval.multi_delegation.{ExpertBallot, PublicStakeBallot}
+import io.iohk.protocol.voting.approval.multi_delegation.{DelegatedMultiDelegVote, DirectMultiDelegVote, MultiDelegExpertBallot, MultiDelegPublicStakeBallot}
 
 class TallyPerformance {
 
@@ -42,9 +41,9 @@ class TallyPerformance {
     val (sharedPubKey, dkgR1DataAll) = ProtocolTest.runDistributedKeyGeneration(ctx, committeeMembersAll)
 
     val voterBallots = for (i <- 0 until numberOfVoters) yield
-      PublicStakeBallot.createBallot(pctx, 0, DelegatedVote(0), sharedPubKey, 1).get
+      MultiDelegPublicStakeBallot.createBallot(pctx, 0, DelegatedMultiDelegVote(0), sharedPubKey, 1).get
     val expertBallots = for (i <- 0 until numberOfExperts) yield
-      ExpertBallot.createBallot(pctx, 0, 0, DirectVote(0), sharedPubKey).get
+      MultiDelegExpertBallot.createBallot(pctx, 0, 0, DirectMultiDelegVote(0), sharedPubKey).get
 
     var overallBytes: Int = 0
     val committeeMembersActive = committeeMembersAll.drop(violatorsNum)

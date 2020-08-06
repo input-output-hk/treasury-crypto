@@ -1,14 +1,14 @@
 package io.iohk.protocol.voting.approval.multi_delegation.tally
 
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
-import io.iohk.protocol.voting.approval.multi_delegation.tally.Tally.Stages
+import io.iohk.protocol.voting.approval.multi_delegation.tally.MultiDelegTally.Stages
 import org.scalatest.FunSuite
 
-class TallyRound3Test extends FunSuite with TallyTestSetup {
+class MultiDelegTallyRound3Test extends FunSuite with TallyTestSetup {
   import ctx.group
 
   test("generate TallyR3Data") {
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
     val tallyR1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get
 
@@ -30,7 +30,7 @@ class TallyRound3Test extends FunSuite with TallyTestSetup {
   }
 
   test("verification of TallyR3Data") {
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
     val tallyR1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get
 
@@ -61,7 +61,7 @@ class TallyRound3Test extends FunSuite with TallyTestSetup {
   }
 
   test("execute Round 3") {
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
     val tallyR1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get
 
@@ -90,9 +90,9 @@ class TallyRound3Test extends FunSuite with TallyTestSetup {
   }
 
   test("executeRound3 should do nothing in case there is no ballots") {
-    val summator = new BallotsSummator(pctx)
+    val summator = new MultiDelegBallotsSummator(pctx)
 
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
     val tallyR1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get
 
@@ -107,9 +107,9 @@ class TallyRound3Test extends FunSuite with TallyTestSetup {
   }
 
   test("executeRound3 should detect failed committee members and disqualify them") {
-    val summator = new BallotsSummator(pctx)
+    val summator = new MultiDelegBallotsSummator(pctx)
 
-    val tally = new Tally(pctx, cmIdentifier, Map())
+    val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
     val tallyR1DataAll = committeeKeys.map(keys => tally.generateR1Data(summator, keys).get)
     tally.executeRound1(summator, tallyR1DataAll).get
 

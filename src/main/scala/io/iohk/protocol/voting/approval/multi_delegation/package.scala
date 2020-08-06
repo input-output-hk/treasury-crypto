@@ -1,10 +1,8 @@
-package io.iohk.protocol.voting.approval.multi_delegation
+package io.iohk.protocol.voting.approval
 
 import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
-import io.iohk.protocol.voting.approval.ApprovalContext
 
-package object approval {
-
+package object multi_delegation {
   /**
     * A vote is represented as a unit vector of bits, where one bit is set to "1" while others are set to "0".
     * A unit vector of a regular voter comprises of two parts:
@@ -21,7 +19,7 @@ package object approval {
     */
 
   /** A Vote class represents a vote */
-  trait Vote {
+  trait MultiDelegVote {
 
     def isDirectVote: Boolean
     def isDelegatedVote: Boolean = !isDirectVote
@@ -35,7 +33,7 @@ package object approval {
     def validate(implicit ctx: ApprovalContext): Boolean
   }
 
-  case class DirectVote(choice: Int) extends Vote {
+  case class DirectMultiDelegVote(choice: Int) extends MultiDelegVote {
     override val isDirectVote = true
     override def getDirectVote = Some(choice)
     override def getDelegatedVote = None
@@ -43,7 +41,7 @@ package object approval {
       choice >= 0 && choice < ctx.numberOfChoices
   }
 
-  case class DelegatedVote(expertId: Int) extends Vote {
+  case class DelegatedMultiDelegVote(expertId: Int) extends MultiDelegVote {
     override val isDirectVote = false
     override def getDirectVote = None
     override def getDelegatedVote = Some(expertId)
