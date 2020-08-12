@@ -160,8 +160,6 @@ class PreferentialVoterBallotTest extends FunSuite {
     require(maliciousBallot.verifyBallot(pctx, pubKey) == false)
   }
 
-  // This test will fail, because the current version of ZK proof does not check duplicates of rank vectors.
-  // Restore the test when the proof is improved.
   test("the same proposal id should not be duplicated in the ranking list") {
     val pctx = new PreferentialContext(ctx, 10, 5, 3)
 

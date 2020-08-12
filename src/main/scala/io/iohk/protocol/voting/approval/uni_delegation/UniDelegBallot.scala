@@ -25,7 +25,7 @@ object UniDelegBallot {
 
 object UniDelegBallotSerializer extends Serializer[UniDelegBallot, DiscreteLogGroup] {
   override def toBytes(b: UniDelegBallot): Array[Byte] = b match {
-    //case v: UniDelegPublicStakeBallot => Bytes.concat(Array(v.ballotTypeId), UniDelegPublicStakeBallotSerializer.toBytes(v))
+    case v: UniDelegPublicStakeBallot => Bytes.concat(Array(v.ballotTypeId), UniDelegPublicStakeBallotSerializer.toBytes(v))
     case e: UniDelegExpertBallot => Bytes.concat(Array(e.ballotTypeId), UniDelegExpertBallotSerializer.toBytes(e))
     //case pv: UniDelegPrivateStakeBallot => Bytes.concat(Array(pv.ballotTypeId), UniDelegPrivateStakeBallotSerializer.toBytes(pv))
   }
@@ -33,7 +33,7 @@ object UniDelegBallotSerializer extends Serializer[UniDelegBallot, DiscreteLogGr
   override def parseBytes(bytes: Array[Byte], decoder: Option[DiscreteLogGroup]): Try[UniDelegBallot] = Try {
     val ballotTypeId = bytes(0).toInt
     UniBallotTypes(ballotTypeId) match {
-      //case UniBallotTypes.Voter => UniDelegPublicStakeBallotSerializer.parseBytes(bytes.drop(1), decoder).get
+      case UniBallotTypes.Voter => UniDelegPublicStakeBallotSerializer.parseBytes(bytes.drop(1), decoder).get
       case UniBallotTypes.Expert => UniDelegExpertBallotSerializer.parseBytes(bytes.drop(1), decoder).get
       //case UniBallotTypes.PrivateVoter => UniDelegPrivateStakeBallotSerializer.parseBytes(bytes.drop(1), decoder).get
     }

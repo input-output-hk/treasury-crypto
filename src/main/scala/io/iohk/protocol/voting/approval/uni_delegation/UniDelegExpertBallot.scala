@@ -61,7 +61,7 @@ object UniDelegExpertBallot {
   }
 }
 
-private[voting] object UniDelegExpertBallotSerializer extends Serializer[UniDelegExpertBallot, DiscreteLogGroup] {
+private[uni_delegation] object UniDelegExpertBallotSerializer extends Serializer[UniDelegExpertBallot, DiscreteLogGroup] {
   override def toBytes(ballot: UniDelegExpertBallot): Array[Byte] = {
     val choicesBytes = ballot.choices.foldLeft(Array[Byte]()) { (acc, v) =>
       val vectorBytes = v.foldLeft(Array[Byte]()) { (acc2, b) =>

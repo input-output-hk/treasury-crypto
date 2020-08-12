@@ -8,7 +8,6 @@ import io.iohk.core.serialization.Serializer
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKProofSerializer, SHVZKVerifier}
 import io.iohk.protocol.nizk.unitvectornizk.{AllOneNIZK, AllOneNIZKProof, AllOneNIZKProofSerializer}
 import io.iohk.protocol.voting.buildEncryptedUnitVector
-import io.iohk.protocol.voting.approval.multi_delegation.MultiDelegBallot
 import io.iohk.protocol.voting.preferential.PreferentialBallot.PreferentialBallotTypes
 
 import scala.util.Try
