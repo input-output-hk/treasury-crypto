@@ -4,12 +4,11 @@ import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalE
 import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
 import io.iohk.core.crypto.primitives.dlog.GroupElement
 import io.iohk.protocol.Identifier
-import io.iohk.protocol.keygen.{DistrKeyGen, KeyRecovery}
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
+import io.iohk.protocol.keygen.{DistrKeyGen, KeyRecovery}
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
-import io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures.TallyR2Data
 import io.iohk.protocol.voting.preferential.tally.PreferentialTally.PrefStages
-import io.iohk.protocol.voting.preferential.tally.datastructures.{PrefTallyR1Data, PrefTallyR3Data, PrefTallyR4Data}
+import io.iohk.protocol.voting.preferential.tally.datastructures.{PrefTallyR1Data, PrefTallyR2Data, PrefTallyR3Data, PrefTallyR4Data}
 import io.iohk.protocol.voting.preferential.{PreferentialContext, PreferentialExpertBallot}
 
 import scala.util.Try
@@ -115,14 +114,14 @@ class PreferentialTally(ctx: PreferentialContext,
     this
   }
 
-  def generateR2Data(committeeMemberKey: KeyPair, dkgR1DataAll: Seq[R1Data]): Try[TallyR2Data] = Try {
+  def generateR2Data(committeeMemberKey: KeyPair, dkgR1DataAll: Seq[R1Data]): Try[PrefTallyR2Data] = Try {
     if (currentRound != PrefStages.TallyR1)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
 
     prepareRecoverySharesData(committeeMemberKey, disqualifiedOnTallyR1CommitteeIds, dkgR1DataAll).get
   }
 
-  def verifyRound2Data(committePubKey: PubKey, r2Data: TallyR2Data, dkgR1DataAll: Seq[R1Data]): Try[Unit] = Try {
+  def verifyRound2Data(committePubKey: PubKey, r2Data: PrefTallyR2Data, dkgR1DataAll: Seq[R1Data]): Try[Unit] = Try {
     if (currentRound != PrefStages.TallyR1)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
 
@@ -140,7 +139,7 @@ class PreferentialTally(ctx: PreferentialContext,
     * At the end of the Round 2, all decryption shares should be available and, thus, the delegations can be decrypted.
     * Given that delegations are available we can sum up all the experts ballot weighted by delegated voting power.
     */
-  def executeRound2(r2DataAll: Seq[TallyR2Data], expertBallots: Seq[PreferentialExpertBallot]): Try[PreferentialTally] = Try {
+  def executeRound2(r2DataAll: Seq[PrefTallyR2Data], expertBallots: Seq[PreferentialExpertBallot]): Try[PreferentialTally] = Try {
     if (currentRound != PrefStages.TallyR1)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
     expertBallots.foreach(b => assert(b.expertId >= 0 && b.expertId < ctx.numberOfExperts))
