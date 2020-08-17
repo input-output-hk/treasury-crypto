@@ -10,7 +10,7 @@ import io.iohk.protocol.nizk.ElgamalDecrNIZK
 import io.iohk.protocol.voting.approval.ApprovalContext
 import io.iohk.protocol.voting.approval.uni_delegation.UniDelegExpertBallot
 import io.iohk.protocol.voting.approval.uni_delegation.tally.UniDelegTally.UniDelegStages
-import io.iohk.protocol.voting.approval.uni_delegation.tally.datastructures.{UniDelegTallyR1Data, UniDelegTallyR2Data}
+import io.iohk.protocol.voting.approval.uni_delegation.tally.datastructures.{UniDelegTallyR1Data, UniDelegTallyR2Data, UniDelegTallyR3Data}
 import io.iohk.protocol.voting.preferential.tally.datastructures.PrefTallyR1Data
 
 import scala.util.Try
@@ -172,6 +172,66 @@ class UniDelegTally (ctx: ApprovalContext,
     delegationsSharesSum = updatedDelegationsSharesSum
     delegations = delegationsDecrypted
     currentRound = UniDelegStages.TallyR2
+    this
+  }
+
+  def generateR3Data(committeeMemberKey: KeyPair): Try[UniDelegTallyR3Data] = Try {
+    if (currentRound != UniDelegStages.TallyR2)
+      throw new IllegalStateException("Unexpected state! Round 3 should be executed only in the TallyR2 state.")
+
+    val (privKey, pubKey) = committeeMemberKey
+    val decryptionShares = choicesSum.map { v =>
+      v.map { b =>
+        val decryptedC1 = b.c1.pow(privKey).get
+        val proof = ElgamalDecrNIZK.produceNIZK(b, privKey).get
+        (decryptedC1, proof)
+      }
+    }
+
+    val committeeId = cmIdentifier.getId(pubKey).get
+    UniDelegTallyR3Data(committeeId, decryptionShares)
+  }
+
+  def verifyRound3Data(committePubKey: PubKey, r3Data: UniDelegTallyR3Data): Try[Unit] = Try {
+    val committeID = cmIdentifier.getId(committePubKey).get
+
+    require(r3Data.issuerID == committeID, "Committee identifier in R3Data is invalid")
+    require(!getAllDisqualifiedCommitteeIds.contains(r3Data.issuerID), "Committee member was disqualified")
+    require(r3Data.choicesDecryptedC1.length == ctx.numberOfProposals, "Not all proposals are decrypted")
+    r3Data.choicesDecryptedC1.foreach(v => require(v.length == ctx.numberOfChoices))
+    require(r3Data.validate(ctx.cryptoContext, committePubKey, choicesSum), "Invalid decryption shares")
+  }
+
+  def executeRound3(r3DataAll: Seq[UniDelegTallyR3Data]): Try[UniDelegTally] = Try {
+    if (currentRound != UniDelegStages.TallyR2)
+      throw new IllegalStateException("Unexpected state! Round 3 should be executed only in the PrefTallyR2 state.")
+
+    if (choicesSum.isEmpty) {
+      // there is nothing to do on Round 3 if there is nothing to decrypt
+      currentRound = UniDelegStages.TallyR3
+      return Try(this)
+    }
+
+    val submittedCommitteeIds = r3DataAll.map(_.issuerID).toSet
+    require(submittedCommitteeIds.size == r3DataAll.size, "More than one PrefTallyR1Data from the same committee member is not allowed")
+    require(submittedCommitteeIds.intersect(getAllDisqualifiedCommitteeIds).isEmpty, "Disqualified members are not allowed to submit r1Data!")
+
+    val expectedCommitteeIds = allCommitteeIds.diff(getAllDisqualifiedCommitteeIds)
+    val failedCommitteeIds = expectedCommitteeIds.diff(submittedCommitteeIds)
+
+    val init = List.fill(ctx.numberOfProposals)(Vector.fill(ctx.numberOfChoices)(group.groupIdentity))
+
+    choicesSharesSum = r3DataAll.foldLeft(init) { (acc, r3Data) =>
+      assert(acc.length == r3Data.choicesDecryptedC1.length)
+      acc.zip(r3Data.choicesDecryptedC1).map { case (v1, v2) =>
+        assert(v1.length == v2.length)
+        v1.zip(v2).map(x => x._1.multiply(x._2._1).get)
+      }
+    }
+
+    disqualifiedOnTallyR3CommitteeIds = failedCommitteeIds
+    currentRound = UniDelegStages.TallyR3
+
     this
   }
 }
