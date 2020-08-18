@@ -10,7 +10,7 @@ import io.iohk.protocol.nizk.ElgamalDecrNIZK
 import io.iohk.protocol.voting.approval.ApprovalContext
 import io.iohk.protocol.voting.approval.uni_delegation.UniDelegExpertBallot
 import io.iohk.protocol.voting.approval.uni_delegation.tally.UniDelegTally.UniDelegStages
-import io.iohk.protocol.voting.approval.uni_delegation.tally.datastructures.{UniDelegTallyR1Data, UniDelegTallyR2Data, UniDelegTallyR3Data}
+import io.iohk.protocol.voting.approval.uni_delegation.tally.datastructures.{UniDelegTallyR1Data, UniDelegTallyR2Data, UniDelegTallyR3Data, UniDelegTallyR4Data}
 import io.iohk.protocol.voting.preferential.tally.datastructures.PrefTallyR1Data
 
 import scala.util.Try
@@ -232,6 +232,51 @@ class UniDelegTally (ctx: ApprovalContext,
     disqualifiedOnTallyR3CommitteeIds = failedCommitteeIds
     currentRound = UniDelegStages.TallyR3
 
+    this
+  }
+
+  def generateR4Data(committeeMemberKey: KeyPair, dkgR1DataAll: Seq[R1Data]): Try[UniDelegTallyR4Data] = Try {
+    if (currentRound != UniDelegStages.TallyR3)
+      throw new IllegalStateException("Unexpected state! Round 4 should be executed only in the TallyR3 state.")
+
+    prepareRecoverySharesData(committeeMemberKey, disqualifiedOnTallyR3CommitteeIds, dkgR1DataAll).get
+  }
+
+  def verifyRound4Data(committePubKey: PubKey, r4Data: UniDelegTallyR4Data, dkgR1DataAll: Seq[R1Data]): Try[Unit] = Try {
+    if (currentRound != UniDelegStages.TallyR3)
+      throw new IllegalStateException("Unexpected state! Round 4 should be executed only in the TallyR3 state.")
+
+    require(verifyRecoverySharesData(committePubKey, r4Data, disqualifiedOnTallyR3CommitteeIds, dkgR1DataAll).isSuccess)
+  }
+
+  def executeRound4(r4DataAll: Seq[UniDelegTallyR4Data]): Try[UniDelegTally] = Try {
+    if (currentRound != UniDelegStages.TallyR3)
+      throw new IllegalStateException("Unexpected state! Round 4 should be executed only in the TallyR3 state.")
+
+    // Step 1: restore private keys of failed committee members
+    val restoredKeys = restorePrivateKeys(disqualifiedOnTallyR3CommitteeIds, r4DataAll).get
+    val updatedAllDisqualifiedCommitteeKeys = allDisqualifiedCommitteeKeys ++ restoredKeys
+
+    // Step 2: calculate decryption shares of disqualified committee members and at the same sum them up with already accumulated shares
+    val updatedChoicesSharesSum = choicesSharesSum.zipWithIndex.map { case (shares, i) =>
+      updatedAllDisqualifiedCommitteeKeys.foldLeft(shares) { (acc, keys) =>
+        val decryptedC1 = choicesSum(i).map(_.c1.pow(keys._2).get)
+        acc.zip(decryptedC1).map(x => x._1.multiply(x._2).get)
+      }
+    }
+
+    // Step 3: decrypt final result for each proposal
+    choices = choicesSum.zip(updatedChoicesSharesSum).map { case (v, shares) =>
+      assert(v.size == shares.size)
+      v.zip(shares).map { case (encr, decr) =>
+        LiftedElGamalEnc.discreteLog(encr.c2.divide(decr).get).get
+      }
+    }
+
+    // if we reached this point execution was successful, so update state variables
+    allDisqualifiedCommitteeKeys = updatedAllDisqualifiedCommitteeKeys
+    choicesSharesSum = updatedChoicesSharesSum
+    currentRound = UniDelegStages.TallyR4
     this
   }
 }

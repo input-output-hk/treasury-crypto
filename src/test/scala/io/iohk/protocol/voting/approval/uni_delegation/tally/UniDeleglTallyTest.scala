@@ -9,6 +9,8 @@ import io.iohk.protocol.voting.approval.uni_delegation.{DelegatedUniDelegVote, D
 import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
 import org.scalatest.FunSuite
 
+import scala.util.Try
+
 class UniDelegTallyTest extends FunSuite with UniDelegTallyTestSetup {
 
 }
@@ -56,4 +58,14 @@ trait UniDelegTallyTestSetup {
     val dkg = new DistrKeyGen(ctx, keys, keys._1, keys._1.toByteArray, committeeKeys.map(_._2), cmIdentifier, RoundsData())
     dkg.doRound1().get
   }
+
+  def verifyChoices(choices: List[Vector[BigInt]]): Boolean = Try {
+    require(choices.size == numberOfProposals)
+    choices.foreach { v =>
+      require(v.size == numberOfChoices)
+      require(v(0) == 0)
+      require(v(1) == numberOfVoters * stake)
+      require(v(2) == numberOfVoters * stake)
+    }
+  }.isSuccess
 }
