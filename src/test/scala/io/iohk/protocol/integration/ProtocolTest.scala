@@ -53,7 +53,7 @@ object ProtocolTest {
   def patchR3Data(ctx: CryptoContext, r3Data: Seq[R3Data], numOfPatches: Int): Seq[R3Data] = {
     require(numOfPatches <= r3Data.length)
 
-    var r3DataPatched = r3Data
+    val r3DataPatched = r3Data
 
     var indexesToPatch = Array.fill[Boolean](numOfPatches)(true) ++ Array.fill[Boolean](r3Data.length - numOfPatches)(false)
     indexesToPatch = Random.shuffle(indexesToPatch.toSeq).toArray
