@@ -22,7 +22,7 @@ class MultiDelegTallyTest extends FunSuite with TallyTestSetup {
     // Everyone in the system verifies TallyR1Data from each member
     val verifiedTallyR1DataAll = tallyR1DataAll.filter { r1Data =>
       val pubKey = cmIdentifier.getPubKey(r1Data.issuerID).get
-      tally.verifyRound1Data(summator, pubKey, r1Data).isSuccess
+      tally.verifyRound1Data(summator, pubKey, r1Data)
     }
 
     // Everyone in the system executes Round 1 with a set of verified TallyR1Data from committee members

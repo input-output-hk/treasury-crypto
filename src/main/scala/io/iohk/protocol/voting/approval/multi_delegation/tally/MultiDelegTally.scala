@@ -13,6 +13,10 @@ import io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures._
 import io.iohk.protocol.voting.approval.ApprovalContext
 import io.iohk.protocol.Identifier
 import io.iohk.protocol.voting.approval.multi_delegation.MultiDelegExpertBallot
+import io.iohk.protocol.voting.common.Tally
+import io.iohk.protocol.voting.preferential.PreferentialExpertBallot
+import io.iohk.protocol.voting.preferential.tally.{PreferentialBallotsSummator, PreferentialTally}
+import io.iohk.protocol.voting.preferential.tally.datastructures.{PrefTallyR1Data, PrefTallyR2Data, PrefTallyR3Data, PrefTallyR4Data}
 
 import scala.util.Try
 
@@ -53,8 +57,19 @@ import scala.util.Try
   */
 class MultiDelegTally(ctx: ApprovalContext,
                       cmIdentifier: Identifier[Int],
-                      disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]]) extends KeyRecovery(ctx.cryptoContext, cmIdentifier) {
+                      disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]])
+  extends KeyRecovery(ctx.cryptoContext, cmIdentifier) with Tally {
+
   import ctx.cryptoContext.{group, hash}
+
+  type R1DATA = MultiDelegTallyR1Data
+  type R2DATA = MultiDelegTallyR2Data
+  type R3DATA = MultiDelegTallyR3Data
+  type R4DATA = MultiDelegTallyR4Data
+  type SUMMATOR = MultiDelegBallotsSummator
+  type EXPERTBALLOT = MultiDelegExpertBallot
+  type RESULT = Map[Int, Vector[BigInt]]
+  type M = MultiDelegTally
 
   private var currentRound = Stages.Init
   def getCurrentRound = currentRound
@@ -82,6 +97,8 @@ class MultiDelegTally(ctx: ApprovalContext,
   def getChoicesSharesSum = choicesSharesSum
   def getChoices = choices
 
+  override def getResult: Try[Map[Int, Vector[BigInt]]] = Try(getChoices)
+
 
   def generateR1Data(summator: MultiDelegBallotsSummator, committeeMemberKey: KeyPair): Try[MultiDelegTallyR1Data] = Try {
     val (privKey, pubKey) = committeeMemberKey
@@ -90,7 +107,7 @@ class MultiDelegTally(ctx: ApprovalContext,
     MultiDelegTallyR1Data(committeeId, decryptionShares)
   }
 
-  def verifyRound1Data(summator: MultiDelegBallotsSummator, committePubKey: PubKey, r1Data: MultiDelegTallyR1Data): Try[Unit] = Try {
+  def verifyRound1Data(summator: MultiDelegBallotsSummator, committePubKey: PubKey, r1Data: MultiDelegTallyR1Data): Boolean = Try {
     val uvDelegationsSum = summator.getDelegationsSum
     val proposalIds = uvDelegationsSum.keySet
     val committeID = cmIdentifier.getId(committePubKey).get
@@ -103,7 +120,7 @@ class MultiDelegTally(ctx: ApprovalContext,
       require(proposalId == s.proposalId)
       require(s.validate(ctx.cryptoContext, committePubKey, uvDelegationsSum(proposalId)).isSuccess, "Invalid decryption share")
     }
-  }
+  }.isSuccess
 
   def executeRound1(summator: MultiDelegBallotsSummator, r1DataAll: Seq[MultiDelegTallyR1Data]): Try[MultiDelegTally] = Try {
     if (currentRound != Stages.Init)
@@ -134,14 +151,14 @@ class MultiDelegTally(ctx: ApprovalContext,
     * The DKG Round 1 data is needed in case we need to restore private keys of disqualified committee members
     * It should be provided by DistrKeyGen object
     */
-  def generateR2Data(committeeMemberKey: KeyPair, dkgR1DataAll: Seq[R1Data]): Try[TallyR2Data] = Try {
+  def generateR2Data(committeeMemberKey: KeyPair, dkgR1DataAll: Seq[R1Data]): Try[MultiDelegTallyR2Data] = Try {
     if (currentRound != Stages.TallyR1)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
 
     prepareRecoverySharesData(committeeMemberKey, disqualifiedOnTallyR1CommitteeIds, dkgR1DataAll).get
   }
 
-  def verifyRound2Data(committePubKey: PubKey, r2Data: TallyR2Data, dkgR1DataAll: Seq[R1Data]): Try[Unit] = Try {
+  def verifyRound2Data(committePubKey: PubKey, r2Data: MultiDelegTallyR2Data, dkgR1DataAll: Seq[R1Data]): Try[Unit] = Try {
     if (currentRound != Stages.TallyR1)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
 
@@ -159,7 +176,7 @@ class MultiDelegTally(ctx: ApprovalContext,
     * At the end of the Round 2, all decryption shares should be available and, thus, the delegations can be decrypted.
     * Given that delegations are available we can sum up all the experts ballot weighted by delegated voting power.
     */
-  def executeRound2(r2DataAll: Seq[TallyR2Data], expertBallots: Seq[MultiDelegExpertBallot]): Try[MultiDelegTally] = Try {
+  def executeRound2(r2DataAll: Seq[MultiDelegTallyR2Data], expertBallots: Seq[MultiDelegExpertBallot]): Try[MultiDelegTally] = Try {
     if (currentRound != Stages.TallyR1)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
     expertBallots.foreach(b => assert(b.expertId >= 0 && b.expertId < ctx.numberOfExperts))
@@ -223,7 +240,7 @@ class MultiDelegTally(ctx: ApprovalContext,
     this
   }
 
-  def generateR3Data(committeeMemberKey: KeyPair): Try[TallyR3Data] = Try {
+  def generateR3Data(committeeMemberKey: KeyPair): Try[MultiDelegTallyR3Data] = Try {
     if (currentRound != Stages.TallyR2)
       throw new IllegalStateException("Unexpected state! Round 3 should be executed only in the TallyR2 state.")
 
@@ -233,7 +250,7 @@ class MultiDelegTally(ctx: ApprovalContext,
     MultiDelegTallyR1Data(committeeId, decryptionShares)
   }
 
-  def verifyRound3Data(committePubKey: PubKey, r3Data: TallyR3Data): Try[Unit] = Try {
+  def verifyRound3Data(committePubKey: PubKey, r3Data: MultiDelegTallyR3Data): Try[Unit] = Try {
     val proposalIds = choicesSum.keySet
     val committeID = cmIdentifier.getId(committePubKey).get
 
@@ -247,7 +264,7 @@ class MultiDelegTally(ctx: ApprovalContext,
     }
   }
 
-  def executeRound3(r3DataAll: Seq[TallyR3Data]): Try[MultiDelegTally] = Try {
+  def executeRound3(r3DataAll: Seq[MultiDelegTallyR3Data]): Try[MultiDelegTally] = Try {
     if (currentRound != Stages.TallyR2)
       throw new IllegalStateException("Unexpected state! Round 3 should be executed only in the TallyR2 state.")
 
@@ -274,21 +291,21 @@ class MultiDelegTally(ctx: ApprovalContext,
     this
   }
 
-  def generateR4Data(committeeMemberKey: KeyPair, dkgR1DataAll: Seq[R1Data]): Try[TallyR4Data] = Try {
+  def generateR4Data(committeeMemberKey: KeyPair, dkgR1DataAll: Seq[R1Data]): Try[MultiDelegTallyR4Data] = Try {
     if (currentRound != Stages.TallyR3)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
 
     prepareRecoverySharesData(committeeMemberKey, disqualifiedOnTallyR3CommitteeIds, dkgR1DataAll).get
   }
 
-  def verifyRound4Data(committePubKey: PubKey, r4Data: TallyR4Data, dkgR1DataAll: Seq[R1Data]): Try[Unit] = Try {
+  def verifyRound4Data(committePubKey: PubKey, r4Data: MultiDelegTallyR4Data, dkgR1DataAll: Seq[R1Data]): Try[Unit] = Try {
     if (currentRound != Stages.TallyR3)
       throw new IllegalStateException("Unexpected state! Round 4 should be executed only in the TallyR3 state.")
 
     require(verifyRecoverySharesData(committePubKey, r4Data, disqualifiedOnTallyR3CommitteeIds, dkgR1DataAll).isSuccess)
   }
 
-  def executeRound4(r4DataAll: Seq[TallyR4Data]): Try[MultiDelegTally] = Try {
+  def executeRound4(r4DataAll: Seq[MultiDelegTallyR4Data]): Try[MultiDelegTally] = Try {
     if (currentRound != Stages.TallyR3)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
 

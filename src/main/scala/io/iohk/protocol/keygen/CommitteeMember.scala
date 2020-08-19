@@ -9,7 +9,7 @@ import io.iohk.protocol.keygen.datastructures.round4.R4Data
 import io.iohk.protocol.keygen.datastructures.round5_1.R5_1Data
 import io.iohk.protocol.keygen.datastructures.round5_2.R5_2Data
 import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures.{MultiDelegTallyR1Data, TallyR2Data, TallyR3Data, TallyR4Data}
+import io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures.{MultiDelegTallyR1Data, MultiDelegTallyR2Data, MultiDelegTallyR3Data, MultiDelegTallyR4Data}
 import io.iohk.protocol.voting.approval.multi_delegation.tally.{MultiDelegBallotsSummator, MultiDelegTally}
 import io.iohk.protocol.voting.approval.multi_delegation.{MultiDelegExpertBallot, MultiDelegVoterBallot}
 
@@ -106,11 +106,14 @@ class CommitteeMember(val ctx: ApprovalContext,
     newTally.generateR1Data(summator, (secretKey, publicKey)).get
   }
 
-  def doTallyR2(tallyR1DataAll: Seq[MultiDelegTallyR1Data], dkgR1DataAll: Seq[R1Data]): Try[TallyR2Data] = Try {
+  def doTallyR2(tallyR1DataAll: Seq[MultiDelegTallyR1Data], dkgR1DataAll: Seq[R1Data]): Try[MultiDelegTallyR2Data] = Try {
     val tallyR1 = tally.get
     val verifiedR1DataAll = tallyR1DataAll.filter { r1Data =>
       memberIdentifier.getPubKey(r1Data.issuerID).flatMap { pubKey =>
-        tallyR1.verifyRound1Data(summator, pubKey, r1Data).toOption
+        tallyR1.verifyRound1Data(summator, pubKey, r1Data) match {
+          case true => Some(Unit)
+          case false => None
+        }
       }.isDefined
     }
 
@@ -118,9 +121,9 @@ class CommitteeMember(val ctx: ApprovalContext,
     tallyR1.generateR2Data((secretKey, publicKey), dkgR1DataAll).get
   }
 
-  def doTallyR3(tallyR2DataAll: Seq[TallyR2Data],
+  def doTallyR3(tallyR2DataAll: Seq[MultiDelegTallyR2Data],
                 dkgR1DataAll: Seq[R1Data],
-                expertBallots: Seq[MultiDelegExpertBallot]): Try[TallyR3Data] = Try {
+                expertBallots: Seq[MultiDelegExpertBallot]): Try[MultiDelegTallyR3Data] = Try {
     val tallyR2 = tally.get
     val verifiedR2DataAll = tallyR2DataAll.filter { r2Data =>
       memberIdentifier.getPubKey(r2Data.issuerID).flatMap { pubKey =>
@@ -132,8 +135,8 @@ class CommitteeMember(val ctx: ApprovalContext,
     tallyR2.generateR3Data((secretKey, publicKey)).get
   }
 
-  def doTallyR4(tallyR3DataAll: Seq[TallyR3Data],
-                dkgR1DataAll: Seq[R1Data]): Try[TallyR4Data] = Try {
+  def doTallyR4(tallyR3DataAll: Seq[MultiDelegTallyR3Data],
+                dkgR1DataAll: Seq[R1Data]): Try[MultiDelegTallyR4Data] = Try {
     val tallyR3 = tally.get
     val verifiedR3DataAll = tallyR3DataAll.filter { r3Data =>
       memberIdentifier.getPubKey(r3Data.issuerID).flatMap { pubKey =>
@@ -145,7 +148,7 @@ class CommitteeMember(val ctx: ApprovalContext,
     tallyR3.generateR4Data((secretKey, publicKey), dkgR1DataAll).get
   }
 
-  def finalizeTally(tallyR4DataAll: Seq[TallyR4Data], dkgR1DataAll: Seq[R1Data]): Try[Map[Int, Vector[BigInt]]] = Try {
+  def finalizeTally(tallyR4DataAll: Seq[MultiDelegTallyR4Data], dkgR1DataAll: Seq[R1Data]): Try[Map[Int, Vector[BigInt]]] = Try {
     val tallyR4 = tally.get
     val verifiedR4DataAll = tallyR4DataAll.filter { r4Data =>
       memberIdentifier.getPubKey(r4Data.issuerID).flatMap { pubKey =>

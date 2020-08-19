@@ -32,25 +32,25 @@ class MultiDelegTallyRound1Test extends FunSuite with TallyTestSetup {
     val r1Data = tally.generateR1Data(summator, (privKey, pubKey)).get
 
     // verification with correct data and key should succeed
-    require(tally.verifyRound1Data(summator, pubKey, r1Data).isSuccess)
+    require(tally.verifyRound1Data(summator, pubKey, r1Data))
 
     // verification with wrong pubKey should fail
-    require(tally.verifyRound1Data(summator, group.createRandomGroupElement.get, r1Data).isFailure)
+    require(!tally.verifyRound1Data(summator, group.createRandomGroupElement.get, r1Data))
 
     val r1DataBad = r1Data.copy(issuerID = r1Data.issuerID+1)
-    require(tally.verifyRound1Data(summator, pubKey, r1DataBad).isFailure)
+    require(!tally.verifyRound1Data(summator, pubKey, r1DataBad))
 
     val r1DataBad2 = r1Data.copy(decryptionShares = r1Data.decryptionShares - r1Data.decryptionShares.head._1)
-    require(tally.verifyRound1Data(summator, pubKey, r1DataBad2).isFailure)
+    require(!tally.verifyRound1Data(summator, pubKey, r1DataBad2))
 
     val decrShareBad = (r1Data.decryptionShares(0).proposalId -> DecryptionShare(r1Data.decryptionShares(0).proposalId, r1Data.decryptionShares(1).decryptedC1))
     val r1DataBad3 = r1Data.copy(decryptionShares = r1Data.decryptionShares + decrShareBad)
-    require(tally.verifyRound1Data(summator, pubKey, r1DataBad3).isFailure)
+    require(!tally.verifyRound1Data(summator, pubKey, r1DataBad3))
 
     val r1DataBad4 = r1Data.copy(decryptionShares = r1Data.decryptionShares - r1Data.decryptionShares.head._1)
-    require(tally.verifyRound1Data(summator, pubKey, r1DataBad4).isFailure)
+    require(!tally.verifyRound1Data(summator, pubKey, r1DataBad4))
 
-    require(tally.verifyRound1Data(summator, pubKey, r1Data.copy(decryptionShares = Map())).isFailure)
+    require(!tally.verifyRound1Data(summator, pubKey, r1Data.copy(decryptionShares = Map())))
   }
 
   test("execute Round 1") {

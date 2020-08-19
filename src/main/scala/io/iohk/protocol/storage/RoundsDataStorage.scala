@@ -6,7 +6,7 @@ import io.iohk.protocol.keygen.datastructures.round3.R3Data
 import io.iohk.protocol.keygen.datastructures.round4.R4Data
 import io.iohk.protocol.keygen.datastructures.round5_1.R5_1Data
 import io.iohk.protocol.keygen.datastructures.round5_2.R5_2Data
-import io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures.{MultiDelegTallyR1Data, TallyR2Data, TallyR3Data, TallyR4Data}
+import io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures.{MultiDelegTallyR1Data, MultiDelegTallyR2Data, MultiDelegTallyR3Data, MultiDelegTallyR4Data}
 import io.iohk.protocol.voting.approval.multi_delegation.{MultiDelegExpertBallot, MultiDelegVoterBallot}
 
 import scala.util.Try
@@ -67,12 +67,12 @@ trait RoundsDataStorage {
   def getTallyR1: Seq[MultiDelegTallyR1Data]
   def updateTallyR1(data: Seq[MultiDelegTallyR1Data]): Try[Unit]
 
-  def getTallyR2: Seq[TallyR2Data]
-  def updateTallyR2(data: Seq[TallyR2Data]): Try[Unit]
+  def getTallyR2: Seq[MultiDelegTallyR2Data]
+  def updateTallyR2(data: Seq[MultiDelegTallyR2Data]): Try[Unit]
 
-  def getTallyR3: Seq[TallyR3Data]
-  def updateTallyR3(data: Seq[TallyR3Data]): Try[Unit]
+  def getTallyR3: Seq[MultiDelegTallyR3Data]
+  def updateTallyR3(data: Seq[MultiDelegTallyR3Data]): Try[Unit]
 
-  def getTallyR4: Seq[TallyR4Data]
-  def updateTallyR4(data: Seq[TallyR4Data]): Try[Unit]
+  def getTallyR4: Seq[MultiDelegTallyR4Data]
+  def updateTallyR4(data: Seq[MultiDelegTallyR4Data]): Try[Unit]
 }

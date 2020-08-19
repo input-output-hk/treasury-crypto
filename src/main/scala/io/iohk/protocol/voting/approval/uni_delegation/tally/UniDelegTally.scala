@@ -4,21 +4,32 @@ import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalE
 import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
 import io.iohk.core.crypto.primitives.dlog.GroupElement
 import io.iohk.protocol.Identifier
-import io.iohk.protocol.keygen.{DistrKeyGen, KeyRecovery}
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
+import io.iohk.protocol.keygen.{DistrKeyGen, KeyRecovery}
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
 import io.iohk.protocol.voting.approval.ApprovalContext
 import io.iohk.protocol.voting.approval.uni_delegation.UniDelegExpertBallot
 import io.iohk.protocol.voting.approval.uni_delegation.tally.UniDelegTally.UniDelegStages
 import io.iohk.protocol.voting.approval.uni_delegation.tally.datastructures.{UniDelegTallyR1Data, UniDelegTallyR2Data, UniDelegTallyR3Data, UniDelegTallyR4Data}
+import io.iohk.protocol.voting.common.Tally
 import io.iohk.protocol.voting.preferential.tally.datastructures.PrefTallyR1Data
 
 import scala.util.Try
 
 class UniDelegTally (ctx: ApprovalContext,
                      cmIdentifier: Identifier[Int],
-                     disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]]) extends KeyRecovery(ctx.cryptoContext, cmIdentifier) {
+                     disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]])
+  extends KeyRecovery(ctx.cryptoContext, cmIdentifier) with Tally {
+
   import ctx.cryptoContext.{group, hash}
+  type R1DATA = UniDelegTallyR1Data
+  type R2DATA = UniDelegTallyR2Data
+  type R3DATA = UniDelegTallyR3Data
+  type R4DATA = UniDelegTallyR4Data
+  type SUMMATOR = UniDelegBallotsSummator
+  type EXPERTBALLOT = UniDelegExpertBallot
+  type RESULT = List[Vector[BigInt]]
+  type M = UniDelegTally
 
   private var currentRound = UniDelegStages.Init
   def getCurrentRound = currentRound
@@ -45,6 +56,8 @@ class UniDelegTally (ctx: ApprovalContext,
   def getChoicesSum = choicesSum
   def getChoicesSharesSum = choicesSharesSum
   def getChoices = choices
+
+  override def getResult: Try[List[Vector[BigInt]]] = Try(getChoices)
 
   def generateR1Data(summator: UniDelegBallotsSummator, committeeMemberKey: KeyPair): Try[UniDelegTallyR1Data] = Try {
     val (privKey, pubKey) = committeeMemberKey
@@ -204,7 +217,7 @@ class UniDelegTally (ctx: ApprovalContext,
 
   def executeRound3(r3DataAll: Seq[UniDelegTallyR3Data]): Try[UniDelegTally] = Try {
     if (currentRound != UniDelegStages.TallyR2)
-      throw new IllegalStateException("Unexpected state! Round 3 should be executed only in the PrefTallyR2 state.")
+      throw new IllegalStateException("Unexpected state! Round 3 should be executed only in the TallyR2 state.")
 
     if (choicesSum.isEmpty) {
       // there is nothing to do on Round 3 if there is nothing to decrypt
@@ -213,7 +226,7 @@ class UniDelegTally (ctx: ApprovalContext,
     }
 
     val submittedCommitteeIds = r3DataAll.map(_.issuerID).toSet
-    require(submittedCommitteeIds.size == r3DataAll.size, "More than one PrefTallyR1Data from the same committee member is not allowed")
+    require(submittedCommitteeIds.size == r3DataAll.size, "More than one TallyR1Data from the same committee member is not allowed")
     require(submittedCommitteeIds.intersect(getAllDisqualifiedCommitteeIds).isEmpty, "Disqualified members are not allowed to submit r1Data!")
 
     val expectedCommitteeIds = allCommitteeIds.diff(getAllDisqualifiedCommitteeIds)

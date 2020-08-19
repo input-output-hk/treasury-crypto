@@ -5,7 +5,7 @@ import io.iohk.protocol.keygen.datastructures.round3.R3Data
 import io.iohk.protocol.keygen.datastructures.round4.R4Data
 import io.iohk.protocol.keygen.datastructures.round5_1.R5_1Data
 import io.iohk.protocol.keygen.datastructures.round5_2.R5_2Data
-import io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures.{MultiDelegTallyR1Data, TallyR2Data, TallyR3Data, TallyR4Data}
+import io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures.{MultiDelegTallyR1Data, MultiDelegTallyR2Data, MultiDelegTallyR3Data, MultiDelegTallyR4Data}
 import io.iohk.protocol.voting.approval.multi_delegation.{MultiDelegExpertBallot, MultiDelegVoterBallot}
 
 import scala.util.Try
@@ -20,9 +20,9 @@ class RoundsDataInMemoryStorage extends RoundsDataStorage {
   private var dkgR5_2Data = Seq[R5_2Data]()
 
   private var tallyR1Data = Seq[MultiDelegTallyR1Data]()
-  private var tallyR2Data = Seq[TallyR2Data]()
-  private var tallyR3Data = Seq[TallyR3Data]()
-  private var tallyR4Data = Seq[TallyR4Data]()
+  private var tallyR2Data = Seq[MultiDelegTallyR2Data]()
+  private var tallyR3Data = Seq[MultiDelegTallyR3Data]()
+  private var tallyR4Data = Seq[MultiDelegTallyR4Data]()
 
   private var expertBallots = Seq[MultiDelegExpertBallot]()
 
@@ -53,12 +53,12 @@ class RoundsDataInMemoryStorage extends RoundsDataStorage {
   override def getTallyR1: Seq[MultiDelegTallyR1Data] = tallyR1Data
   override def updateTallyR1(data: Seq[MultiDelegTallyR1Data]): Try[Unit] = Try(tallyR1Data ++= data)
 
-  override def getTallyR2: Seq[TallyR2Data] = tallyR2Data
-  override def updateTallyR2(data: Seq[TallyR2Data]): Try[Unit] = Try(tallyR2Data ++= data)
+  override def getTallyR2: Seq[MultiDelegTallyR2Data] = tallyR2Data
+  override def updateTallyR2(data: Seq[MultiDelegTallyR2Data]): Try[Unit] = Try(tallyR2Data ++= data)
 
-  override def getTallyR3: Seq[TallyR3Data] = tallyR3Data
-  override def updateTallyR3(data: Seq[TallyR3Data]): Try[Unit] = Try(tallyR3Data ++= data)
+  override def getTallyR3: Seq[MultiDelegTallyR3Data] = tallyR3Data
+  override def updateTallyR3(data: Seq[MultiDelegTallyR3Data]): Try[Unit] = Try(tallyR3Data ++= data)
 
-  override def getTallyR4: Seq[TallyR4Data] = tallyR4Data
-  override def updateTallyR4(data: Seq[TallyR4Data]): Try[Unit] = Try(tallyR4Data ++= data)
+  override def getTallyR4: Seq[MultiDelegTallyR4Data] = tallyR4Data
+  override def updateTallyR4(data: Seq[MultiDelegTallyR4Data]): Try[Unit] = Try(tallyR4Data ++= data)
 }

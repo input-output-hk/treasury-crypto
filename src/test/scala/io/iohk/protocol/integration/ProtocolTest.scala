@@ -17,35 +17,38 @@ import scala.util.Random
   */
 class ProtocolTest extends FunSuite {
 
-  def doTest(elections: Elections): Boolean = {
-    val ctx = elections.getContext
+  val crs = CryptoContext.generateRandomCRS
+  val ctx = new CryptoContext(Option(crs))
 
-    // Generating keypairs for every commitee member
-    val keyPairs = Array.fill(20)(encryption.createKeyPair(ctx.cryptoContext.group).get)
-    val committeeMembersPubKeys = keyPairs.map(_._2)
-
-    // Instantiating committee members
-    val committeeMembers = keyPairs.map(k => new CommitteeMember(ctx, k, committeeMembersPubKeys))
-
-    // Generating shared public key by running the DKG protocol among committee members
-    val (sharedPubKey, dkgR1DataAll) = ProtocolTest.runDistributedKeyGeneration(ctx.cryptoContext, committeeMembers)
-
-    // Running elections by specific scenario
-    val (voterBallots, expertBallots) = elections.run(sharedPubKey)
-
-    val tallyResults = ProtocolTest.runTally(committeeMembers, voterBallots, expertBallots, dkgR1DataAll)
-    elections.verify(tallyResults)
-  }
-
-  test("test full protocol") {
-    val crs = CryptoContext.generateRandomCRS
-    val ctx = new CryptoContext(Option(crs))
-
-    require(doTest(new ElectionsScenario1(ctx)))
-    require(doTest(new ElectionsScenario2(ctx)))
-    require(doTest(new ElectionsScenario3(ctx)))
-    require(doTest(new ElectionsScenario4(ctx)))
-  }
+//  type VBALLOT
+//  type EBALLOT
+//  type CTX
+//  type RES
+//
+//  def doTest(elections: Elections[VBALLOT, EBALLOT, CTX, RES]): Boolean = {
+//    // Generating keypairs for every commitee member
+//    val keyPairs = Array.fill(20)(encryption.createKeyPair(ctx.group).get)
+//    val committeeMembersPubKeys = keyPairs.map(_._2)
+//
+//    // Instantiating committee members
+//    val committeeMembers = keyPairs.map(k => new CommitteeMember(ctx, k, committeeMembersPubKeys))
+//
+//    // Generating shared public key by running the DKG protocol among committee members
+//    val (sharedPubKey, dkgR1DataAll) = ProtocolTest.runDistributedKeyGeneration(ctx, committeeMembers)
+//
+//    // Running elections by specific scenario
+//    val (voterBallots, expertBallots) = elections.runVoting(sharedPubKey)
+//
+//    val tallyResults = elections.runTally(committeeMembers, voterBallots, expertBallots, dkgR1DataAll)
+//    elections.verify(tallyResults)
+//  }
+//
+//  test("test full protocol") {
+//    require(doTest(new MultiDelegVotingScenario1(ctx)))
+//    require(doTest(new MultiDelegVotingScenario2(ctx)))
+//    require(doTest(new MultiDelegVotingScenario3(ctx)))
+//    require(doTest(new MultiDelegVotingScenario4(ctx)))
+//  }
 }
 
 object ProtocolTest {
@@ -81,21 +84,5 @@ object ProtocolTest {
 
     assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys.head)))
     sharedPublicKeys.head -> r1Data
-  }
-
-  def runTally(committeeMembers: Seq[CommitteeMember],
-               voterBallots: Seq[MultiDelegVoterBallot],
-               expertBallots: Seq[MultiDelegExpertBallot],
-               dkgR1DataAll: Seq[R1Data]): Map[Int, Vector[BigInt]] = {
-    // let's simulate 1 failed CM at each round
-    val r1DataAll = committeeMembers.drop(1).map(_.doTallyR1(voterBallots).get)
-    val r2DataAll = committeeMembers.drop(2).map(_.doTallyR2(r1DataAll, dkgR1DataAll).get)
-    val r3DataAll = committeeMembers.drop(3).map(_.doTallyR3(r2DataAll, dkgR1DataAll, expertBallots).get)
-    val r4DataAll = committeeMembers.drop(4).map(_.doTallyR4(r3DataAll, dkgR1DataAll).get)
-    committeeMembers.drop(4).foreach(_.finalizeTally(r4DataAll, dkgR1DataAll).get)
-
-    val result = committeeMembers.last.getTallyResult.get
-    committeeMembers.drop(4).foreach(c => require(c.getTallyResult.get == result))
-    result
   }
 }
