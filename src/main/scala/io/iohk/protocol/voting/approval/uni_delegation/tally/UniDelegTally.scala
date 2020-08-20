@@ -16,6 +16,18 @@ import io.iohk.protocol.voting.preferential.tally.datastructures.PrefTallyR1Data
 
 import scala.util.Try
 
+/**
+  * UniDelegTally class implements the 4-round tally protocol for the approval voting scheme with unified delegation.
+  * In this scheme a ballot includes votes for all registered proposals.
+  * If voter delegates his voting power, it is delegated for all proposals to the same expert.
+  *
+  * @param ctx                                  ApprovalContext
+  * @param cmIdentifier                         Identifier object that maps public keys of committee members to their integer identifiers
+  * @param disqualifiedBeforeTallyCommitteeKeys some committee members can be disqualified during the previous stage before
+  *                                             Tally begins. In this case their keys might already been
+  *                                             restored (e.g., depending on what round of DKG they were disqualified). They
+  *                                             are passed here because they will be needed for generating decryption shares.
+  */
 class UniDelegTally (ctx: ApprovalContext,
                      cmIdentifier: Identifier[Int],
                      disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]])

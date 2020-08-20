@@ -1,22 +1,7 @@
 Treasury crypto
 ====================================================================================================================================================================================
 Treasury crypto is a cryptographic library for the developed decentralized fault 
-tolerant voting protocol for a blockchain treasury system.
-
-Motivation
--------------------
-Modern cryptocurrencies are complex systems that require continuous maintenance.
-Even though it is usually proclaimed that such systems are completely decentralized
-and no one in full possession, all existing cryptocurrency systems have a core team 
-of members that, at least, controls the development effort.
-
-It becomes crucial how this core team is funded, because, in most cases, the control belongs to those who pays money. If a core team is payed by some standalone investor
-most likely it will follow his vision that is not necessarily match the vision of a broader community.
-
-Treasury system aims to solve this problem by providing means for establishing 
-collaborative consensus among all cryptocurency stakeholders about financing the system.
-The source of funds is usually a part of a block reward, but not restricted to be
-only this one.
+tolerant voting protocol. Initially, the voting protocol was designed for a blockchain treasury system, but it can also be used for other purposes.
 
 Voting protocol
 -------------------
@@ -46,10 +31,11 @@ The library implements the following components:
 * Ballots encryption
 * Joint decryption
 * Randomness generation
+* Several types of voting systems (approval voting, preferential voting)
 
 Current status
 -------------------
-Current implementation is as a prototype. Even though an effort was made to design it carefully with the aim to use in production, at this point it cannot be considered to be ready for that.
+Current implementation is a prototype. Even though an effort was made to design it carefully with the aim to use in production, at this point it cannot be considered to be ready for that.
 
 The old version of the library ([v0.1](https://github.com/input-output-hk/treasury-crypto/releases/tag/v0.1_treasury_coin)) was integrated into the full-fledged treasury prototype built on top of the Scorex framework ([TreasuryCoin](https://github.com/input-output-hk/TreasuryCoin))
 

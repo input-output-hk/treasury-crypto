@@ -4,55 +4,32 @@ import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalE
 import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHash
-import io.iohk.protocol.keygen.{DistrKeyGen, KeyRecovery}
+import io.iohk.protocol.Identifier
 import io.iohk.protocol.keygen.datastructures.round1.R1Data
+import io.iohk.protocol.keygen.{DistrKeyGen, KeyRecovery}
 import io.iohk.protocol.nizk.ElgamalDecrNIZK
 import io.iohk.protocol.storage.RoundsDataStorage
+import io.iohk.protocol.voting.approval.ApprovalContext
+import io.iohk.protocol.voting.approval.multi_delegation.MultiDelegExpertBallot
 import io.iohk.protocol.voting.approval.multi_delegation.tally.MultiDelegTally.Stages
 import io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures._
-import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.Identifier
-import io.iohk.protocol.voting.approval.multi_delegation.MultiDelegExpertBallot
 import io.iohk.protocol.voting.common.Tally
-import io.iohk.protocol.voting.preferential.PreferentialExpertBallot
-import io.iohk.protocol.voting.preferential.tally.{PreferentialBallotsSummator, PreferentialTally}
-import io.iohk.protocol.voting.preferential.tally.datastructures.{PrefTallyR1Data, PrefTallyR2Data, PrefTallyR3Data, PrefTallyR4Data}
 
 import scala.util.Try
 
 /**
-  * Tally class encapsulates the 4-round tally protocol.
-  * Recall that during the first round committee members submit decryption shares needed to decrypt the amount of
-  * delegated stake to each expert for each proposal.
-  * During the second round committee members submit recovery shares needed to restore secret keys of those members
-  * who failed to submit valid decryption shares in the first round, so that given restored keys everyone can
-  * reconstruct missing decryption shares.
-  * On the third round committee members submit decryption shares needed to decrypt the voting result for each proposal.
-  * On the fourth round committee members submit recovery shares needed to restore secret keys of those members who failed to submit
-  * valid decryption shares in the third round, so that given restored keys everyone can reconstruct missing decryption shares.
+  * MultiDelegTally class implements the 4-round tally protocol for the approval voting scheme with multiple delegations.
+  * In this scheme a ballot represents a vote for one proposal. So that if there are several proposals to be voted, several
+  * ballots should be submitted by each voter. Multiple delegations means that for each voted proposal,
+  * a voter can delegate the voting power to separate experts.
   *
   * See details of the protocol on Fig. 11 in the spec: treasury-crypto/docs/voting_protocol_spec/Treasury_voting_protocol_spec.pdf
   *
-  * The Tally class is supposed to be used both by committee members, who participate in the protocol, and regular observers,
-  * who are able to verify each message and calculate the tally result for each proposal.
-  *
-  * The interface is the following, each round is represented by 3 functions (X is a round number):
-  *   - generateRXData    - is used by a committee member to generate a round-specific data;
-  *   - verifyRXData      - is used by everyone who follows the tally protocol to verify a round-specific data produced
-  *                         by a committee member (e.g., in a blockchain setting, if a round-specific data is submitted as
-  *                         a transaction, verifyRXData will be used by every node to verify such transaction);
-  *   - executeRoundX     - is used by everyone to update the state according to the provided set of round-specific data
-  *                         from committee members. Note that it is responsibility of the caller to verify the data provided
-  *                         to the "executeRoundX";
-  * Note that Tally is a stateful class. Each successful call to the "executeRoundX" function updates internal variables. On the
-  * other hand, calls to "generateRXData" and "verifyRXData" don't produce any side-effects.
-  * Also note that "executeRoundX" should be called sequentially one after another, otherwise they will return error.
-  *
-  * @param ctx                                  ProtocolContext
+  * @param ctx                                  ApprovalContext
   * @param cmIdentifier                         Identifier object that maps public keys of committee members to their integer identifiers
-  * @param disqualifiedBeforeTallyCommitteeKeys some committee members can be disqualified during the DKG stage before
+  * @param disqualifiedBeforeTallyCommitteeKeys some committee members can be disqualified during the previous stage before
   *                                             Tally begins. In this case their keys might already been
-  *                                             restored (depending on what round of DKG they were disqualified). They
+  *                                             restored (e.g., depending on what round of DKG they were disqualified). They
   *                                             are passed here because they will be needed for generating decryption shares.
   */
 class MultiDelegTally(ctx: ApprovalContext,

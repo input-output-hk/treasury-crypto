@@ -14,6 +14,18 @@ import io.iohk.protocol.voting.preferential.{PreferentialContext, PreferentialEx
 
 import scala.util.Try
 
+/**
+  * PreferentialTally class implements the 4-round tally protocol for the preferential voting scheme with unified delegation.
+  * In this scheme a vote is a list of preferences for the registered proposals.
+  * A voter can delegate the voting power to a single expert.
+  *
+  * @param ctx                                  ApprovalContext
+  * @param cmIdentifier                         Identifier object that maps public keys of committee members to their integer identifiers
+  * @param disqualifiedBeforeTallyCommitteeKeys some committee members can be disqualified during the previous stage before
+  *                                             Tally begins. In this case their keys might already been
+  *                                             restored (e.g., depending on what round of DKG they were disqualified). They
+  *                                             are passed here because they will be needed for generating decryption shares.
+  */
 class PreferentialTally(ctx: PreferentialContext,
                         cmIdentifier: Identifier[Int],
                         disqualifiedBeforeTallyCommitteeKeys: Map[PubKey, Option[PrivKey]])
