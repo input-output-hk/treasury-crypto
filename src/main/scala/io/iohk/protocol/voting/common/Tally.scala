@@ -7,11 +7,12 @@ import scala.util.Try
 
 trait Tally {
 
-  type R1DATA
-  type R2DATA
-  type R3DATA
-  type R4DATA
+  type R1DATA <: Issuer
+  type R2DATA <: Issuer
+  type R3DATA <: Issuer
+  type R4DATA <: Issuer
   type SUMMATOR
+  type VOTERBALLOT
   type EXPERTBALLOT
   type RESULT
   type M >: this.type <: Tally

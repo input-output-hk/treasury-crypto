@@ -2,9 +2,10 @@ package io.iohk.protocol
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.utils.TimeUtils
-import io.iohk.protocol.integration.ProtocolTest
+import io.iohk.protocol.integration.{DistributedKeyGenerationSimulator, ProtocolTest}
 import io.iohk.protocol.keygen._
 import io.iohk.protocol.voting.approval.ApprovalContext
+import io.iohk.protocol.voting.approval.multi_delegation.tally.{MultiDelegBallotsSummator, MultiDelegTally}
 import io.iohk.protocol.voting.approval.multi_delegation.{DelegatedMultiDelegVote, DirectMultiDelegVote, MultiDelegExpertBallot, MultiDelegPublicStakeBallot}
 
 class TallyPerformance {
@@ -17,8 +18,8 @@ class TallyPerformance {
   {
     val violatorsNum = (commiteeMembersNum.toFloat * (violatorsPercentage.toFloat / 100)).ceil.toInt
 
-    val numberOfExperts = 100
-    val numberOfVoters = 1000
+    val numberOfExperts = 10
+    val numberOfVoters = 100
     val pctx = new ApprovalContext(ctx, 3, numberOfExperts)
 
     println("Commitee members:\t" + commiteeMembersNum)
@@ -38,7 +39,7 @@ class TallyPerformance {
     }
 
     // Generating shared public key by committee members (by running the DKG protocol between them)
-    val (sharedPubKey, dkgR1DataAll) = ProtocolTest.runDistributedKeyGeneration(ctx, committeeMembersAll)
+    val (sharedPubKey, dkgR1DataAll, dkgViolators) = DistributedKeyGenerationSimulator.runDKG(ctx, committeeMembersAll)
 
     val voterBallots = for (i <- 0 until numberOfVoters) yield
       MultiDelegPublicStakeBallot.createBallot(pctx, 0, DelegatedMultiDelegVote(0), sharedPubKey, 1).get
@@ -46,54 +47,57 @@ class TallyPerformance {
       MultiDelegExpertBallot.createBallot(pctx, 0, 0, DirectMultiDelegVote(0), sharedPubKey).get
 
     var overallBytes: Int = 0
-    val committeeMembersActive = committeeMembersAll.drop(violatorsNum)
+    val committeeMembersActive = committeeMembersAll.drop(violatorsNum).filter(c => !dkgViolators.contains(c.publicKey))
+
+    val context = new ApprovalContext(ctx, 3, numberOfExperts, 1)
+    val summator = new MultiDelegBallotsSummator(context)
+    voterBallots.foreach(summator.addVoterBallot(_))
+
+    val tally = new MultiDelegTally(context, committeeMembersActive.head.memberIdentifier, dkgViolators)
 
     val (tallyR1DataAll, timeR1) = TimeUtils.get_time_average_s(
-      "Tally Round 1:",
-      committeeMembersActive.map(_.doTallyR1(voterBallots).get),
+      "Tally Round 1 (ballot generation):",
+      committeeMembersActive.map(c => tally.generateR1Data(summator, (c.secretKey, c.publicKey)).get),
       committeeMembersActive.length
     )
 
+    TimeUtils.time_ms("Tally Round 1 (execution):", tally.executeRound1(summator, tallyR1DataAll).get)
     overallBytes += tallyR1DataAll.foldLeft(0)((acc,r1Data) => acc + r1Data.bytes.size)
 
     val (tallyR2DataAll, timeR2) = TimeUtils.get_time_average_s(
-      "Tally Round 2:",
-      committeeMembersActive.map(_.doTallyR2(tallyR1DataAll, dkgR1DataAll).get),
+      "Tally Round 2 (ballot generation):",
+      committeeMembersActive.map(c => tally.generateR2Data((c.secretKey, c.publicKey), dkgR1DataAll).get),
       committeeMembersActive.length
     )
 
+    TimeUtils.time_ms("Tally Round 2 (execution):", tally.executeRound2(tallyR2DataAll, expertBallots).get)
     overallBytes += tallyR2DataAll.foldLeft(0)((acc,r2Data) => acc + r2Data.bytes.size)
 
     val (tallyR3DataAll, timeR3) = TimeUtils.get_time_average_s(
-      "Tally Round 3:",
-      committeeMembersActive.map(_.doTallyR3(tallyR2DataAll, dkgR1DataAll, expertBallots).get),
+      "Tally Round 3 (ballot generation):",
+      committeeMembersActive.map(c => tally.generateR3Data((c.secretKey, c.publicKey)).get),
       committeeMembersActive.length
     )
 
+    TimeUtils.time_ms("Tally Round 3 (execution):", tally.executeRound3(tallyR3DataAll).get)
     overallBytes += tallyR3DataAll.foldLeft(0)((acc,r3Data) => acc + r3Data.bytes.size)
 
     val (tallyR4DataAll, timeR4) = TimeUtils.get_time_average_s(
-      "Tally Round 4:",
-      committeeMembersActive.map(_.doTallyR4(tallyR3DataAll, dkgR1DataAll).get),
+      "Tally Round 4 (ballot generation):",
+      committeeMembersActive.map(c => tally.generateR4Data((c.secretKey, c.publicKey), dkgR1DataAll).get),
       committeeMembersActive.length
     )
 
+    TimeUtils.time_ms("Tally Round 4 (execution):", tally.executeRound4(tallyR4DataAll).get)
     overallBytes += tallyR4DataAll.foldLeft(0)((acc,r4Data) => acc + r4Data.bytes.size)
 
-    val (tallyResults, timeFinalize) = TimeUtils.get_time_average_s(
-      "Tally Finalize:",
-      committeeMembersActive.map(_.finalizeTally(tallyR4DataAll, dkgR1DataAll).get),
-      committeeMembersActive.length
-    )
 
-    val overallTime = timeR1 + timeR2 + timeR3 + timeR4 + timeFinalize
+    val overallTime = timeR1 + timeR2 + timeR3 + timeR4
 
     println("----------------------------------")
     println("Overall time (for one committee member):    " + overallTime + " sec")
     println("Overall traffic:                            " + overallBytes + " Bytes" + " (" + overallBytes / 1024 + " KB)")
     println("-----------------------------------")
-
-    assert(tallyResults.forall(_.equals(tallyResults.head)))
   }
 
   def start() =

@@ -3,16 +3,19 @@ package io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures
 import com.google.common.primitives.{Bytes, Ints, Shorts}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
+import io.iohk.protocol.voting.common.Issuer
 
 import scala.util.Try
 
 case class MultiDelegTallyR1Data(issuerID: Int, // id of the committee member
                                  decryptionShares: Map[Int, DecryptionShare] // proposalId -> Decryption Share
-                                ) extends BytesSerializable {
+                                ) extends BytesSerializable with Issuer {
 
   override type M = MultiDelegTallyR1Data
   override type DECODER = DiscreteLogGroup
   override val serializer: Serializer[M, DECODER] = MultiDelegTallyR1DataSerializer
+
+  override val issuerId: Int = issuerID
 }
 
 object MultiDelegTallyR1DataSerializer extends Serializer[MultiDelegTallyR1Data, DiscreteLogGroup] {

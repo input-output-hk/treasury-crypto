@@ -7,16 +7,19 @@ import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.nizk.{ElgamalDecrNIZK, ElgamalDecrNIZKProof, ElgamalDecrNIZKProofSerializer}
+import io.iohk.protocol.voting.common.Issuer
 
 import scala.util.Try
 
 case class UniDelegTallyR3Data (issuerID: Int,
                                 choicesDecryptedC1: List[Seq[(GroupElement, ElgamalDecrNIZKProof)]],
-                               ) extends BytesSerializable {
+                               ) extends BytesSerializable with Issuer {
 
   override type M = UniDelegTallyR3Data
   override type DECODER = DiscreteLogGroup
   override val serializer: Serializer[M, DECODER] = UniDelegTallyR3DataSerializer
+
+  override val issuerId: Int = issuerID
 
   def validate(ctx: CryptoContext,
                issuerPubKey: PubKey,

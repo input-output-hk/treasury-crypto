@@ -20,69 +20,18 @@ class ProtocolTest extends FunSuite {
   val crs = CryptoContext.generateRandomCRS
   val ctx = new CryptoContext(Option(crs))
 
-//  type VBALLOT
-//  type EBALLOT
-//  type CTX
-//  type RES
-//
-//  def doTest(elections: Elections[VBALLOT, EBALLOT, CTX, RES]): Boolean = {
-//    // Generating keypairs for every commitee member
-//    val keyPairs = Array.fill(20)(encryption.createKeyPair(ctx.group).get)
-//    val committeeMembersPubKeys = keyPairs.map(_._2)
-//
-//    // Instantiating committee members
-//    val committeeMembers = keyPairs.map(k => new CommitteeMember(ctx, k, committeeMembersPubKeys))
-//
-//    // Generating shared public key by running the DKG protocol among committee members
-//    val (sharedPubKey, dkgR1DataAll) = ProtocolTest.runDistributedKeyGeneration(ctx, committeeMembers)
-//
-//    // Running elections by specific scenario
-//    val (voterBallots, expertBallots) = elections.runVoting(sharedPubKey)
-//
-//    val tallyResults = elections.runTally(committeeMembers, voterBallots, expertBallots, dkgR1DataAll)
-//    elections.verify(tallyResults)
-//  }
-//
-//  test("test full protocol") {
-//    require(doTest(new MultiDelegVotingScenario1(ctx)))
-//    require(doTest(new MultiDelegVotingScenario2(ctx)))
-//    require(doTest(new MultiDelegVotingScenario3(ctx)))
-//    require(doTest(new MultiDelegVotingScenario4(ctx)))
-//  }
-}
-
-object ProtocolTest {
-
-  def patchR3Data(ctx: CryptoContext, r3Data: Seq[R3Data], numOfPatches: Int): Seq[R3Data] = {
-    require(numOfPatches <= r3Data.length)
-
-    val r3DataPatched = r3Data
-
-    var indexesToPatch = Array.fill[Boolean](numOfPatches)(true) ++ Array.fill[Boolean](r3Data.length - numOfPatches)(false)
-    indexesToPatch = Random.shuffle(indexesToPatch.toSeq).toArray
-
-    for(i <- r3Data.indices)
-      if(indexesToPatch(i))
-        r3DataPatched(i).commitments(0) = ctx.group.groupIdentity.bytes
-
-    r3DataPatched
+  def doTest(votingScenario: VotingSimulator) = {
+    val result = votingScenario.runVoting.get
+    require(votingScenario.verify(result))
   }
 
-  def runDistributedKeyGeneration(ctx: CryptoContext, committeeMembers: Seq[CommitteeMember]): (PubKey, Seq[R1Data]) = {
-    val r1Data    = committeeMembers.map(_.doDKGRound1().get)
-    val r2Data    = committeeMembers.map(_.doDKGRound2(r1Data).get)
-    val r3Data    = committeeMembers.map(_.doDKGRound3(r2Data).get)
+  test("test approval voting with multiple delegation") {
+    val scenarios = List(
+      new MultiDelegVotingScenario1(ctx),
+      new MultiDelegVotingScenario2(ctx),
+      new MultiDelegVotingScenario3(ctx),
+      new MultiDelegVotingScenario4(ctx))
 
-    val r3DataPatched = patchR3Data(ctx, r3Data, 1)
-    //    val r3DataPatched = r3Data
-
-    val r4Data    = committeeMembers.map(_.doDKGRound4(r3DataPatched).get)
-    val r5_1Data  = committeeMembers.map(_.doDKGRound5_1(r4Data).get)
-    val r5_2Data  = committeeMembers.map(_.doDKGRound5_2(r5_1Data).get)
-
-    val sharedPublicKeys = r5_2Data.map(_.sharedPublicKey).map(ctx.group.reconstructGroupElement(_).get)
-
-    assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys.head)))
-    sharedPublicKeys.head -> r1Data
+    scenarios.foreach(doTest(_))
   }
 }

@@ -2,7 +2,7 @@ package io.iohk.protocol
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.utils.{SizeUtils, TimeUtils}
-import io.iohk.protocol.integration.ProtocolTest
+import io.iohk.protocol.integration.{DistributedKeyGenerationSimulator, ProtocolTest}
 import io.iohk.protocol.keygen._
 import io.iohk.protocol.voting.approval.ApprovalContext
 
@@ -53,7 +53,8 @@ class DistrKeyGenPerformance {
 
     overallBytes += SizeUtils.getSize(r3Data)
 
-    val r3DataPatched = ProtocolTest.patchR3Data(ctx, r3Data, violatorsNum)
+    val indexesToPatch = (0 until violatorsNum).toList
+    val r3DataPatched = DistributedKeyGenerationSimulator.patchR3Data(ctx, r3Data, indexesToPatch)
 
     val (r4Data, timeR4) = TimeUtils.get_time_average_s(
       "Round 4:",

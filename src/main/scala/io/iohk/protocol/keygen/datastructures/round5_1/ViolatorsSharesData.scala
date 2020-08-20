@@ -5,17 +5,20 @@ import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.core.utils.HasSize
 import io.iohk.protocol.keygen.datastructures.round4.{OpenedShare, OpenedShareSerializer}
+import io.iohk.protocol.voting.common.Issuer
 
 import scala.util.Try
 
 class ViolatorsSharesData(val issuerID:        Int,
                           val violatorsShares: Seq[(Int, OpenedShare)] // decrypted share from violator to issuer of this message
                          )
-  extends HasSize with BytesSerializable {
+  extends HasSize with BytesSerializable with Issuer {
 
   override type M = ViolatorsSharesData
   override type DECODER = DiscreteLogGroup
   override val serializer: Serializer[M, DECODER] = ViolatorsSharesDataSerializer
+
+  override val issuerId: Int = issuerID
 
   def size: Int = bytes.length
 
