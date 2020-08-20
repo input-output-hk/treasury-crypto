@@ -10,7 +10,7 @@ import io.iohk.protocol.voting.approval.multi_delegation._
 
 import scala.util.Try
 
-abstract class MultiDelegVoting(ctx: CryptoContext) extends VotingSimulator {
+abstract class MultiDelegApprovalVoting(ctx: CryptoContext) extends VotingSimulator {
 
   class MultiDelegTallySimulator(override val pctx: ApprovalContext,
                                  override val tally: MultiDelegTally,
@@ -48,7 +48,7 @@ abstract class MultiDelegVoting(ctx: CryptoContext) extends VotingSimulator {
 
 }
 
-class MultiDelegVotingScenario1(ctx: CryptoContext) extends MultiDelegVoting(ctx) {
+class MultiDelegApprovalVotingScenario1(ctx: CryptoContext) extends MultiDelegApprovalVoting(ctx) {
   private val proposalID = 1
   private val votersNum = 2
   private val numberOfExperts = 2
@@ -76,7 +76,7 @@ class MultiDelegVotingScenario1(ctx: CryptoContext) extends MultiDelegVoting(ctx
   }
 }
 
-class MultiDelegVotingScenario2(ctx: CryptoContext) extends MultiDelegVoting(ctx) {
+class MultiDelegApprovalVotingScenario2(ctx: CryptoContext) extends MultiDelegApprovalVoting(ctx) {
   val proposalIDs = Set(4, 11)
   val votersNum = 10
   val votersDelegatedNum = 20
@@ -117,7 +117,7 @@ class MultiDelegVotingScenario2(ctx: CryptoContext) extends MultiDelegVoting(ctx
 }
 
   /* Test an election with private stake ballots */
-class MultiDelegVotingScenario3(ctx: CryptoContext) extends MultiDelegVotingScenario2(ctx) {
+class MultiDelegApprovalVotingScenario3(ctx: CryptoContext) extends MultiDelegApprovalVotingScenario2(ctx) {
 
   override def prepareBallots(sharedPubKey: PubKey): (Seq[MultiDelegPrivateStakeBallot], Seq[MultiDelegExpertBallot]) =
   {
@@ -141,7 +141,7 @@ class MultiDelegVotingScenario3(ctx: CryptoContext) extends MultiDelegVotingScen
 }
 
 /* Test voting where there are 5 choices to select from */
-class MultiDelegVotingScenario4(ctx: CryptoContext) extends MultiDelegVoting(ctx) {
+class MultiDelegApprovalVotingScenario4(ctx: CryptoContext) extends MultiDelegApprovalVoting(ctx) {
 
   val proposalIDs = Set(3, 8)
   val votersNum = 30

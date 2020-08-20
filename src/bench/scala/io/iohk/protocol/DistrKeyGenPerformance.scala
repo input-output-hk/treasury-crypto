@@ -2,7 +2,7 @@ package io.iohk.protocol
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.utils.{SizeUtils, TimeUtils}
-import io.iohk.protocol.integration.{DistributedKeyGenerationSimulator, ProtocolTest}
+import io.iohk.protocol.integration.{DistributedKeyGenerationSimulator, IntegrationTest}
 import io.iohk.protocol.keygen._
 import io.iohk.protocol.voting.approval.ApprovalContext
 

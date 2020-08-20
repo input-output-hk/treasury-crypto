@@ -10,7 +10,7 @@ import io.iohk.protocol.voting.approval.uni_delegation._
 
 import scala.util.Try
 
-abstract class UniDelegVoting(ctx: CryptoContext) extends VotingSimulator {
+abstract class UniDelegApprovalVoting(ctx: CryptoContext) extends VotingSimulator {
 
   class UniDelegTallySimulator(override val pctx: ApprovalContext,
                                override val tally: UniDelegTally,
@@ -47,7 +47,7 @@ abstract class UniDelegVoting(ctx: CryptoContext) extends VotingSimulator {
   }
 }
 
-class UniDelegVotingScenario1(ctx: CryptoContext) extends UniDelegVoting(ctx) {
+class UniDelegApprovalVotingScenario1(ctx: CryptoContext) extends UniDelegApprovalVoting(ctx) {
   private val numberOfProposals = 5
   private val numberOfVoters = 7
   private val numberOfExperts = 3
@@ -75,7 +75,7 @@ class UniDelegVotingScenario1(ctx: CryptoContext) extends UniDelegVoting(ctx) {
   }.isSuccess
 }
 
-class UniDelegVotingScenario2(ctx: CryptoContext) extends UniDelegVoting(ctx) {
+class UniDelegApprovalVotingScenario2(ctx: CryptoContext) extends UniDelegApprovalVoting(ctx) {
   private val numberOfProposals = 3
   private val numberOfVoters = 5
   private val numberOfExperts = 0
