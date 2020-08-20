@@ -38,6 +38,7 @@ class PreferentialTally(ctx: PreferentialContext,
   private var disqualifiedOnTallyR3CommitteeIds = Set[Int]()
   def getDisqualifiedOnTallyCommitteeIds = disqualifiedOnTallyR1CommitteeIds ++ disqualifiedOnTallyR3CommitteeIds
   def getAllDisqualifiedCommitteeIds = disqualifiedBeforeTallyCommitteeIds ++ getDisqualifiedOnTallyCommitteeIds
+  def getAllDisqualifiedCommitteeKeys = allDisqualifiedCommitteeKeys.mapValues(Some(_)) ++ disqualifiedBeforeTallyCommitteeKeys.filter(_._2.isEmpty)
 
   // here we will collect restored secret keys of committee members, for now initialize it with the restored keys provided in the constructor
   private var allDisqualifiedCommitteeKeys = disqualifiedBeforeTallyCommitteeKeys.filter(_._2.isDefined).mapValues(_.get)

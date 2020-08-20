@@ -11,15 +11,7 @@ import io.iohk.protocol.voting.approval.uni_delegation._
 import scala.util.Try
 
 abstract class UniDelegApprovalVoting(ctx: CryptoContext) extends VotingSimulator {
-
-  class UniDelegTallySimulator(override val pctx: ApprovalContext,
-                               override val tally: UniDelegTally,
-                               override val summator: UniDelegBallotsSummator,
-                               override val expertBallots: Seq[UniDelegExpertBallot]) extends TallySimulator {
-    override type TALLY = UniDelegTally
-    override type PCTX = ApprovalContext
-  }
-
+  import UniDelegApprovalVoting.UniDelegTallySimulator
   override type RESULT = UniDelegTally#RESULT
 
   def prepareBallots(sharedPubKey: PubKey): (Seq[UniDelegVoterBallot], Seq[UniDelegExpertBallot])
@@ -44,6 +36,16 @@ abstract class UniDelegApprovalVoting(ctx: CryptoContext) extends VotingSimulato
     val tally = new UniDelegTally(context, committeeMembers.head.memberIdentifier, dkgViolators)
     val tallySimulator = new UniDelegTallySimulator(context, tally, ballotsSummator, expertBallots)
     tallySimulator.runTally(committeeMembers.head.memberIdentifier, committeeMembers, dkgR1Data).get
+  }
+}
+
+object UniDelegApprovalVoting {
+  class UniDelegTallySimulator(override val pctx: ApprovalContext,
+                               override val tally: UniDelegTally,
+                               override val summator: UniDelegBallotsSummator,
+                               override val expertBallots: Seq[UniDelegExpertBallot]) extends TallySimulator {
+    override type TALLY = UniDelegTally
+    override type PCTX = ApprovalContext
   }
 }
 

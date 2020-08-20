@@ -42,4 +42,11 @@ class IntegrationTest extends FunSuite {
 
     scenarios.foreach(doTest(_))
   }
+
+  test("test two stage voting") {
+    val scenarios = List(
+      new TwoStageVotingScenario1(ctx))
+
+    scenarios.foreach(doTest(_))
+  }
 }

@@ -4,24 +4,13 @@ import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen.CommitteeMember
-import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.voting.approval.uni_delegation.{UniDelegExpertBallot, UniDelegVoterBallot}
-import io.iohk.protocol.voting.approval.uni_delegation.tally.{UniDelegBallotsSummator, UniDelegTally}
-import io.iohk.protocol.voting.preferential.{DelegatedPreferentialVote, DirectPreferentialVote, PreferentialContext, PreferentialExpertBallot, PreferentialVoterBallot}
 import io.iohk.protocol.voting.preferential.tally.{PreferentialBallotsSummator, PreferentialTally}
+import io.iohk.protocol.voting.preferential._
 
 import scala.util.Try
 
 abstract class PreferentialVoting(ctx: CryptoContext) extends VotingSimulator {
-
-  class PreferentialTallySimulator(override val pctx: PreferentialContext,
-                                   override val tally: PreferentialTally,
-                                   override val summator: PreferentialBallotsSummator,
-                                   override val expertBallots: Seq[PreferentialExpertBallot]) extends TallySimulator {
-    override type TALLY = PreferentialTally
-    override type PCTX = PreferentialContext
-  }
-
+  import PreferentialVoting.PreferentialTallySimulator
   override type RESULT = PreferentialTally#RESULT
 
   def prepareBallots(sharedPubKey: PubKey): (Seq[PreferentialVoterBallot], Seq[PreferentialExpertBallot])
@@ -46,6 +35,16 @@ abstract class PreferentialVoting(ctx: CryptoContext) extends VotingSimulator {
     val tally = new PreferentialTally(context, committeeMembers.head.memberIdentifier, dkgViolators)
     val tallySimulator = new PreferentialTallySimulator(context, tally, ballotsSummator, expertBallots)
     tallySimulator.runTally(committeeMembers.head.memberIdentifier, committeeMembers, dkgR1Data).get
+  }
+}
+
+object PreferentialVoting {
+  class PreferentialTallySimulator(override val pctx: PreferentialContext,
+                                   override val tally: PreferentialTally,
+                                   override val summator: PreferentialBallotsSummator,
+                                   override val expertBallots: Seq[PreferentialExpertBallot]) extends TallySimulator {
+    override type TALLY = PreferentialTally
+    override type PCTX = PreferentialContext
   }
 }
 
