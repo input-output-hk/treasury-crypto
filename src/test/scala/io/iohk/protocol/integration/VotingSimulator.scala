@@ -19,22 +19,22 @@ trait VotingSimulator {
 object DistributedKeyGenerationSimulator {
 
   def runDKG(ctx: CryptoContext, committeeMembers: Seq[CommitteeMember]): (PubKey, Seq[R1Data], Map[PubKey, Option[PrivKey]]) = {
-    val r1Data    = committeeMembers.map(_.doDKGRound1().get)
-    val r2Data    = committeeMembers.map(_.doDKGRound2(r1Data).get)
-    val r3Data    = committeeMembers.map(_.doDKGRound3(r2Data).get)
+    val r1Data    = committeeMembers.tail.map(_.doDKGRound1().get) // simulate one faulty member
+    val r2Data    = committeeMembers.tail.map(_.doDKGRound2(r1Data).get)
+    val r3Data    = committeeMembers.tail.map(_.doDKGRound3(r2Data).get)
 
     val indexesToPatch = List(1,2)
     val r3DataPatched = patchR3Data(ctx, r3Data, indexesToPatch)
     //    val r3DataPatched = r3Data
 
-    val r4Data    = committeeMembers.map(_.doDKGRound4(r3DataPatched).get)
-    val r5_1Data  = committeeMembers.map(_.doDKGRound5_1(r4Data).get)
-    val r5_2Data  = committeeMembers.map(_.doDKGRound5_2(r5_1Data).get)
+    val r4Data    = committeeMembers.tail.map(_.doDKGRound4(r3DataPatched).get)
+    val r5_1Data  = committeeMembers.tail.map(_.doDKGRound5_1(r4Data).get)
+    val r5_2Data  = committeeMembers.tail.map(_.doDKGRound5_2(r5_1Data).get)
 
     val sharedPublicKeys = r5_2Data.map(_.sharedPublicKey).map(ctx.group.reconstructGroupElement(_).get)
     assert(sharedPublicKeys.forall(_.equals(sharedPublicKeys.head)))
 
-    val disqualified = committeeMembers.map(_.dkgViolatorsKeys.get)
+    val disqualified = committeeMembers.tail.map(_.dkgViolatorsKeys.get)
     assert(disqualified.zipWithIndex.forall { case (d,i) =>
       if (!indexesToPatch.contains(i)) d.size == disqualified.head.size
       else true
