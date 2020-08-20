@@ -20,7 +20,7 @@ class TallyPerformance {
 
     val numberOfExperts = 10
     val numberOfVoters = 100
-    val pctx = new ApprovalContext(ctx, 3, numberOfExperts)
+    val pctx = new ApprovalContext(ctx, 3, numberOfExperts, 1)
 
     println("Commitee members:\t" + commiteeMembersNum)
     println("Commitee violators:\t" + violatorsNum + " (" + violatorsPercentage + "%)")
@@ -35,7 +35,7 @@ class TallyPerformance {
     // Instantiating committee members
     //
     val committeeMembersAll = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(pctx, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
     }
 
     // Generating shared public key by committee members (by running the DKG protocol between them)
@@ -49,11 +49,10 @@ class TallyPerformance {
     var overallBytes: Int = 0
     val committeeMembersActive = committeeMembersAll.drop(violatorsNum).filter(c => !dkgViolators.contains(c.publicKey))
 
-    val context = new ApprovalContext(ctx, 3, numberOfExperts, 1)
-    val summator = new MultiDelegBallotsSummator(context)
+    val summator = new MultiDelegBallotsSummator(pctx)
     voterBallots.foreach(summator.addVoterBallot(_))
 
-    val tally = new MultiDelegTally(context, committeeMembersActive.head.memberIdentifier, dkgViolators)
+    val tally = new MultiDelegTally(pctx, committeeMembersActive.head.memberIdentifier, dkgViolators)
 
     val (tallyR1DataAll, timeR1) = TimeUtils.get_time_average_s(
       "Tally Round 1 (ballot generation):",

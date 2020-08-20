@@ -17,14 +17,13 @@ class DataStructuresTest extends FunSuite {
 
     val crs = CryptoContext.generateRandomCRS
     val ctx = new CryptoContext(Option(crs))
-    val pctx = new ApprovalContext(ctx, 3, 5)
     import ctx.group
 
     val keyPairs = for(id <- 1 to 10) yield encryption.createKeyPair.get
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(pctx, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
     }
 
     val r1Data = for (i <- committeeMembersPubKeys.indices) yield {

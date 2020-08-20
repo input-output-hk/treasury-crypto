@@ -1,15 +1,7 @@
 package io.iohk.protocol.integration
 
-import io.iohk.core.crypto.encryption
-import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.keygen._
-import io.iohk.protocol.keygen.datastructures.round1.R1Data
-import io.iohk.protocol.keygen.datastructures.round3.R3Data
-import io.iohk.protocol.voting.approval.multi_delegation.{MultiDelegExpertBallot, MultiDelegVoterBallot}
 import org.scalatest.FunSuite
-
-import scala.util.Random
 
 /**
   * Integration test for all components of the voting protocol: distributed key generation + ballots encryption and voting +
@@ -31,6 +23,22 @@ class ProtocolTest extends FunSuite {
       new MultiDelegVotingScenario2(ctx),
       new MultiDelegVotingScenario3(ctx),
       new MultiDelegVotingScenario4(ctx))
+
+    scenarios.foreach(doTest(_))
+  }
+
+  test("test approval voting with uni delegation") {
+    val scenarios = List(
+      new UniDelegVotingScenario1(ctx),
+      new UniDelegVotingScenario2(ctx))
+
+    scenarios.foreach(doTest(_))
+  }
+
+  test("test preferential voting") {
+    val scenarios = List(
+      new PreferentialVotingScenario1(ctx),
+      new PreferentialVotingScenario2(ctx))
 
     scenarios.foreach(doTest(_))
   }

@@ -16,7 +16,6 @@ class DistrKeyGenTest  extends FunSuite {
 
   val crs = CryptoContext.generateRandomCRS
   val ctx = new CryptoContext(Option(crs))
-  val pctx = new ApprovalContext(ctx, 3, 3)
   import ctx.{group, hash}
 
   test("dkg_interpolation") {
@@ -35,7 +34,7 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(pctx, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
     }
 
     val memberIdentifier = new CommitteeIdentifier(committeeMembersPubKeys)
@@ -191,7 +190,7 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = (for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(pctx, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
     }).toBuffer
 
     val roundsData = RoundsData()
@@ -280,11 +279,11 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = (for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(pctx, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
     }).toBuffer
 
     def reCreateMember(memberIndex: Int, roundsData: RoundsData){
-      committeeMembers(memberIndex) = new CommitteeMember(pctx, keyPairs(memberIndex), committeeMembersPubKeys, roundsData)
+      committeeMembers(memberIndex) = new CommitteeMember(ctx, keyPairs(memberIndex), committeeMembersPubKeys, roundsData)
     }
     val roundsData = RoundsData()
 
@@ -379,11 +378,11 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = (for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(pctx, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
     }).toBuffer
 
     def reCreateMember(memberIndex: Int, roundsData: RoundsData) {
-      committeeMembers(memberIndex) = new CommitteeMember(pctx, keyPairs(memberIndex), committeeMembersPubKeys, roundsData)
+      committeeMembers(memberIndex) = new CommitteeMember(ctx, keyPairs(memberIndex), committeeMembersPubKeys, roundsData)
     }
 
     def removeMemberFromEnd(absenteesPublicKeysAccumulator: ArrayBuffer[(Int, GroupElement)]) {
@@ -508,7 +507,7 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = keyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(pctx, keyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, keyPairs(i), committeeMembersPubKeys)
     }
 
     val r1Data = for (i <- committeeMembersPubKeys.indices) yield {
@@ -527,7 +526,7 @@ class DistrKeyGenTest  extends FunSuite {
     val committeeMembersPubKeys = transportKeyPairs.map(_._2)
 
     val committeeMembers = for (i <- committeeMembersPubKeys.indices) yield {
-      new CommitteeMember(pctx, transportKeyPairs(i), committeeMembersPubKeys)
+      new CommitteeMember(ctx, transportKeyPairs(i), committeeMembersPubKeys)
     }
 
     val r1Data = for (i <- committeeMembersPubKeys.indices) yield committeeMembers(i).doDKGRound1().get
