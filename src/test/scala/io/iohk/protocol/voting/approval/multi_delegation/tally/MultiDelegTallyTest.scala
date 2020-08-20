@@ -133,7 +133,7 @@ trait TallyTestSetup {
   val numberOfExperts = 5
   val numberOfVoters = 3
   val numberOfProposals = 3
-  val pctx = new ApprovalContext(ctx, 3, numberOfExperts)
+  val pctx = new ApprovalContext(ctx, 3, numberOfExperts, numberOfProposals)
 
   val committeeKeys = MultiDelegTallyTest.generateCommitteeKeys(5)
   val cmIdentifier = new CommitteeIdentifier(committeeKeys.map(_._2))

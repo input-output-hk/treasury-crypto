@@ -17,7 +17,7 @@ class MultiDelegBallotsSummatorTest extends FunSuite {
     val numberOfVoters = 10
     val numberOfExperts = 6
     val stake = 3
-    val pctx = new ApprovalContext(ctx, 3, numberOfExperts)
+    val pctx = new ApprovalContext(ctx, 3, numberOfExperts, 3)
     val summator = new MultiDelegBallotsSummator(pctx)
 
     for(i <- 1 to numberOfVoters) {
@@ -57,7 +57,7 @@ class MultiDelegBallotsSummatorTest extends FunSuite {
     val numberOfExperts = 8
     val numberOfVoters = 13
     val stake = 2
-    val pctx = new ApprovalContext(ctx, 3, numberOfExperts)
+    val pctx = new ApprovalContext(ctx, 3, numberOfExperts, 3)
     val summator = new MultiDelegBallotsSummator(pctx)
 
     for(i <- 1 to numberOfVoters) {
@@ -93,7 +93,7 @@ class MultiDelegBallotsSummatorTest extends FunSuite {
   }
 
   test("summation of private stake ballots") {
-    val pctx = new ApprovalContext(ctx, 3, 5)
+    val pctx = new ApprovalContext(ctx, 3, 5, 1)
     val summator = new MultiDelegBallotsSummator(pctx)
     val vote = DelegatedMultiDelegVote(2)
     val stake = 13
@@ -115,7 +115,7 @@ class MultiDelegBallotsSummatorTest extends FunSuite {
   }
 
   test("summation of private and public stake ballots") {
-    val pctx = new ApprovalContext(ctx, 3, 5)
+    val pctx = new ApprovalContext(ctx, 3, 5, 1)
     val summator = new MultiDelegBallotsSummator(pctx)
     val vote = DelegatedMultiDelegVote(2)
     val stake = 13
@@ -140,7 +140,7 @@ class MultiDelegBallotsSummatorTest extends FunSuite {
 
   test("expert ballots summation") {
     val numberOfExperts = 6
-    val pctx = new ApprovalContext(ctx, 3, numberOfExperts)
+    val pctx = new ApprovalContext(ctx, 3, numberOfExperts, 3)
     val summator = new MultiDelegBallotsSummator(pctx)
 
     for(i <- 1 to numberOfExperts) {

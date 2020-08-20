@@ -16,7 +16,7 @@ class BallotCreationPerformance {
     for (experts <- numberOfExperts) {
       println("Running test for " + experts + " experts ...")
 
-      val pctx = new ApprovalContext(ctx, 3, experts)
+      val pctx = new ApprovalContext(ctx, 3, experts, 1)
 
       TimeUtils.accurate_time("\tVoter ballot creation: ", MultiDelegPublicStakeBallot.createBallot(pctx,0, DelegatedMultiDelegVote(0),pubKey,1).get)
 

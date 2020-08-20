@@ -81,7 +81,7 @@ class MultiDelegTallyRound1Test extends FunSuite with TallyTestSetup {
     val numberOfExperts = 0
     val numberOfVoters = 5
     val numberOfProposals = 3
-    val pctx = new ApprovalContext(ctx, 3, numberOfExperts)
+    val pctx = new ApprovalContext(ctx, 3, numberOfExperts, numberOfProposals)
 
     val (privKey, pubKey) = MultiDelegTallyTest.generateCommitteeKeys(1).head
     val committeeIdentifier = new CommitteeIdentifier(Seq(pubKey))
@@ -148,11 +148,11 @@ class MultiDelegTallyRound1Test extends FunSuite with TallyTestSetup {
     require(tally2.executeRound1(summator, Seq()).isSuccess) // our single member failed to submit r1Data, but that's fine
     require(tally2.getCurrentRound == Stages.TallyR1) // executeRound1 failed so the phase should not be upcated
 
-    val tally3 = new MultiDelegTally(new ApprovalContext(ctx, 3, 0), cmIdentifier, Map())
+    val tally3 = new MultiDelegTally(new ApprovalContext(ctx, 3, 0, numberOfProposals), cmIdentifier, Map())
     require(tally3.executeRound1(summator, Seq()).isSuccess) // we don't expect r1Data in case there is no experts
     require(tally3.getCurrentRound == Stages.TallyR1)
 
-    val tally4 = new MultiDelegTally(new ApprovalContext(ctx, 3, 0), cmIdentifier, committeeKeys.map(x => (x._2 -> Some(x._1))).toMap)
+    val tally4 = new MultiDelegTally(new ApprovalContext(ctx, 3, 0, numberOfProposals), cmIdentifier, committeeKeys.map(x => (x._2 -> Some(x._1))).toMap)
     require(tally4.executeRound1(summator, Seq()).isSuccess) // all our members were disqualified so we don't expect r1Data
     require(tally4.getCurrentRound == Stages.TallyR1)
 

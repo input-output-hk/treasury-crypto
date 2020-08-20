@@ -53,7 +53,7 @@ class MultiDelegApprovalVotingScenario1(ctx: CryptoContext) extends MultiDelegAp
   private val votersNum = 2
   private val numberOfExperts = 2
 
-  override val context = new ApprovalContext(ctx, 3, numberOfExperts)
+  override val context = new ApprovalContext(ctx, 3, numberOfExperts, 1)
 
   def prepareBallots(sharedPubKey: PubKey): (Seq[MultiDelegPublicStakeBallot], Seq[MultiDelegExpertBallot]) = {
     val votersBallots =
@@ -82,7 +82,7 @@ class MultiDelegApprovalVotingScenario2(ctx: CryptoContext) extends MultiDelegAp
   val votersDelegatedNum = 20
   val numberOfExperts = 5
 
-  override val context = new ApprovalContext(ctx, 3, numberOfExperts)
+  override val context = new ApprovalContext(ctx, 3, numberOfExperts, proposalIDs.size)
 
   def prepareBallots(sharedPubKey: PubKey): (Seq[MultiDelegVoterBallot], Seq[MultiDelegExpertBallot]) =
   {
@@ -147,7 +147,7 @@ class MultiDelegApprovalVotingScenario4(ctx: CryptoContext) extends MultiDelegAp
   val votersNum = 30
   val votersDelegatedNum = 20
 
-  override val context = new ApprovalContext(ctx, numberOfChoices = 5, numberOfExperts = 5)
+  override val context = new ApprovalContext(ctx, numberOfChoices = 5, numberOfExperts = 5, proposalIDs.size)
 
   def prepareBallots(sharedPubKey: PubKey): (Seq[MultiDelegVoterBallot], Seq[MultiDelegExpertBallot]) =
   {

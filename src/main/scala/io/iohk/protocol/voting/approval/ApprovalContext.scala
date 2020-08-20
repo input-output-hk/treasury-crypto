@@ -13,7 +13,7 @@ import io.iohk.protocol.CryptoContext
 class ApprovalContext(val cryptoContext: CryptoContext,
                       val numberOfChoices: Int,
                       val numberOfExperts: Int,
-                      val numberOfProposals: Int = 5) { // TODO: remove default
+                      val numberOfProposals: Int) {
 
   require(numberOfExperts >= 0, "Number of experts cannot be negative")
   require(numberOfChoices > 0, "There should be at least one option to vote for")

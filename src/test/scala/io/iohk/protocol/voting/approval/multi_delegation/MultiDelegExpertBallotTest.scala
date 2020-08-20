@@ -14,7 +14,7 @@ class MultiDelegExpertBallotTest extends FunSuite {
   val (privKey, pubKey) = encryption.createKeyPair.get
 
   test("creation of ExpertBallot") {
-    val pctx = new ApprovalContext(ctx, 3, 5)
+    val pctx = new ApprovalContext(ctx, 3, 5, 1)
     val stake = 13
 
     // test all possible votes
@@ -40,7 +40,7 @@ class MultiDelegExpertBallotTest extends FunSuite {
   }
 
   test("ExpertBallot serialization") {
-    val pctx = new ApprovalContext(ctx, 3, 5)
+    val pctx = new ApprovalContext(ctx, 3, 5, 1)
     val vote = 2
 
     val ballot = MultiDelegExpertBallot.createBallot(pctx, 0, 0, DirectMultiDelegVote(vote), pubKey).get

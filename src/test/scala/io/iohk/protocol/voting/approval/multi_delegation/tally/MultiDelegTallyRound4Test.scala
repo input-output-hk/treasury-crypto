@@ -131,7 +131,7 @@ class MultiDelegTallyRound4Test extends FunSuite with TallyTestSetup {
   }
 
   test("execution Round 4 when there are no experts") {
-    val pctx = new ApprovalContext(ctx, 3, 0)
+    val pctx = new ApprovalContext(ctx, 3, 0, numberOfProposals)
     val tally = new MultiDelegTally(pctx, cmIdentifier, Map())
 
     val summator = new MultiDelegBallotsSummator(pctx)

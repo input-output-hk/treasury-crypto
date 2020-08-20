@@ -13,7 +13,7 @@ class MultiDelegPrivateStakeBallotTest extends FunSuite {
   val (privKey, pubKey) = encryption.createKeyPair.get
 
   test("creation of ballot") {
-    val pctx = new ApprovalContext(ctx, 3, 5)
+    val pctx = new ApprovalContext(ctx, 3, 5, 1)
     val stake = 13
 
     // test all possible votes
@@ -61,7 +61,7 @@ class MultiDelegPrivateStakeBallotTest extends FunSuite {
   }
 
   test("serialization") {
-    val pctx = new ApprovalContext(ctx, 3, 5)
+    val pctx = new ApprovalContext(ctx, 3, 5, 1)
     val stake = 13
     val vote = DelegatedMultiDelegVote(2)
 
