@@ -1,14 +1,15 @@
-package io.iohk.protocol
+package io.iohk.protocol.voting
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.utils.TimeUtils
-import io.iohk.protocol.integration.{DistributedKeyGenerationSimulator, IntegrationTest}
+import io.iohk.protocol.CryptoContext
+import io.iohk.protocol.integration.DistributedKeyGenerationSimulator
 import io.iohk.protocol.keygen._
 import io.iohk.protocol.voting.approval.ApprovalContext
 import io.iohk.protocol.voting.approval.multi_delegation.tally.{MultiDelegBallotsSummator, MultiDelegTally}
 import io.iohk.protocol.voting.approval.multi_delegation.{DelegatedMultiDelegVote, DirectMultiDelegVote, MultiDelegExpertBallot, MultiDelegPublicStakeBallot}
 
-class TallyPerformance {
+class MultiDelegTallyPerformance {
 
   val crs = CryptoContext.generateRandomCRS
   val ctx = new CryptoContext(Option(crs))
@@ -110,8 +111,8 @@ class TallyPerformance {
   }
 }
 
-object TallyPerformance {
+object MultiDelegTallyPerformance {
   def main(args: Array[String]) {
-    new TallyPerformance().start
+    new MultiDelegTallyPerformance().start
   }
 }

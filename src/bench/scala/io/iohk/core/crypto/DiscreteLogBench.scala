@@ -1,4 +1,4 @@
-package io.iohk.protocol
+package io.iohk.core.crypto
 
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroupFactory.AvailableGroups

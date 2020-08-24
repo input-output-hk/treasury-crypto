@@ -22,7 +22,7 @@ object SHVZKBench extends Bench.ForkedTime {
 
   val dlogIdsGen = Gen.enumeration("dlog group")(AvailableGroups.values.toSeq:_*)
   val hashIdsGen = Gen.enumeration("hash")(AvailableHashes.values.toSeq:_*)
-  val vectorSizeGen = Gen.enumeration("vector size")(/*7, 15, 16, 31, 63,*/ 127/*, 128, 255*/)
+  val vectorSizeGen = Gen.enumeration("vector size")(7, 15/*, 16, 31, 63, 127, 128, 255*/)
   val testDataGen =
     for (group <- dlogIdsGen;
          hash <- hashIdsGen;

@@ -1,11 +1,12 @@
-package io.iohk.protocol
+package io.iohk.protocol.voting
 
 import io.iohk.core.utils.TimeUtils
+import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.voting.approval.ApprovalContext
 import io.iohk.protocol.voting.approval.multi_delegation.{DelegatedMultiDelegVote, DirectMultiDelegVote, MultiDelegExpertBallot, MultiDelegPublicStakeBallot}
 
 /* Benchmarking ballot creation */
-class BallotCreationPerformance {
+class MultiDelegBallotCreationPerformance {
 
   val ctx = new CryptoContext(None)
   val pubKey = ctx.group.createRandomGroupElement.get
@@ -36,8 +37,8 @@ class BallotCreationPerformance {
   }
 }
 
-object BallotCreationPerformance {
+object MultiDelegBallotCreationPerformance {
   def main(args: Array[String]) {
-    new BallotCreationPerformance().run
+    new MultiDelegBallotCreationPerformance().run
   }
 }
