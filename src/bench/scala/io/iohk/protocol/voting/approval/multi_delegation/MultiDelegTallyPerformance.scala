@@ -1,4 +1,4 @@
-package io.iohk.protocol.voting
+package io.iohk.protocol.voting.approval.multi_delegation
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.utils.TimeUtils
@@ -7,7 +7,6 @@ import io.iohk.protocol.integration.DistributedKeyGenerationSimulator
 import io.iohk.protocol.keygen._
 import io.iohk.protocol.voting.approval.ApprovalContext
 import io.iohk.protocol.voting.approval.multi_delegation.tally.{MultiDelegBallotsSummator, MultiDelegTally}
-import io.iohk.protocol.voting.approval.multi_delegation.{DelegatedMultiDelegVote, DirectMultiDelegVote, MultiDelegExpertBallot, MultiDelegPublicStakeBallot}
 
 class MultiDelegTallyPerformance {
 

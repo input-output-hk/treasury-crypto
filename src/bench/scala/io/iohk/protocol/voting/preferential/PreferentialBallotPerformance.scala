@@ -1,8 +1,7 @@
-package io.iohk.protocol.voting
+package io.iohk.protocol.voting.preferential
 
 import io.iohk.core.utils.TimeUtils
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.voting.preferential._
 
 class PreferentialBallotPerformance {
   val ctx = new CryptoContext(None)
@@ -10,7 +9,7 @@ class PreferentialBallotPerformance {
 
   def run() = {
     val numberOfExperts = List(0)//(50 to 250).by(50)
-    val numberOfProposals = (10 to 100).by(10)
+    val numberOfProposals = List(10)//(50 to 250).by(50)
     val numberOfRankedProposals = List(10)//(10 to 50).by(10)
 
     for (experts <- numberOfExperts) {

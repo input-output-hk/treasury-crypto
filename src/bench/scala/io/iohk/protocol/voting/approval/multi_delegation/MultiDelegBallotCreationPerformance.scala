@@ -1,9 +1,8 @@
-package io.iohk.protocol.voting
+package io.iohk.protocol.voting.approval.multi_delegation
 
 import io.iohk.core.utils.TimeUtils
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.voting.approval.ApprovalContext
-import io.iohk.protocol.voting.approval.multi_delegation.{DelegatedMultiDelegVote, DirectMultiDelegVote, MultiDelegExpertBallot, MultiDelegPublicStakeBallot}
 
 /* Benchmarking ballot creation */
 class MultiDelegBallotCreationPerformance {
