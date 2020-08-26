@@ -8,9 +8,9 @@ class PreferentialBallotPerformance {
   val pubKey = ctx.group.createRandomGroupElement.get
 
   def run() = {
-    val numberOfExperts = List(0)//(50 to 250).by(50)
-    val numberOfProposals = List(10)//(50 to 250).by(50)
-    val numberOfRankedProposals = List(10)//(10 to 50).by(10)
+    val numberOfExperts = List(50)//(50 to 250).by(50)
+    val numberOfProposals = (50 to 250).by(50)
+    val numberOfRankedProposals = (10 to 50).by(10)
 
     for (experts <- numberOfExperts) {
       for (proposals <- numberOfProposals) {
@@ -30,11 +30,13 @@ class PreferentialBallotPerformance {
 
           println("\tVoter ballot size: " + ballotSize + " bytes")
 
-//          val exballot = TimeUtils.time("\tExpert ballot creation: ", PreferentialExpertBallot.createBallot(pctx, 0, DirectPreferentialVote(vote), pubKey).get)
-//
-//          //val exballot = PreferentialExpertBallot.createBallot(pctx, 0, DirectPreferentialVote(vote), pubKey).get
-//          val exballotSize = exballot.bytes.size
-//          println("\tExpert ballot size: " + exballotSize + " bytes")
+          if (experts > 0) {
+            val exballot = TimeUtils.time("\tExpert ballot creation: ", PreferentialExpertBallot.createBallot(pctx, 0, DirectPreferentialVote(vote), pubKey).get)
+
+            //val exballot = PreferentialExpertBallot.createBallot(pctx, 0, DirectPreferentialVote(vote), pubKey).get
+            val exballotSize = exballot.bytes.size
+            println("\tExpert ballot size: " + exballotSize + " bytes")
+          }
         }
       }
     }
