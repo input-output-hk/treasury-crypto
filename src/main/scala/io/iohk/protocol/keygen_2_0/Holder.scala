@@ -151,10 +151,10 @@ object Holder
       g_shares =>
         assert(g_shares.forall(_.f_point == g_shares.head.f_point)) // all shares are for the same Fj share
         val shares = g_shares.map(_.g_share)
-        Share(g_shares.head.f_point, LagrangeInterpolation.restoreSecret(context, shares))
+        Share(g_shares.head.f_point, LagrangeInterpolation.restoreSecret(context.group, shares))
     }
 
-    LagrangeInterpolation.restoreSecret(context, shares_of_F)
+    LagrangeInterpolation.restoreSecret(context.group, shares_of_F)
   }
 
   def encryptShares(context: CryptoContext,
@@ -210,11 +210,11 @@ object Holder
             if(all_dealers_points.size == 1 && all_dealers_points.head == IdPointMap.emptyPoint){
               BigInt(1)
             } else {
-              LagrangeInterpolation.getLagrangeCoeff(context, share.dealerPoint, all_dealers_points)
+              LagrangeInterpolation.getLagrangeCoeff(context.group, share.dealerPoint, all_dealers_points)
             }
           }
           // Getting a Lagrange coefficient that corresponds to an F-share to which current G-share belongs
-          val lambdaF = LagrangeInterpolation.getLagrangeCoeff(context, share.f_point, all_points_F)
+          val lambdaF = LagrangeInterpolation.getLagrangeCoeff(context.group, share.f_point, all_points_F)
           (sum + lambda * lambdaF * share.g_share.value).mod(modulus)
     }
 

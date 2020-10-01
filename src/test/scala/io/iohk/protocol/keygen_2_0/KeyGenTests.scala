@@ -99,7 +99,7 @@ class KeyGenTests extends FunSuite {
     all_shares.foldLeft(BigInt(0)){
       (sum, point_share) =>
         val (point, share) = point_share
-        val lambda = LagrangeInterpolation.getLagrangeCoeff(context, point, all_points)
+        val lambda = LagrangeInterpolation.getLagrangeCoeff(context.group, point, all_points)
         (sum + lambda * share).mod(context.group.groupOrder)
     }
   }
