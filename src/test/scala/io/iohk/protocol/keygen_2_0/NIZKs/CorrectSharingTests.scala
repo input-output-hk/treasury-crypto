@@ -6,10 +6,11 @@ import io.iohk.core.crypto.primitives.numbergenerator.FieldElementSP800DRNG
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen_2_0.datastructures.Share
 import io.iohk.protocol.keygen_2_0.dlog_encryption.{DLogCiphertext, DLogEncryption}
+import io.iohk.protocol.keygen_2_0.encoding.BaseCodec
 import io.iohk.protocol.keygen_2_0.math.{LagrangeInterpolation, Polynomial}
 import org.scalatest.FunSuite
 
-import scala.util.{Success, Try}
+import scala.util.Try
 
 class CorrectSharingTests extends FunSuite  {
   private val crs = CryptoContext.generateRandomCRS
@@ -30,28 +31,28 @@ class CorrectSharingTests extends FunSuite  {
     LagrangeInterpolation.getShares(poly, evaluation_points)
   }
 
-  private def encrypt(shares: Seq[Share], randomness: BigInt, pubKey: PubKey): Try[Seq[(DLogCiphertext, Int)]] = Try {
-    val randomnessShares = shareSecret(randomness)
+  private def encrypt(shares: Seq[Share], pubKey: PubKey): Try[(Seq[(DLogCiphertext, Int)], BigInt)] = Try {
 
-    val sharesEnc = shares.zip(randomnessShares).map{ share_randomness =>
-      val (share, randomness) = share_randomness
-      DLogEncryption.encrypt(share.value, randomness.value, pubKey).get._1
+    val sharesEnc = shares.map{ share =>
+      DLogEncryption.encrypt(share.value, pubKey).get
     }
-    sharesEnc.zip(evaluation_points).map(s_p => (s_p._1, s_p._2))
-  }
-
-  private def encrypt(shares: Seq[Share], pubKey: PubKey): Option[(Seq[(DLogCiphertext, Int)], BigInt)] = {
-    for(_ <- 0 until 10){ // 10 attempts to encrypt with a new randomness
-      var randomness = drng.nextRand // initial randomness; its shares are randomness values for the 's' shares encryption
-      encrypt(shares, randomness, pubKey) match {
-        case Success(res) => return Some((res, randomness))
-        case _            => randomness = drng.nextRand
+    // Composing zm values from the randomnesses that were used during the shares fragments encryption
+    val zmSeq = sharesEnc.map(_._2).map{ zmEncoded =>
+      zmEncoded.R.zipWithIndex.foldLeft(BigInt(0)){ (acc, r_i) =>
+        val (r, i) = r_i
+        (acc + r * BaseCodec.defaultBase.pow(i)).mod(n)
       }
     }
-    None
+    // Computing a value of initial randomness z as it would be reconstructed by random values zm
+    val z = zmSeq.zip(evaluation_points).take(threshold).foldLeft(BigInt(0)){(acc, zm_point) =>
+      val (zm, point) = zm_point
+      val L = LagrangeInterpolation.getLagrangeCoeff(group, point, evaluation_points.take(threshold))
+      (acc + L * zm).mod(n)
+    }
+    (sharesEnc.map(_._1).zip(evaluation_points), z)
   }
 
-  private def testCorrectSharing(){
+  test("CorrectSharing"){
     val (privKey, pubKey) = encryption.createKeyPair.get
     val s  = drng.nextRand
     val s_ = drng.nextRand
@@ -67,11 +68,5 @@ class CorrectSharingTests extends FunSuite  {
     val proof = cs.prove(CorrectSharing.Witness(s, s_, z))
 
     assert(cs.verify(proof, CorrectSharing.Statement(sharesEncWithPoints, D, threshold)))
-  }
-
-  test("CorrectSharing"){
-    for(_ <- 0 until 100) {
-      testCorrectSharing()
-    }
   }
 }

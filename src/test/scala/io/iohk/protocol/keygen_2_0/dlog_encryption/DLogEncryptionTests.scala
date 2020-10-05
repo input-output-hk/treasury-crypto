@@ -16,26 +16,10 @@ class DLogEncryptionTests extends FunSuite {
 
   import context.group
 
-  test("randomness_generated"){
+  test("encryption_decryption"){
     val (privKey, pubKey) = encryption.createKeyPair.get
     val msg = BigInt(n.bitLength, util.Random).mod(n)
     assert(msg == DLogEncryption.decrypt(DLogEncryption.encrypt(msg, pubKey).get._1, privKey).get)
-  }
-
-  test("randomness_parameterized"){
-    val (privKey, pubKey) = encryption.createKeyPair.get
-    val msg = dlogGroup.createRandomNumber
-
-    def encrypt(msg: BigInt): Option[DLogCiphertext] = {
-      for(_ <- 0 until 10){ // 10 attempts to encrypt with a new randomness
-        DLogEncryption.encrypt(msg, dlogGroup.createRandomNumber, pubKey) match {
-          case Success(res) => return Some(res._1)
-          case _ =>
-        }
-      }
-      None
-    }
-    assert(msg == DLogEncryption.decrypt(encrypt(msg).get, privKey).get)
   }
 
 //  test("interpolation"){

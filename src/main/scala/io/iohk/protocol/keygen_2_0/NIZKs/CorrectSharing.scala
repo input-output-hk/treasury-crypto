@@ -72,7 +72,7 @@ case class CorrectSharing(pubKey: PubKey, dlogGroup: DiscreteLogGroup) {
     }
 
     def condition2: Boolean = {
-      val W1 = getW1(st.ct.take(st.threshold))
+      val W1 = getW1(st.ct.take(st.threshold))// getW1(st.ct) //getW1(st.ct.take(st.threshold))
 
       val left = dlogGroup.exponentiate(g, proof.response.y3).get
       val right = dlogGroup.multiply(
@@ -83,7 +83,7 @@ case class CorrectSharing(pubKey: PubKey, dlogGroup: DiscreteLogGroup) {
     }
 
     def condition3: Boolean = {
-      val W2 = getW2(st.ct.take(st.threshold))
+      val W2 = getW2(st.ct.take(st.threshold))// getW2(st.ct) //getW2(st.ct.take(st.threshold))
 
       val left = dlogGroup.multiply(
         dlogGroup.exponentiate(g, proof.response.y1).get,

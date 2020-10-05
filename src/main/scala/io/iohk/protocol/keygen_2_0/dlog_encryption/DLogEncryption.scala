@@ -13,21 +13,6 @@ case class DLogRandomness(R: Seq[Randomness]){ def size: Int = R.length } // is 
 object DLogEncryption {
 
   def encrypt(msg: BigInt,
-              randomness: BigInt,
-              pubKey: PubKey)
-             (implicit dlogGroup: DiscreteLogGroup): Try[(DLogCiphertext, DLogRandomness)] = Try {
-    require(msg < dlogGroup.groupOrder)
-    require(randomness < dlogGroup.groupOrder)
-
-    val msgEncoded = BaseCodec.encode(msg).seq
-    val randomnessEncoded = BaseCodec.encode(randomness).seq
-    require(msgEncoded.size == randomnessEncoded.size) // randomness should fit message for correct decryption
-
-    val ct = msgEncoded.zip(randomnessEncoded).map(m_r => LiftedElGamalEnc.encrypt(pubKey, m_r._2, m_r._1).get)
-    (DLogCiphertext(ct), DLogRandomness(randomnessEncoded))
-  }
-
-  def encrypt(msg: BigInt,
               pubKey: PubKey)
              (implicit dlogGroup: DiscreteLogGroup): Try[(DLogCiphertext, DLogRandomness)] = Try {
     require(msg < dlogGroup.groupOrder)
