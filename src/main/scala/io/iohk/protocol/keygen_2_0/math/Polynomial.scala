@@ -2,20 +2,18 @@ package io.iohk.protocol.keygen_2_0.math
 
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.crypto.primitives.numbergenerator.FieldElementSP800DRNG
-import io.iohk.protocol.CryptoContext
-
-import scala.collection.mutable.ArrayBuffer
 
 /**
   * Represents polynomial of the form a_0 + a_1*x + a_2*x^2 + ... + a_t*x^t, where t is the degree of the polynomial
   *
-  * @param dlogGroup group of elements with DLP-based security
+  * @param dlogGroup group of elements which provides DLP-based security
   * @param degree degree of the polynomial
   * @param a_0 free coefficient of the polynomial
-  * @param coeffs all other coefficients a_1,..,a_t; Can be empty, then they are generated with drng
+  * @param coeffs all other coefficients a_1,..,a_t; Can be empty, then coefficients are generated with drng
   */
 case class Polynomial(dlogGroup: DiscreteLogGroup, degree: Int, a_0: BigInt, coeffs: Seq[BigInt] = Seq()) {
 
+  // Modulus that defines a Galois Field over which the polynomial is defined
   private val modulus = dlogGroup.groupOrder
 
   // Sequence of coefficients [a_0, a_1, a_2, ..., a_degree]
@@ -27,7 +25,7 @@ case class Polynomial(dlogGroup: DiscreteLogGroup, degree: Int, a_0: BigInt, coe
         for(_ <- 0 until degree) yield drng.nextRand
       } else {
         // Setting provided coefficients a_1 to a_degree
-        require(coeffs.length == degree, "Number of coefficients is inconsistent with specified degree")
+        require(coeffs.length == degree, "Number of coefficients is inconsistent with the specified degree")
         coeffs
       }
     }
@@ -42,6 +40,7 @@ case class Polynomial(dlogGroup: DiscreteLogGroup, degree: Int, a_0: BigInt, coe
     }
   }
 
+  // Evaluating polynomial in a specified point
   def evaluate(x: Int): BigInt = evaluate(BigInt(x))
 
   // Retrieving the value of coefficient by index
