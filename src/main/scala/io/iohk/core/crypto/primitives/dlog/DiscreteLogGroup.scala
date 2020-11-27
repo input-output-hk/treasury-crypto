@@ -77,11 +77,11 @@ trait DiscreteLogGroup {
   }
 
   /*
-  * Creates a positive random number in range [1,..,groupOrder -1]
+  * Creates a positive random number in range [0,..,groupOrder -1]
   */
   def createRandomNumber: BigInt = {
     val qMinusOne = groupOrder - 1
-    BigIntegers.createRandomInRange(BigInteger.ONE, qMinusOne.bigInteger, random)
+    BigIntegers.createRandomInRange(BigInteger.ZERO, qMinusOne.bigInteger, random)
   }
 
   /**

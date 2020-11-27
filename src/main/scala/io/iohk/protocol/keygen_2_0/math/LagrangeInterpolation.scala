@@ -56,7 +56,7 @@ object LagrangeInterpolation {
     val drng = new FieldElementSP800DRNG(ctx.group.createRandomNumber.toByteArray, ctx.group.groupOrder)
     val secret = drng.nextRand
 
-    val poly = new Polynomial(ctx, threshold - 1, secret, drng)
+    val poly = Polynomial(ctx.group, threshold - 1, secret)
     val evaluation_points = for(point <- 1 to n) yield point
 
     val shares = getShares(poly, evaluation_points)

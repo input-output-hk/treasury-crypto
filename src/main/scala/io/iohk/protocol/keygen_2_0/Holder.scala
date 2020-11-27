@@ -109,10 +109,7 @@ object Holder
                   sharingCommittee: SharingParameters,
                   holdingCommittee: SharingParameters): Seq[Seq[ProactiveShare]] = {
 
-    val modulus = context.group.groupOrder
-    val drng = new FieldElementSP800DRNG("Polynomials".getBytes, modulus)
-
-    val F = new Polynomial(context, sharingCommittee.t - 1, secret, drng)
+    val F = Polynomial(context.group, sharingCommittee.t - 1, secret)
     val evaluation_points_F = sharingCommittee.allIds.map(IdPointMap.toPoint)
     val shares = getShares(F, evaluation_points_F)
 
@@ -120,7 +117,7 @@ object Holder
     val shared_shares = // share_j -> G_j(1), G_j(2),... G_j(n_next); j = [1, n]
       shares.map{
         share_j =>
-          val G = new Polynomial(context, holdingCommittee.t - 1, share_j.value, drng)
+          val G = Polynomial(context.group, holdingCommittee.t - 1, share_j.value)
           val G_shares = getShares(G, evaluation_points_G)
           G_shares.map(ProactiveShare(dealerPoint, share_j.point, _))
       }

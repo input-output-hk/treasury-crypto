@@ -113,7 +113,7 @@ case class CorrectSharing(pubKey: PubKey, dlogGroup: DiscreteLogGroup) {
     }
   }
 
-  // Gomomorphically reconstructs (by Lagrange interpolation) encryption of a value which shares are encrypted in Dlog ciphertext's parts (c1 or c2)
+  // Homomorphically reconstructs (by Lagrange interpolation) encryption of a value which shares are encrypted in Dlog ciphertext's parts (c1 or c2)
   // Input:  set of encrypted shares with their evaluation points
   // Output: encryption of a reconstructed value
   private def reconstruct(cts: Seq[(GroupElement, Int)]): GroupElement = {

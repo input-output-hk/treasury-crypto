@@ -27,7 +27,7 @@ class CorrectSharingTests extends FunSuite  {
   import context.group
 
   private def shareSecret(secret: BigInt): Seq[Share] = {
-    val poly = new Polynomial(context, threshold - 1, secret, drng)
+    val poly = Polynomial(dlogGroup, threshold - 1, secret)
     LagrangeInterpolation.getShares(poly, evaluation_points)
   }
 
