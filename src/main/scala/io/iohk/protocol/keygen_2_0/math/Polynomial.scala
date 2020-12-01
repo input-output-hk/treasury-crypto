@@ -24,14 +24,14 @@ case class Polynomial(dlogGroup: DiscreteLogGroup, degree: Int, a_0: BigInt, coe
         // Generating random coefficients a_1 to a_degree
         for(_ <- 0 until degree) yield drng.nextRand
       } else {
-        // Setting provided coefficients a_1 to a_degree
+        // Setting provided coefficients [a_1, ..., a_degree]
         require(coeffs.length == degree, "Number of coefficients is inconsistent with the specified degree")
         coeffs
       }
     }
   }
 
-  // Computing the polynomial value for specified x argument
+  // Computing polynomial value for a specified x argument
   def evaluate(x: BigInt): BigInt = {
     polynomial.zipWithIndex.foldLeft(BigInt(0)){
       (sum, coeff_index) =>
@@ -43,6 +43,6 @@ case class Polynomial(dlogGroup: DiscreteLogGroup, degree: Int, a_0: BigInt, coe
   // Evaluating polynomial in a specified point
   def evaluate(x: Int): BigInt = evaluate(BigInt(x))
 
-  // Retrieving the value of coefficient by index
+  // Retrieving value of a coefficient by index
   def apply(i: Int): BigInt = polynomial(i)
 }

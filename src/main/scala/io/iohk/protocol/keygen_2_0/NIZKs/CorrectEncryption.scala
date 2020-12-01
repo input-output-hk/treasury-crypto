@@ -9,18 +9,22 @@ import io.iohk.protocol.keygen_2_0.dlog_encryption.{DLogCiphertext, DLogRandomne
 import io.iohk.protocol.keygen_2_0.encoding.BaseCodec
 import io.iohk.protocol.keygen_2_0.math.Polynomial
 
-case class CorrectEncryption(ct: DLogCiphertext, pubKey: PubKey, dlogGroup: DiscreteLogGroup) {
+// Sequence of ElGamal ciphertexts encrypted on the same public key
+case class CorrectEncryption(cts: Seq[DLogCiphertext], pubKey: PubKey, dlogGroup: DiscreteLogGroup) {
 
   private val g = dlogGroup.groupGenerator
   private val n = dlogGroup.groupOrder
 
   private val sha = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
-  private val lambda = BigInt(1,
-    sha.hash(
-      ct.C.foldLeft(Array[Byte]())((buffer, C) => buffer ++ C.c1.bytes) ++
-      ct.C.foldLeft(Array[Byte]())((buffer, C) => buffer ++ C.c2.bytes)
-    )
-  ).mod(n)
+  private val lambdas = cts.map{
+    ct =>
+      BigInt(1,
+        sha.hash(
+          ct.C.foldLeft(Array[Byte]())((buffer, C) => buffer ++ C.c1.bytes) ++
+          ct.C.foldLeft(Array[Byte]())((buffer, C) => buffer ++ C.c2.bytes)
+        )
+      ).mod(n)
+  }
 
   private def mul(g1: GroupElement, g2: GroupElement): GroupElement = {
     dlogGroup.multiply(g1, g2).get
@@ -30,11 +34,11 @@ case class CorrectEncryption(ct: DLogCiphertext, pubKey: PubKey, dlogGroup: Disc
     dlogGroup.exponentiate(base, exponent).get
   }
 
-  private def combine(scalars: Seq[BigInt]): BigInt = {
+  private def combine(scalars: Seq[BigInt], lambda: BigInt): BigInt = {
     Polynomial(dlogGroup, scalars.length, BigInt(0), scalars).evaluate(lambda)
   }
 
-  private def combine(elements: Seq[GroupElement]): GroupElement = {
+  private def combine(elements: Seq[GroupElement], lambda: BigInt): GroupElement = {
     elements.zipWithIndex.foldLeft(dlogGroup.groupIdentity){
       (result, element_index) =>
         val (element, i) = element_index
@@ -63,8 +67,16 @@ case class CorrectEncryption(ct: DLogCiphertext, pubKey: PubKey, dlogGroup: Disc
   }
 
   def getResponse(params: CommitmentParams, witness: Witness, challenge: Challenge): Response = {
-    val g_D = combine(witness.liftedEncodedMsg)
-    val X   = combine(witness.r.R)
+    val g_D = witness.liftedEncodedMsgs.zip(lambdas).foldLeft(dlogGroup.groupIdentity){
+      (product, liftedEncodedMsg_lambda) =>
+        val (liftedEncodedMsg, lambda) = liftedEncodedMsg_lambda
+        mul(product, combine(liftedEncodedMsg, lambda))
+    }
+    val X = witness.rs.zip(lambdas).foldLeft(BigInt(0)){
+      (sum, r_lambda) =>
+        val (r, lambda) = r_lambda
+        sum + combine(r.R, lambda)
+    }
 
     Response(
       mul(params.s, exp(g_D, challenge.e)),  // alpha
@@ -89,14 +101,19 @@ case class CorrectEncryption(ct: DLogCiphertext, pubKey: PubKey, dlogGroup: Disc
     val alpha = proof.response.alpha
     val beta = proof.response.beta
 
+    val R = cts.zip(lambdas).foldLeft((dlogGroup.groupIdentity, dlogGroup.groupIdentity)){
+      (product, ct_lambda) =>
+        val (ct, lambda) = ct_lambda
+        (mul(product._1, combine(ct.C.map(_.c1), lambda)),
+         mul(product._2, combine(ct.C.map(_.c2), lambda)))
+    }
+
     val condition1 = {
-      val R1 = combine(ct.C.map(_.c1))
-      mul(E1, exp(R1, e)) == exp(g, beta)
+      mul(E1, exp(R._1, e)) == exp(g, beta)
     }
 
     val condition2 = {
-      val R2 = combine(ct.C.map(_.c2))
-      mul(E2, exp(R2, e)) == mul(alpha, exp(pubKey, beta))
+      mul(E2, exp(R._2, e)) == mul(alpha, exp(pubKey, beta))
     }
 
     condition1 && condition2
@@ -110,7 +127,9 @@ object CorrectEncryption {
   case class Response(alpha: GroupElement, beta: BigInt)
 
   case class Proof(commitment: Commitment, challenge: Challenge, response: Response)
-  case class Witness(msg: BigInt, r: DLogRandomness, dlogGroup: DiscreteLogGroup){
-    val liftedEncodedMsg: Seq[GroupElement] = BaseCodec.encode(msg).seq.map(dlogGroup.exponentiate(dlogGroup.groupGenerator, _).get)
+  case class Witness(msgs: Seq[BigInt], rs: Seq[DLogRandomness], dlogGroup: DiscreteLogGroup){
+    val liftedEncodedMsgs: Seq[Seq[GroupElement]] = msgs.map{ msg =>
+      BaseCodec.encode(msg).seq.map(dlogGroup.exponentiate(dlogGroup.groupGenerator, _).get)
+    }
   }
 }

@@ -8,25 +8,23 @@ import org.scalatest.FunSuite
 
 class CorrectEncryptionTests extends FunSuite {
 
-  private val crs = CryptoContext.generateRandomCRS
-  private val context = new CryptoContext(Option(crs))
-  private val n = context.group.groupOrder
+  private val context = new CryptoContext(Option(CryptoContext.generateRandomCRS))
   private val dlogGroup = context.group
 
   import context.group
 
-  private def randomElement = dlogGroup.createRandomNumber //BigInt(n.bitLength, util.Random).mod(n)
-
   test("CorrectEncryption"){
 
-    val (privKey, pubKey) = encryption.createKeyPair.get
-    val msg = randomElement
+    val encryptionsNum = 20
+    val pubKey = encryption.createKeyPair.get._2
 
-    val (ct, r) = DLogEncryption.encrypt(msg, pubKey).get
+    val msgs = for(_ <- 0 until encryptionsNum) yield dlogGroup.createRandomNumber
+    val encryptions = msgs.map(msg => DLogEncryption.encrypt(msg, pubKey).get)
 
-    val ce = CorrectEncryption(ct, pubKey, dlogGroup)
-    val proof = ce.prove(Witness(msg, r, dlogGroup))
+    val cts = encryptions.map(_._1) // ciphertexts
+    val rs = encryptions.map(_._2)  // randomnesses used for ciphertexts
 
-    assert(ce.verify(proof))
+    val proof = CorrectEncryption(cts, pubKey, dlogGroup).prove(Witness(msgs, rs, dlogGroup))
+    assert(CorrectEncryption(cts, pubKey, dlogGroup).verify(proof))
   }
 }

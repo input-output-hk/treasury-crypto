@@ -25,6 +25,18 @@ case class CorrectCiphertextsMapping(pubKeyFrom: PubKey,
     )
   ).mod(n)
 
+  private def div(g1: GroupElement, g2: GroupElement): GroupElement = {
+    dlogGroup.divide(g1, g2).get
+  }
+
+  private def mul(g1: GroupElement, g2: GroupElement): GroupElement = {
+    dlogGroup.multiply(g1, g2).get
+  }
+
+  private def exp(base: GroupElement, exponent: BigInt): GroupElement = {
+    dlogGroup.exponentiate(base, exponent).get
+  }
+
   private def combine(scalars: Seq[BigInt]): BigInt = {
     Polynomial(dlogGroup, scalars.length, BigInt(0), scalars).evaluate(lambda)
   }
@@ -33,10 +45,7 @@ case class CorrectCiphertextsMapping(pubKeyFrom: PubKey,
     elements.zipWithIndex.foldLeft(dlogGroup.groupIdentity){
       (result, element_index) =>
         val (element, i) = element_index
-        dlogGroup.multiply(
-          dlogGroup.exponentiate(element, lambda.pow(i + 1).mod(n)).get,
-          result
-        ).get
+        mul(result, exp(element, lambda.pow(i + 1).mod(n)))
     }
   }
 
@@ -49,14 +58,14 @@ case class CorrectCiphertextsMapping(pubKeyFrom: PubKey,
 
   def getCommitment(params: CommitmentParams): Commitment = {
     Commitment(
-      dlogGroup.divide(                           // A1 = g^{w-v}
-        dlogGroup.exponentiate(g, params.w).get,
-        dlogGroup.exponentiate(g, params.v).get
-      ).get,
-      dlogGroup.divide(                           // A2 = h^w / F^v
-        dlogGroup.exponentiate(pubKeyFrom, params.w).get,
-        dlogGroup.exponentiate(pubKeyTo,   params.v).get
-      ).get
+      div(                           // A1 = g^{w-v}
+        exp(g, params.w),
+        exp(g, params.v)
+      ),
+      div(                           // A2 = h^w / F^v
+        exp(pubKeyFrom, params.w),
+        exp(pubKeyTo,   params.v)
+      )
     )
   }
 
@@ -91,17 +100,15 @@ case class CorrectCiphertextsMapping(pubKeyFrom: PubKey,
       val C1 = combine(statement.ctFrom.C.map(_.c1))
       val R1 = combine(statement.ctTo.C.map(_.c1))
 
-      val left = dlogGroup.multiply(
+      val left = mul(
         proof.commitment.A1,
-        dlogGroup.exponentiate(
-          dlogGroup.divide(C1, R1).get,
-          proof.challenge.e
-        ).get
-      ).get
+        exp(div(C1, R1), proof.challenge.e)
+      )
 
-      val right = dlogGroup.divide(
-        dlogGroup.exponentiate(g, proof.response.v1).get,
-        dlogGroup.exponentiate(g, proof.response.v2).get).get
+      val right = div(
+        exp(g, proof.response.v1),
+        exp(g, proof.response.v2)
+      )
 
       left == right
     }
@@ -110,17 +117,15 @@ case class CorrectCiphertextsMapping(pubKeyFrom: PubKey,
       val C2 = combine(statement.ctFrom.C.map(_.c2))
       val R2 = combine(statement.ctTo.C.map(_.c2))
 
-      val left = dlogGroup.multiply(
+      val left = mul(
         proof.commitment.A2,
-        dlogGroup.exponentiate(
-          dlogGroup.divide(C2, R2).get,
-          proof.challenge.e
-        ).get
-      ).get
+        exp(div(C2, R2), proof.challenge.e)
+      )
 
-      val right = dlogGroup.divide(
-        dlogGroup.exponentiate(pubKeyFrom, proof.response.v1).get,
-        dlogGroup.exponentiate(pubKeyTo, proof.response.v2).get).get
+      val right = div(
+        exp(pubKeyFrom, proof.response.v1),
+        exp(pubKeyTo, proof.response.v2)
+      )
 
       left == right
     }

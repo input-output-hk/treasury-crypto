@@ -10,10 +10,9 @@ class CorrectSecretTests extends FunSuite {
 
   private val crs = CryptoContext.generateRandomCRS
   private val context = new CryptoContext(Option(crs))
-  import context.group
+  private val g = context.group.groupGenerator
 
-  private val n = group.groupOrder
-  private val g = group.groupGenerator
+  import context.group
 
   test("CorrectSecret"){
 

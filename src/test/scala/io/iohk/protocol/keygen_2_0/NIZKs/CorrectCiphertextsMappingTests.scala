@@ -3,7 +3,6 @@ package io.iohk.protocol.keygen_2_0.NIZKs
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.primitives.numbergenerator.FieldElementSP800DRNG
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.keygen_2_0.NIZKs.CorrectCiphertextsMapping.{Statement, Witness}
 import io.iohk.protocol.keygen_2_0.dlog_encryption.DLogEncryption
 import org.scalatest.FunSuite
 
@@ -13,39 +12,73 @@ class CorrectCiphertextsMappingTests extends FunSuite {
   private val context = new CryptoContext(Option(crs))
   private val dlogGroup = context.group
   private val n = dlogGroup.groupOrder
-  private val g = dlogGroup.groupGenerator
-
   private val drng = new FieldElementSP800DRNG(dlogGroup.createRandomNumber.toByteArray, n)
 
   import context.group
 
   test("CorrectCiphertextsMapping"){
+
+    import io.iohk.protocol.keygen_2_0.NIZKs.CorrectCiphertextsMapping.{Statement, Witness}
+
     val encryptionsNum = 20
 
-    val keyPairs = for(_ <- 0 until encryptionsNum) yield encryption.createKeyPair.get
+    val publicKeys = for(_ <- 0 until encryptionsNum) yield encryption.createKeyPair.get._2
     val plaintexts = for(_ <- 0 until encryptionsNum) yield drng.nextRand
 
-    val encryptions = plaintexts.zip(keyPairs).map{
-      p_kp =>
-        val (plaintext, keyPair) = p_kp
-        DLogEncryption.encrypt(plaintext, keyPair._2)
+    val encryptions = plaintexts.zip(publicKeys).map{     // encryptions on different Public Keys
+      p_pk =>
+        val (plaintext, publicKey) = p_pk
+        DLogEncryption.encrypt(plaintext, publicKey)
     }
 
-    val keyPairCommon = encryption.createKeyPair.get
-    val encryptionsCommon = plaintexts.map{
-      p => DLogEncryption.encrypt(p, keyPairCommon._2)
+    val publicKeyCommon = encryption.createKeyPair.get._2
+    val encryptionsCommonPK = plaintexts.map{             // encryptions on the common Public Key
+      plaintext => DLogEncryption.encrypt(plaintext, publicKeyCommon)
     }
 
     for(i <- 0 until encryptionsNum) {
-      val pubKeyFrom = keyPairs(i)._2
-      val pubKeyTo = keyPairCommon._2
-      val ctFrom = encryptions(i).get
-      val ctTo = encryptionsCommon(i).get
+      val pubKeyFrom = publicKeys(i)
+      val pubKeyTo = publicKeyCommon
+      val ctFrom = encryptions(i).get._1
+      val ctTo = encryptionsCommonPK(i).get._1
+      val rFrom = encryptions(i).get._2
+      val rTo = encryptionsCommonPK(i).get._2
+      val statement = Statement(ctFrom, ctTo)
 
-      val ccm = CorrectCiphertextsMapping(pubKeyFrom, pubKeyTo, Statement(ctFrom._1, ctTo._1), dlogGroup)
-      val proof = ccm.prove(Witness(ctFrom._2, ctTo._2))
-
-      assert(ccm.verify(proof))
+      val proof = CorrectCiphertextsMapping(pubKeyFrom, pubKeyTo, statement, dlogGroup).prove(Witness(rFrom, rTo))
+      assert(CorrectCiphertextsMapping(pubKeyFrom, pubKeyTo, statement, dlogGroup).verify(proof))
     }
+  }
+
+  test("CorrectCiphertextsMappingBatched"){
+
+    import io.iohk.protocol.keygen_2_0.NIZKs.CorrectCiphertextsMappingBatched.{Statement, Witness}
+
+    val encryptionsNum = 20
+
+    val publicKeys = for(_ <- 0 until encryptionsNum) yield encryption.createKeyPair.get._2
+    val plaintexts = for(_ <- 0 until encryptionsNum) yield drng.nextRand
+
+    val encryptions = plaintexts.zip(publicKeys).map{     // encryptions on different Public Keys
+      p_pk =>
+        val (plaintext, publicKey) = p_pk
+        DLogEncryption.encrypt(plaintext, publicKey)
+    }
+
+    val publicKeyCommon = encryption.createKeyPair.get._2
+    val encryptionsCommonPK = plaintexts.map{             // encryptions on the common Public Key
+      plaintext => DLogEncryption.encrypt(plaintext, publicKeyCommon)
+    }
+
+    val pubKeysFrom = publicKeys
+    val pubKeyTo = publicKeyCommon
+    val ctsFrom = encryptions.map(_.get._1)
+    val ctsTo = encryptionsCommonPK.map(_.get._1)
+    val rsFrom = encryptions.map(_.get._2)
+    val rsTo = encryptionsCommonPK.map(_.get._2)
+    val statement = Statement(ctsFrom, ctsTo)
+
+    val proof = CorrectCiphertextsMappingBatched(pubKeysFrom, pubKeyTo, statement, dlogGroup).prove(Witness(rsFrom, rsTo))
+    assert(CorrectCiphertextsMappingBatched(pubKeysFrom, pubKeyTo, statement, dlogGroup).verify(proof))
   }
 }
