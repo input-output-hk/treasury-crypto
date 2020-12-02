@@ -1,4 +1,4 @@
-package io.iohk.protocol.keygen_2_0.NIZKs
+package io.iohk.protocol.keygen_2_0.NIZKs.basic
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.PubKey

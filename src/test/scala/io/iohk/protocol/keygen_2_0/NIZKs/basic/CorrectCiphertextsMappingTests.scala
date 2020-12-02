@@ -1,4 +1,4 @@
-package io.iohk.protocol.keygen_2_0.NIZKs
+package io.iohk.protocol.keygen_2_0.NIZKs.basic
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.primitives.numbergenerator.FieldElementSP800DRNG
@@ -18,7 +18,7 @@ class CorrectCiphertextsMappingTests extends FunSuite {
 
   test("CorrectCiphertextsMapping"){
 
-    import io.iohk.protocol.keygen_2_0.NIZKs.CorrectCiphertextsMapping.{Statement, Witness}
+    import io.iohk.protocol.keygen_2_0.NIZKs.basic.CorrectCiphertextsMapping.{Statement, Witness}
 
     val encryptionsNum = 20
 
@@ -52,7 +52,7 @@ class CorrectCiphertextsMappingTests extends FunSuite {
 
   test("CorrectCiphertextsMappingBatched"){
 
-    import io.iohk.protocol.keygen_2_0.NIZKs.CorrectCiphertextsMappingBatched.{Statement, Witness}
+    import io.iohk.protocol.keygen_2_0.NIZKs.basic.CorrectCiphertextsMappingBatched.{Statement, Witness}
 
     val encryptionsNum = 20
 

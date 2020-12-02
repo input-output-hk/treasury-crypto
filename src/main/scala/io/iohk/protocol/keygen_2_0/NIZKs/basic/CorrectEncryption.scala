@@ -1,13 +1,14 @@
-package io.iohk.protocol.keygen_2_0.NIZKs
+package io.iohk.protocol.keygen_2_0.NIZKs.basic
 
 import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
-import io.iohk.protocol.keygen_2_0.NIZKs.CorrectEncryption._
+import io.iohk.protocol.keygen_2_0.NIZKs.basic.CorrectEncryption.{Challenge, Commitment, CommitmentParams, Proof, Response, Witness}
 import io.iohk.protocol.keygen_2_0.dlog_encryption.{DLogCiphertext, DLogRandomness}
 import io.iohk.protocol.keygen_2_0.encoding.BaseCodec
 import io.iohk.protocol.keygen_2_0.math.Polynomial
+import io.iohk.protocol.keygen_2_0.utils.DlogGroupArithmetics.{exp, mul}
 
 // Sequence of ElGamal ciphertexts encrypted on the same public key
 case class CorrectEncryption(cts: Seq[DLogCiphertext], pubKey: PubKey, dlogGroup: DiscreteLogGroup) {
@@ -26,19 +27,12 @@ case class CorrectEncryption(cts: Seq[DLogCiphertext], pubKey: PubKey, dlogGroup
       ).mod(n)
   }
 
-  private def mul(g1: GroupElement, g2: GroupElement): GroupElement = {
-    dlogGroup.multiply(g1, g2).get
-  }
-
-  private def exp(base: GroupElement, exponent: BigInt): GroupElement = {
-    dlogGroup.exponentiate(base, exponent).get
-  }
-
   private def combine(scalars: Seq[BigInt], lambda: BigInt): BigInt = {
     Polynomial(dlogGroup, scalars.length, BigInt(0), scalars).evaluate(lambda)
   }
 
-  private def combine(elements: Seq[GroupElement], lambda: BigInt): GroupElement = {
+  private def combine(elements: Seq[GroupElement], lambda: BigInt)
+                     (implicit dlogGroup: DiscreteLogGroup): GroupElement = {
     elements.zipWithIndex.foldLeft(dlogGroup.groupIdentity){
       (result, element_index) =>
         val (element, i) = element_index
@@ -53,7 +47,8 @@ case class CorrectEncryption(cts: Seq[DLogCiphertext], pubKey: PubKey, dlogGroup
     )
   }
 
-  def getCommitment(params: CommitmentParams): Commitment = {
+  def getCommitment(params: CommitmentParams)
+                   (implicit dlogGroup: DiscreteLogGroup): Commitment = {
     Commitment(
       exp(g, params.t),
       mul(params.s, exp(pubKey, params.t))
@@ -66,7 +61,8 @@ case class CorrectEncryption(cts: Seq[DLogCiphertext], pubKey: PubKey, dlogGroup
     )
   }
 
-  def getResponse(params: CommitmentParams, witness: Witness, challenge: Challenge): Response = {
+  def getResponse(params: CommitmentParams, witness: Witness, challenge: Challenge)
+                 (implicit dlogGroup: DiscreteLogGroup): Response = {
     val g_D = witness.liftedEncodedMsgs.zip(lambdas).foldLeft(dlogGroup.groupIdentity){
       (product, liftedEncodedMsg_lambda) =>
         val (liftedEncodedMsg, lambda) = liftedEncodedMsg_lambda
@@ -84,7 +80,8 @@ case class CorrectEncryption(cts: Seq[DLogCiphertext], pubKey: PubKey, dlogGroup
     )
   }
 
-  def prove(w: Witness): Proof = {
+  def prove(w: Witness)
+           (implicit dlogGroup: DiscreteLogGroup): Proof = {
     val params = getCommitmentParams()
     val challenge = getChallenge()
     Proof(
@@ -94,7 +91,8 @@ case class CorrectEncryption(cts: Seq[DLogCiphertext], pubKey: PubKey, dlogGroup
     )
   }
 
-  def verify(proof: Proof): Boolean = {
+  def verify(proof: Proof)
+            (implicit dlogGroup: DiscreteLogGroup): Boolean = {
     val E1 = proof.commitment.E1
     val E2 = proof.commitment.E2
     val e = proof.challenge.e

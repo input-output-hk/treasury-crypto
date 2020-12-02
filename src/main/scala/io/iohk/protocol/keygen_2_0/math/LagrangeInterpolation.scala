@@ -3,7 +3,6 @@ package io.iohk.protocol.keygen_2_0.math
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.crypto.primitives.numbergenerator.FieldElementSP800DRNG
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.keygen_2_0.IdPointMap
 import io.iohk.protocol.keygen_2_0.datastructures.Share
 
 object LagrangeInterpolation {

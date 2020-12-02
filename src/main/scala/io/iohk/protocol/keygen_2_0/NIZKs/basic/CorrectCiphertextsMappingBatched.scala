@@ -1,12 +1,14 @@
-package io.iohk.protocol.keygen_2_0.NIZKs
+package io.iohk.protocol.keygen_2_0.NIZKs.basic
 
-import io.iohk.core.crypto.encryption.{PubKey, Randomness}
+import com.google.common.primitives.Longs
+import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
-import io.iohk.protocol.keygen_2_0.NIZKs.CorrectCiphertextsMappingBatched.{Challenge, Commitment, CommitmentParams, Proof, Response, Statement, Witness}
+import io.iohk.protocol.keygen_2_0.NIZKs.basic.CorrectCiphertextsMappingBatched.{Challenge, Commitment, CommitmentParams, Proof, Response, Statement, Witness}
+import io.iohk.protocol.keygen_2_0.NIZKs.utils.Combining.combine
 import io.iohk.protocol.keygen_2_0.dlog_encryption.{DLogCiphertext, DLogRandomness}
-import io.iohk.protocol.keygen_2_0.math.Polynomial
+import io.iohk.protocol.keygen_2_0.utils.DlogGroupArithmetics.{div, exp, mul}
 
 case class CorrectCiphertextsMappingBatched(pubKeysFrom: Seq[PubKey],
                                             pubKeyTo:    PubKey,
@@ -16,42 +18,39 @@ case class CorrectCiphertextsMappingBatched(pubKeysFrom: Seq[PubKey],
   private val n = dlogGroup.groupOrder
 
   private val sha = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
-  private val lambdas = statement.ctsFrom.zip(statement.ctsTo).map{
-    ctFrom_ctTo =>
-      val (ctFrom, ctTo) = ctFrom_ctTo
-      BigInt(1,
-        sha.hash(
+
+  require(pubKeysFrom.length == statement.ctsFrom.length, "Different number of public keys and ciphertexts in ctsFrom")
+  require(statement.ctsFrom.length == statement.ctsTo.length, "Different number of ciphertexts in ctsFrom and ctsTo")
+
+  // Ciphertexts order-dependent lambda
+  private val all_ciphertexts_hash = sha.hash(
+    statement.ctsFrom.zip(statement.ctsTo).foldLeft(Array[Byte]()){
+      (buffer, ctFrom_ctTo) =>
+        val (ctFrom, ctTo) = ctFrom_ctTo
+        buffer ++
           ctFrom.C.foldLeft(Array[Byte]())((buffer, C) => buffer ++ C.c1.bytes) ++
           ctFrom.C.foldLeft(Array[Byte]())((buffer, C) => buffer ++ C.c2.bytes) ++
           ctTo.C.foldLeft  (Array[Byte]())((buffer, C) => buffer ++ C.c1.bytes) ++
           ctTo.C.foldLeft  (Array[Byte]())((buffer, C) => buffer ++ C.c2.bytes)
-        )
-      ).mod(n)
-  }
-
-  private def div(g1: GroupElement, g2: GroupElement): GroupElement = {
-    dlogGroup.divide(g1, g2).get
-  }
-
-  private def mul(g1: GroupElement, g2: GroupElement): GroupElement = {
-    dlogGroup.multiply(g1, g2).get
-  }
-
-  private def exp(base: GroupElement, exponent: BigInt): GroupElement = {
-    dlogGroup.exponentiate(base, exponent).get
-  }
-
-  private def combine(scalars: Seq[BigInt], lambda: BigInt): BigInt = {
-    Polynomial(dlogGroup, scalars.length, BigInt(0), scalars).evaluate(lambda)
-  }
-
-  private def combine(elements: Seq[GroupElement], lambda: BigInt): GroupElement = {
-    elements.zipWithIndex.foldLeft(dlogGroup.groupIdentity){
-      (result, element_index) =>
-        val (element, i) = element_index
-        mul(result, exp(element, lambda.pow(i + 1).mod(n)))
     }
-  }
+  )
+  private val lambdas = statement.ctsFrom.indices.map(
+    i => BigInt(1, sha.hash(all_ciphertexts_hash ++ Longs.toByteArray(i))).mod(n)
+  )
+
+  //  // Ciphertexts order-independent lambda
+  //  private val lambdas = statement.ctsFrom.zip(statement.ctsTo).map{
+  //    ctFrom_ctTo =>
+  //      val (ctFrom, ctTo) = ctFrom_ctTo
+  //      BigInt(1,
+  //        sha.hash(
+  //          ctFrom.C.foldLeft(Array[Byte]())((buffer, C) => buffer ++ C.c1.bytes) ++
+  //          ctFrom.C.foldLeft(Array[Byte]())((buffer, C) => buffer ++ C.c2.bytes) ++
+  //          ctTo.C.foldLeft  (Array[Byte]())((buffer, C) => buffer ++ C.c1.bytes) ++
+  //          ctTo.C.foldLeft  (Array[Byte]())((buffer, C) => buffer ++ C.c2.bytes)
+  //        )
+  //      ).mod(n)
+  //  }
 
   def getCommitmentParams(): CommitmentParams = {
     CommitmentParams(
@@ -59,7 +58,8 @@ case class CorrectCiphertextsMappingBatched(pubKeysFrom: Seq[PubKey],
     )
   }
 
-  def getCommitment(params: CommitmentParams): Commitment = {
+  def getCommitment(params: CommitmentParams)
+                   (implicit dlogGroup: DiscreteLogGroup): Commitment = {
     Commitment(
       params.wv.foldLeft(dlogGroup.groupIdentity){  // A1 = mul(g^{wm-vm})
         (product, wv) =>
@@ -81,7 +81,8 @@ case class CorrectCiphertextsMappingBatched(pubKeysFrom: Seq[PubKey],
     )
   }
 
-  def getResponse(params: CommitmentParams, witness: Witness, challenge: Challenge): Response = {
+  def getResponse(params: CommitmentParams, witness: Witness, challenge: Challenge)
+                 (implicit dlogGroup: DiscreteLogGroup): Response = {
 
     // In the A2 related part separate proofs for each ciphertext are due to different public keys used for ctsFrom
     val YX = witness.randomnessesFrom.zip(witness.randomnessesTo).zip(lambdas).map{  // sequence of (Xm, Ym, lambda_m)
@@ -101,7 +102,8 @@ case class CorrectCiphertextsMappingBatched(pubKeysFrom: Seq[PubKey],
     )
   }
 
-  def prove(witness: Witness): Proof = {
+  def prove(witness: Witness)
+           (implicit dlogGroup: DiscreteLogGroup): Proof = {
     val params = getCommitmentParams()
     val challenge = getChallenge()
     Proof(
@@ -111,7 +113,8 @@ case class CorrectCiphertextsMappingBatched(pubKeysFrom: Seq[PubKey],
     )
   }
 
-  def verify(proof: Proof): Boolean = {
+  def verify(proof: Proof)
+            (implicit dlogGroup: DiscreteLogGroup): Boolean = {
 
     // A1 related part
     def condition1: Boolean = {

@@ -2,7 +2,6 @@ package io.iohk.protocol.keygen_2_0
 
 import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
 import io.iohk.core.crypto.encryption.hybrid.HybridEncryption
-import io.iohk.core.crypto.primitives.numbergenerator.FieldElementSP800DRNG
 import io.iohk.protocol.keygen_2_0.datastructures.SecretShare
 import io.iohk.protocol.keygen_2_0.datastructures.{ProactiveShare, ProactiveShareSerializer, Share}
 import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}

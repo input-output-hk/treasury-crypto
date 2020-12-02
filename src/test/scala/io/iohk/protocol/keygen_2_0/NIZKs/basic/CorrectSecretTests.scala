@@ -1,9 +1,9 @@
-package io.iohk.protocol.keygen_2_0.NIZKs
+package io.iohk.protocol.keygen_2_0.NIZKs.basic
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.keygen_2_0.NIZKs.CorrectSecret.{Statement, Witness}
+import io.iohk.protocol.keygen_2_0.NIZKs.basic.CorrectSecret.{Statement, Witness}
 import org.scalatest.FunSuite
 
 class CorrectSecretTests extends FunSuite {

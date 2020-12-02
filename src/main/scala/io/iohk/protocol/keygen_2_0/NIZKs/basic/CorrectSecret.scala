@@ -1,13 +1,14 @@
-package io.iohk.protocol.keygen_2_0.NIZKs
+package io.iohk.protocol.keygen_2_0.NIZKs.basic
 
-import io.iohk.core.crypto.encryption.{PrivKey, PubKey}
 import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
+import io.iohk.core.crypto.encryption.{PrivKey, PubKey}
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
-import io.iohk.protocol.keygen_2_0.NIZKs.CorrectSecret.{Challenge, Commitment, CommitmentParams, Proof, Response, Statement, Witness}
+import io.iohk.protocol.keygen_2_0.NIZKs.basic.CorrectSecret.{Challenge, Commitment, CommitmentParams, Proof, Response, Statement, Witness}
+import io.iohk.protocol.keygen_2_0.utils.DlogGroupArithmetics.{div, exp, inv, mul}
 
 case class CorrectSecret(crs:   GroupElement,       // base for commitment of the G(x) coefficients [C0,.. Ct-1]
                          mfCt:  ElGamalCiphertext,  // encryption of a secret value mf, which is a constant coefficient of F(x)
-                         group: DiscreteLogGroup) {
+                         group: DiscreteLogGroup){
 
   private val g = group.groupGenerator
   private val n = group.groupOrder
@@ -22,12 +23,14 @@ case class CorrectSecret(crs:   GroupElement,       // base for commitment of th
     )
   }
 
-  def getCommitment(params: CommitmentParams): Commitment = {
+  def getCommitment(params: CommitmentParams)
+                   (implicit dlogGroup: DiscreteLogGroup): Commitment = {
     Commitment(
-      a1 = group.exponentiate(g, params.p1).get,
-      a2 = group.multiply(
-        group.inverse(group.exponentiate(E1, params.p1).get).get,
-        group.exponentiate(crs, params.p2).get).get
+      a1 = exp(g, params.p1),
+      a2 = mul(
+        inv(exp(E1, params.p1)),
+        exp(crs, params.p2)
+      )
     )
   }
 
@@ -44,7 +47,8 @@ case class CorrectSecret(crs:   GroupElement,       // base for commitment of th
     )
   }
 
-  def prove(witness: Witness): Proof = {
+  def prove(witness: Witness)
+           (implicit dlogGroup: DiscreteLogGroup): Proof = {
     val params = getCommitmentParams
     val challenge = getChallenge
     Proof(
@@ -54,28 +58,29 @@ case class CorrectSecret(crs:   GroupElement,       // base for commitment of th
     )
   }
 
-  def verify(proof: Proof, st: Statement): Boolean = {
+  def verify(proof: Proof, st: Statement)
+            (implicit dlogGroup: DiscreteLogGroup): Boolean = {
 
     def condition1: Boolean = {
-      val left = group.multiply(
-        group.inverse(group.exponentiate(E1, proof.response.z1).get).get,
-        group.exponentiate(crs, proof.response.z2).get).get
+      val left = mul(
+        inv(exp(E1, proof.response.z1)),
+        exp(crs, proof.response.z2)
+      )
 
-      val right = group.multiply(
-        group.exponentiate(
-          group.divide(st.D0, E2).get,
-          proof.challenge.e).get,
-        proof.commitment.a2).get
+      val right = mul(
+        exp(div(st.D0, E2), proof.challenge.e),
+        proof.commitment.a2
+      )
 
       left == right
     }
 
     def condition2: Boolean = {
-      val left = group.exponentiate(g, proof.response.z1).get
+      val left = exp(g, proof.response.z1)
 
-      val right = group.multiply(
-        group.exponentiate(st.pubKey, proof.challenge.e).get,
-        proof.commitment.a1).get
+      val right = mul(
+        exp(st.pubKey, proof.challenge.e),
+        proof.commitment.a1)
 
       left == right
     }

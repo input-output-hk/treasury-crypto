@@ -1,11 +1,12 @@
-package io.iohk.protocol.keygen_2_0.NIZKs
+package io.iohk.protocol.keygen_2_0.NIZKs.basic
 
 import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
-import io.iohk.protocol.keygen_2_0.NIZKs.CorrectSharing._
 import io.iohk.protocol.keygen_2_0.dlog_encryption.DLogCiphertext
 import io.iohk.protocol.keygen_2_0.encoding.BaseCodec
 import io.iohk.protocol.keygen_2_0.math.LagrangeInterpolation
+import io.iohk.protocol.keygen_2_0.NIZKs.basic.CorrectSharing.{Challenge, Commitment, CommitmentParams, Proof, Response, Statement, Witness}
+import io.iohk.protocol.keygen_2_0.utils.DlogGroupArithmetics.{exp, mul}
 
 case class CorrectSharing(pubKey: PubKey, dlogGroup: DiscreteLogGroup) {
 
@@ -22,15 +23,18 @@ case class CorrectSharing(pubKey: PubKey, dlogGroup: DiscreteLogGroup) {
     )
   }
 
-  def getCommitment(params: CommitmentParams): Commitment = {
+  def getCommitment(params: CommitmentParams)
+                   (implicit dlogGroup: DiscreteLogGroup): Commitment = {
     Commitment(
-      T1 = dlogGroup.multiply(
-        dlogGroup.exponentiate(g, params.a).get,
-        dlogGroup.exponentiate(pubKey, params.b).get).get,
-      T2 = dlogGroup.exponentiate(g, params.c).get,
-      T3 = dlogGroup.multiply(
-        dlogGroup.exponentiate(g, params.a).get,
-        dlogGroup.exponentiate(pubKey, params.c).get).get,
+      T1 = mul(
+        exp(g, params.a),
+        exp(pubKey, params.b)
+      ),
+      T2 = exp(g, params.c),
+      T3 = mul(
+        exp(g, params.a),
+        exp(pubKey, params.c)
+      )
     )
   }
 
@@ -48,7 +52,8 @@ case class CorrectSharing(pubKey: PubKey, dlogGroup: DiscreteLogGroup) {
     )
   }
 
-  def prove(witness: Witness): Proof = {
+  def prove(witness: Witness)
+           (implicit dlogGroup: DiscreteLogGroup): Proof = {
     val params = getCommitmentParams()
     val challenge = getChallenge()
     Proof(
@@ -58,15 +63,18 @@ case class CorrectSharing(pubKey: PubKey, dlogGroup: DiscreteLogGroup) {
     )
   }
 
-  def verify(proof: Proof, st: Statement): Boolean = {
+  def verify(proof: Proof, st: Statement)
+            (implicit dlogGroup: DiscreteLogGroup): Boolean = {
 
     def condition1: Boolean = {
-      val left = dlogGroup.multiply(
-        dlogGroup.exponentiate(g, proof.response.y1).get,
-        dlogGroup.exponentiate(pubKey, proof.response.y2).get).get
-      val right = dlogGroup.multiply(
-        dlogGroup.exponentiate(st.D, proof.challenge.e).get,
-        proof.commitment.T1).get
+      val left = mul(
+        exp(g, proof.response.y1),
+        exp(pubKey, proof.response.y2)
+      )
+      val right = mul(
+        exp(st.D, proof.challenge.e),
+        proof.commitment.T1
+      )
 
       left == right
     }
@@ -74,10 +82,11 @@ case class CorrectSharing(pubKey: PubKey, dlogGroup: DiscreteLogGroup) {
     def condition2: Boolean = {
       val W1 = getW1(st.ct.take(st.threshold))// getW1(st.ct) //getW1(st.ct.take(st.threshold))
 
-      val left = dlogGroup.exponentiate(g, proof.response.y3).get
-      val right = dlogGroup.multiply(
-        dlogGroup.exponentiate(W1, proof.challenge.e).get,
-        proof.commitment.T2).get
+      val left = exp(g, proof.response.y3)
+      val right = mul(
+        exp(W1, proof.challenge.e),
+        proof.commitment.T2
+      )
 
       left == right
     }
@@ -85,12 +94,14 @@ case class CorrectSharing(pubKey: PubKey, dlogGroup: DiscreteLogGroup) {
     def condition3: Boolean = {
       val W2 = getW2(st.ct.take(st.threshold))// getW2(st.ct) //getW2(st.ct.take(st.threshold))
 
-      val left = dlogGroup.multiply(
-        dlogGroup.exponentiate(g, proof.response.y1).get,
-        dlogGroup.exponentiate(pubKey, proof.response.y3).get).get
-      val right = dlogGroup.multiply(
-        dlogGroup.exponentiate(W2, proof.challenge.e).get,
-        proof.commitment.T3).get
+      val left = mul(
+        exp(g, proof.response.y1),
+        exp(pubKey, proof.response.y3)
+      )
+      val right = mul(
+        exp(W2, proof.challenge.e),
+        proof.commitment.T3
+      )
 
       left == right
     }
@@ -99,15 +110,13 @@ case class CorrectSharing(pubKey: PubKey, dlogGroup: DiscreteLogGroup) {
   }
 
   // Composes Dlog ciphertext's parts (fragments of c1 or c2) into a full ciphertext part (c1 or c2)
-  private def compose(cts: Seq[(Seq[GroupElement], Int)]): Seq[(GroupElement, Int)] = {
+  private def compose(cts: Seq[(Seq[GroupElement], Int)])
+                     (implicit dlogGroup: DiscreteLogGroup): Seq[(GroupElement, Int)] = {
     cts.map{ ct_point =>
       val (ct, point) = ct_point
       val Hm = ct.zipWithIndex.foldLeft(identity){ (product, c_i) =>
         val (c, i) = c_i
-        dlogGroup.multiply(
-          product,
-          dlogGroup.exponentiate(c, base.pow(i)).get
-        ).get
+        mul(product, exp(c, base.pow(i)))
       }
       (Hm, point)
     }
@@ -116,15 +125,13 @@ case class CorrectSharing(pubKey: PubKey, dlogGroup: DiscreteLogGroup) {
   // Homomorphically reconstructs (by Lagrange interpolation) encryption of a value which shares are encrypted in Dlog ciphertext's parts (c1 or c2)
   // Input:  set of encrypted shares with their evaluation points
   // Output: encryption of a reconstructed value
-  private def reconstruct(cts: Seq[(GroupElement, Int)]): GroupElement = {
+  private def reconstruct(cts: Seq[(GroupElement, Int)])
+                         (implicit dlogGroup: DiscreteLogGroup): GroupElement = {
     val all_points = cts.map(_._2)
     cts.foldLeft(identity){ (product, hm_point) =>
       val (hm, point) = hm_point
       val L = LagrangeInterpolation.getLagrangeCoeff(dlogGroup, point, all_points)
-      dlogGroup.multiply(
-        product,
-        dlogGroup.exponentiate(hm, L).get
-      ).get
+      mul(product, exp(hm, L))
     }
   }
 
@@ -135,10 +142,12 @@ case class CorrectSharing(pubKey: PubKey, dlogGroup: DiscreteLogGroup) {
     ct.C.map(_.c2)
   }
 
-  private def getW1(cts: Seq[(DLogCiphertext, Int)]): GroupElement = {
+  private def getW1(cts: Seq[(DLogCiphertext, Int)])
+                   (implicit dlogGroup: DiscreteLogGroup): GroupElement = {
     reconstruct(compose(cts.map(ct => (getC1(ct._1), ct._2))))
   }
-  private def getW2(cts: Seq[(DLogCiphertext, Int)]): GroupElement = {
+  private def getW2(cts: Seq[(DLogCiphertext, Int)])
+                   (implicit dlogGroup: DiscreteLogGroup): GroupElement = {
     reconstruct(compose(cts.map(ct => (getC2(ct._1), ct._2))))
   }
 }

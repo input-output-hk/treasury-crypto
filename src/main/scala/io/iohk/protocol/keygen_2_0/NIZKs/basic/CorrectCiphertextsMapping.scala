@@ -1,12 +1,13 @@
-package io.iohk.protocol.keygen_2_0.NIZKs
+package io.iohk.protocol.keygen_2_0.NIZKs.basic
 
-import io.iohk.core.crypto.encryption.{PubKey, Randomness}
+import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
-import io.iohk.protocol.keygen_2_0.NIZKs.CorrectCiphertextsMapping.{Challenge, Commitment, CommitmentParams, Proof, Response, Statement, Witness}
+import io.iohk.protocol.keygen_2_0.NIZKs.basic.CorrectCiphertextsMapping.{Challenge, Commitment, CommitmentParams, Proof, Response, Statement, Witness}
+import io.iohk.protocol.keygen_2_0.NIZKs.utils.Combining.combine
 import io.iohk.protocol.keygen_2_0.dlog_encryption.{DLogCiphertext, DLogRandomness}
-import io.iohk.protocol.keygen_2_0.math.Polynomial
+import io.iohk.protocol.keygen_2_0.utils.DlogGroupArithmetics.{div, exp, mul}
 
 case class CorrectCiphertextsMapping(pubKeyFrom: PubKey,
                                      pubKeyTo:   PubKey,
@@ -25,30 +26,6 @@ case class CorrectCiphertextsMapping(pubKeyFrom: PubKey,
     )
   ).mod(n)
 
-  private def div(g1: GroupElement, g2: GroupElement): GroupElement = {
-    dlogGroup.divide(g1, g2).get
-  }
-
-  private def mul(g1: GroupElement, g2: GroupElement): GroupElement = {
-    dlogGroup.multiply(g1, g2).get
-  }
-
-  private def exp(base: GroupElement, exponent: BigInt): GroupElement = {
-    dlogGroup.exponentiate(base, exponent).get
-  }
-
-  private def combine(scalars: Seq[BigInt]): BigInt = {
-    Polynomial(dlogGroup, scalars.length, BigInt(0), scalars).evaluate(lambda)
-  }
-
-  private def combine(elements: Seq[GroupElement]): GroupElement = {
-    elements.zipWithIndex.foldLeft(dlogGroup.groupIdentity){
-      (result, element_index) =>
-        val (element, i) = element_index
-        mul(result, exp(element, lambda.pow(i + 1).mod(n)))
-    }
-  }
-
   def getCommitmentParams(): CommitmentParams = {
     CommitmentParams(
       dlogGroup.createRandomNumber, // w
@@ -56,7 +33,8 @@ case class CorrectCiphertextsMapping(pubKeyFrom: PubKey,
     )
   }
 
-  def getCommitment(params: CommitmentParams): Commitment = {
+  def getCommitment(params: CommitmentParams)
+                   (implicit dlogGroup: DiscreteLogGroup): Commitment = {
     Commitment(
       div(                           // A1 = g^{w-v}
         exp(g, params.w),
@@ -75,9 +53,10 @@ case class CorrectCiphertextsMapping(pubKeyFrom: PubKey,
     )
   }
 
-  def getResponse(params: CommitmentParams, witness: Witness, challenge: Challenge): Response = {
-    val Y = combine(witness.randomnessFrom.R)
-    val X = combine(witness.randomnessTo.R)
+  def getResponse(params: CommitmentParams, witness: Witness, challenge: Challenge)
+                 (implicit dlogGroup: DiscreteLogGroup): Response = {
+    val Y = combine(witness.randomnessFrom.R, lambda)
+    val X = combine(witness.randomnessTo.R, lambda)
 
     Response(
       (params.w + Y * challenge.e).mod(n), // v1
@@ -85,7 +64,8 @@ case class CorrectCiphertextsMapping(pubKeyFrom: PubKey,
     )
   }
 
-  def prove(witness: Witness): Proof = {
+  def prove(witness: Witness)
+           (implicit dlogGroup: DiscreteLogGroup): Proof = {
     val params = getCommitmentParams()
     val challenge = getChallenge()
     Proof(
@@ -95,10 +75,11 @@ case class CorrectCiphertextsMapping(pubKeyFrom: PubKey,
     )
   }
 
-  def verify(proof: Proof): Boolean = {
+  def verify(proof: Proof)
+            (implicit dlogGroup: DiscreteLogGroup): Boolean = {
     def condition1: Boolean = {
-      val C1 = combine(statement.ctFrom.C.map(_.c1))
-      val R1 = combine(statement.ctTo.C.map(_.c1))
+      val C1 = combine(statement.ctFrom.C.map(_.c1), lambda)
+      val R1 = combine(statement.ctTo.C.map(_.c1), lambda)
 
       val left = mul(
         proof.commitment.A1,
@@ -114,8 +95,8 @@ case class CorrectCiphertextsMapping(pubKeyFrom: PubKey,
     }
 
     def condition2: Boolean = {
-      val C2 = combine(statement.ctFrom.C.map(_.c2))
-      val R2 = combine(statement.ctTo.C.map(_.c2))
+      val C2 = combine(statement.ctFrom.C.map(_.c2), lambda)
+      val R2 = combine(statement.ctTo.C.map(_.c2), lambda)
 
       val left = mul(
         proof.commitment.A2,
