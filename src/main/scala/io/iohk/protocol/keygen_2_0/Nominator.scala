@@ -6,6 +6,7 @@ import io.iohk.core.crypto.encryption.{KeyPair, PubKey}
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
 import io.iohk.protocol.CryptoContext
+import io.iohk.protocol.keygen_2_0.signature.SchnorrSignature
 
 case class Nomination(ephemeralPubKey     : PubKey,
                       ephemeralPrivKeyEnc : HybridCiphertext)
@@ -36,8 +37,8 @@ object Nominator
     val isNominator = {
       val sha = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
       val (ownPrivKey, ownPubKey) = ownKeyPair
-      // TODO: implement signature scheme to use here a signature of a commonSeed on keyPair._1 to enable public verification of the hash
-      val hash = BigInt(1, sha.hash(ownPubKey.bytes ++ ownPrivKey.toByteArray ++ commonSeed.toByteArray))
+      import context.group
+      val hash = BigInt(1, sha.hash(ownPubKey.bytes ++ SchnorrSignature.sign(ownPrivKey, commonSeed.toByteArray, sha).bytes))
       val target = BigInt(stake.abs) * thresholdCoeff.abs
       hash <= target
     }
