@@ -93,7 +93,7 @@ class KeyGenTests extends FunSuite {
   }
 
   def reconstructCommonSecret(holders: Seq[Node]): BigInt = {
-    val all_shares = holders.flatMap(_.holderOpt.get.ownSharesSum)
+    val all_shares = holders.flatMap(_.holderOpt.get.combinedShares)
     val all_points = all_shares.map(_._1)
 
     all_shares.foldLeft(BigInt(0)){
@@ -121,15 +121,8 @@ class KeyGenTests extends FunSuite {
       val sharingCommitteeParams = SharingParameters(sharingCommitteeKeys.map(_._2))
       val holdingCommitteeParams = SharingParameters(holdingCommitteeKeys.map(_._2))
 
-      val shares = Holder.shareSecret(context, 0, secret, sharingCommitteeParams, holdingCommitteeParams)
-
-      val reconstructedSecret = Holder.reconstructSecret(context, shares.flatten, sharingCommitteeParams, holdingCommitteeParams)
-      assert(reconstructedSecret.isSuccess && reconstructedSecret.get == secret)
-
-      val sharesMinimalSetG = shares.take(holdingCommitteeParams.t)
-      val sharesMinimalSet = sharesMinimalSetG.transpose.take(sharingCommitteeParams.t)
-      val reconstructedSecretFromMinimalSet = Holder.reconstructSecret(context, sharesMinimalSet.flatten, sharingCommitteeParams, holdingCommitteeParams)
-      assert(reconstructedSecretFromMinimalSet.isSuccess && reconstructedSecretFromMinimalSet.get == secret)
+      val shares = Holder.shareSecret(context, 0, secret, holdingCommitteeParams)
+      assert(Holder.reconstructSecret(context, shares) == secret)
     }
   }
 
@@ -145,7 +138,7 @@ class KeyGenTests extends FunSuite {
     val sharingCommitteeParams = SharingParameters(sharingCommitteeKeys.map(_._2))
     val holdingCommitteeParams = SharingParameters(holdingCommitteeKeys.map(_._2))
 
-    val shares = Holder.shareSecret(context, 0, secret, sharingCommitteeParams, holdingCommitteeParams).flatten
+    val shares = Holder.shareSecret(context, 0, secret, holdingCommitteeParams)
 
     val holdingKeyIdMap = holdingCommitteeParams.keyToIdMap
     val allSecretShares = Holder.encryptShares(context, shares, holdingKeyIdMap)
