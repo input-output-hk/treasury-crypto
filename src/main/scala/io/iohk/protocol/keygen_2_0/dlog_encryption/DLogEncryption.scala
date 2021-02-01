@@ -1,14 +1,13 @@
 package io.iohk.protocol.keygen_2_0.dlog_encryption
 
 import io.iohk.core.crypto.encryption.{PrivKey, PubKey, Randomness}
-import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
+import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.protocol.keygen_2_0.encoding.BaseCodec
 
 import scala.util.Try
 
-case class DLogCiphertext(C: Seq[ElGamalCiphertext]){ def size: Int = C.length }
-case class DLogRandomness(R: Seq[Randomness]){ def size: Int = R.length } // is needed for NIZKs as a witness data
+case class DLogRandomness(R: Seq[Randomness]) // is needed for NIZKs as a witness data
 
 object DLogEncryption {
 

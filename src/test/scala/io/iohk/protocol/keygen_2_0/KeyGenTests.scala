@@ -2,7 +2,7 @@ package io.iohk.protocol.keygen_2_0
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.{KeyPair, PubKey}
-import io.iohk.protocol.keygen_2_0.datastructures.SecretShare
+import io.iohk.protocol.keygen_2_0.datastructures.{SecretShare, SecretShareSerializer}
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen_2_0.math.LagrangeInterpolation
 import org.scalatest.FunSuite
@@ -118,7 +118,6 @@ class KeyGenTests extends FunSuite {
       val sharingCommitteeKeys = generateKeys(sharingMembersNum)
       val holdingCommitteeKeys = generateKeys(holdingMembersNum)
 
-      val sharingCommitteeParams = SharingParameters(sharingCommitteeKeys.map(_._2))
       val holdingCommitteeParams = SharingParameters(holdingCommitteeKeys.map(_._2))
 
       val shares = Holder.shareSecret(context, 0, secret, holdingCommitteeParams)
@@ -128,16 +127,11 @@ class KeyGenTests extends FunSuite {
 
   test("shares_encryption"){
 
-    val sharingMembersNum = Random.nextInt(20) + 20
     val holdingMembersNum = Random.nextInt(20) + 20
-    val secret = BigInt(Random.nextInt().abs)
-
-    val sharingCommitteeKeys = generateKeys(sharingMembersNum)
     val holdingCommitteeKeys = generateKeys(holdingMembersNum)
-
-    val sharingCommitteeParams = SharingParameters(sharingCommitteeKeys.map(_._2))
     val holdingCommitteeParams = SharingParameters(holdingCommitteeKeys.map(_._2))
 
+    val secret = BigInt(Random.nextInt().abs)
     val shares = Holder.shareSecret(context, 0, secret, holdingCommitteeParams)
 
     val holdingKeyIdMap = holdingCommitteeParams.keyToIdMap
@@ -157,6 +151,23 @@ class KeyGenTests extends FunSuite {
           openedShare =>
             assert(shares.contains(openedShare))
         }
+    }
+  }
+
+  test("secret_shares_serialization"){
+    val holdingMembersNum = Random.nextInt(20) + 20
+    val holdingCommitteeKeys = generateKeys(holdingMembersNum)
+    val holdingCommitteeParams = SharingParameters(holdingCommitteeKeys.map(_._2))
+
+    val secret = BigInt(Random.nextInt().abs)
+    val shares = Holder.shareSecret(context, 0, secret, holdingCommitteeParams)
+
+    val holdingKeyIdMap = holdingCommitteeParams.keyToIdMap
+    val allSecretShares = Holder.encryptShares(context, shares, holdingKeyIdMap)
+
+    allSecretShares.foreach{ s =>
+      val s_restored = SecretShareSerializer.parseBytes(s.bytes, Some(context.group)).get
+      require(s_restored.equals(s))
     }
   }
 

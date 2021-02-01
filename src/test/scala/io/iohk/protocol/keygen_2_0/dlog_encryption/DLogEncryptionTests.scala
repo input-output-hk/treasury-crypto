@@ -22,6 +22,14 @@ class DLogEncryptionTests extends FunSuite {
     assert(msg == DLogEncryption.decrypt(DLogEncryption.encrypt(msg, pubKey).get._1, privKey).get)
   }
 
+  test("serialization"){
+    val (privKey, pubKey) = encryption.createKeyPair.get
+    val msg = BigInt(n.bitLength, util.Random).mod(n)
+    val ct = DLogEncryption.encrypt(msg, pubKey).get._1
+
+    assert(ct.equals(DLogCiphertextSerializer.parseBytes(ct.bytes, Some(context.group)).get))
+  }
+
 //  test("interpolation"){
 //    assert(LagrangeInterpolation.testInterpolation(context, 4))
 //  }

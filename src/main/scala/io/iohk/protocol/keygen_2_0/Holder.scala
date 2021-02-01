@@ -4,6 +4,7 @@ import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
 import io.iohk.core.crypto.encryption.hybrid.HybridEncryption
 import io.iohk.protocol.keygen_2_0.datastructures.SecretShare
 import io.iohk.protocol.keygen_2_0.datastructures.{ProactiveShare, ProactiveShareSerializer, Share}
+import io.iohk.protocol.keygen_2_0.dlog_encryption.DLogEncryption
 import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
 import io.iohk.protocol.keygen_2_0.math.{LagrangeInterpolation, Polynomial}
 
@@ -117,7 +118,7 @@ object Holder
   def encryptShares(context: CryptoContext,
                     shares: Seq[ProactiveShare],
                     keyToIdMap: CommitteeIdentifier): Seq[SecretShare] = {
-    import context.{group, blockCipher}
+    import context.group
 
     shares.map{
       share =>
@@ -125,7 +126,8 @@ object Holder
         val receiverPubKey = keyToIdMap.getPubKey(receiverId).get
         SecretShare(
           receiverId,
-          HybridEncryption.encrypt(receiverPubKey, share.bytes).get
+          share.dealerPoint,
+          DLogEncryption.encrypt(share.f_share.value, receiverPubKey).get._1
         )
     }
   }
@@ -133,11 +135,13 @@ object Holder
   def decryptShares(context: CryptoContext,
                     secretShares: Seq[SecretShare],
                     privKey: PrivKey): Try[Seq[ProactiveShare]] = Try {
-    import context.{group, blockCipher}
+    import context.group
 
     secretShares.map{
       secretShare =>
-        ProactiveShareSerializer.parseBytes(HybridEncryption.decrypt(privKey, secretShare.S).get.decryptedMessage).get
+        val share = DLogEncryption.decrypt(secretShare.S, privKey).get
+        val point = IdPointMap.toPoint(secretShare.receiverID)
+        ProactiveShare(secretShare.dealerPoint, Share(point, share))
     }
   }
 
