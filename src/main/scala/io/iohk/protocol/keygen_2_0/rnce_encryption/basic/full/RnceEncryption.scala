@@ -1,4 +1,4 @@
-package io.iohk.protocol.keygen_2_0.rnce_encryption
+package io.iohk.protocol.keygen_2_0.rnce_encryption.basic.full
 
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc.discreteLog
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}

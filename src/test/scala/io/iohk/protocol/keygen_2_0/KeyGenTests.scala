@@ -1,17 +1,21 @@
 package io.iohk.protocol.keygen_2_0
 
 import io.iohk.core.crypto.encryption
-import io.iohk.core.crypto.encryption.{KeyPair, PubKey}
+import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.protocol.keygen_2_0.datastructures.{SecretShare, SecretShareSerializer}
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen_2_0.math.LagrangeInterpolation
+import io.iohk.protocol.keygen_2_0.rnce_encryption.RnceKeyPair
+import io.iohk.protocol.keygen_2_0.rnce_encryption.basic.light.data.RnceCrsLight
+import io.iohk.protocol.keygen_2_0.rnce_encryption.batched.RnceParams
 import org.scalatest.FunSuite
 
 import scala.util.Random
 
-case class Node(context: CryptoContext,
-                stake: Int = Random.nextInt(20) + 1, // influences committee size as well as nominatorsThreshold
-                id: Int = Random.nextInt()) {
+case class Node(context:    CryptoContext,
+                rnceParams: RnceParams,
+                stake:      Int = Random.nextInt(20) + 1, // affects committee size as well as nominatorsThreshold
+                id:         Int = Random.nextInt()) {
 
   private val longTermKeyPair = encryption.createKeyPair(context.group).get
   val longTermPubKey : PubKey = longTermKeyPair._2
@@ -20,15 +24,15 @@ case class Node(context: CryptoContext,
   var holderOpt : Option[Holder] = None
 
   def setNominator(params: NominationParameters) : Unit = {
-    nominatorOpt = Nominator.create(context, longTermKeyPair, stake, params.thresholdCoeff, params.seed, params.longTermPubKeys)
+    nominatorOpt = Nominator.create(context, rnceParams, longTermKeyPair, stake, params.thresholdCoeff, params.seed, params.longTermPubKeys)
   }
 
   def setHolder(nominations : Seq[Nomination]) : Unit = {
-    holderOpt = Holder.create(context, longTermKeyPair, nominations)
+    holderOpt = Holder.create(context, rnceParams, longTermKeyPair, nominations)
   }
 
   def copy(): Node = {
-    Node(context, stake, id)
+    Node(context, rnceParams, stake, id)
   }
 }
 
@@ -46,6 +50,11 @@ class KeyGenTests extends FunSuite {
 
   private val crs = CryptoContext.generateRandomCRS
   private val context = new CryptoContext(Option(crs))
+    // Rnce parameters
+  import context.group
+  private val rnce_params = RnceParams(
+    RnceCrsLight(CryptoContext.generateRandomCRS, CryptoContext.generateRandomCRS)
+  )
 
   private val nodesNum = 20
   private val epochsNum = 8
@@ -55,7 +64,7 @@ class KeyGenTests extends FunSuite {
   def initializeParticipants(nodes: Seq[Node] = Seq()): Seq[Node] ={
     if(nodes.isEmpty){    // create nodes for the initial epoch
       for (_ <- 0 until nodesNum) yield {
-        Node(context)
+        Node(context, rnce_params)
       }
     } else {              // re-initialize existing nodes
       nodes.map(_.copy())
@@ -104,7 +113,8 @@ class KeyGenTests extends FunSuite {
     }
   }
 
-  def generateKeys(num: Int) : Seq[KeyPair] = for (_ <- 0 until num) yield encryption.createKeyPair(context.group).get
+  def generateKeys(num: Int) : Seq[RnceKeyPair] =
+    for (_ <- 0 until num) yield rnce_encryption.createRnceKeyPair(rnce_params).get
 
   test("sharing"){
 
@@ -135,7 +145,7 @@ class KeyGenTests extends FunSuite {
     val shares = Holder.shareSecret(context, 0, secret, holdingCommitteeParams)
 
     val holdingKeyIdMap = holdingCommitteeParams.keyToIdMap
-    val allSecretShares = Holder.encryptShares(context, shares, holdingKeyIdMap)
+    val allSecretShares = Holder.encryptShares(context, rnce_params, shares, holdingKeyIdMap)
 
     holdingCommitteeKeys.foreach{
       keyPair =>
@@ -143,7 +153,7 @@ class KeyGenTests extends FunSuite {
         val receiverID = holdingKeyIdMap.getId(pubKey).get
 
         val secretSharesForId = allSecretShares.filter(_.receiverID == receiverID)
-        val openedSharesForId = Holder.decryptShares(context, secretSharesForId, privKey)
+        val openedSharesForId = Holder.decryptShares(context, rnce_params, secretSharesForId, privKey)
 
         assert(openedSharesForId.isSuccess)
 
@@ -163,7 +173,7 @@ class KeyGenTests extends FunSuite {
     val shares = Holder.shareSecret(context, 0, secret, holdingCommitteeParams)
 
     val holdingKeyIdMap = holdingCommitteeParams.keyToIdMap
-    val allSecretShares = Holder.encryptShares(context, shares, holdingKeyIdMap)
+    val allSecretShares = Holder.encryptShares(context, rnce_params, shares, holdingKeyIdMap)
 
     allSecretShares.foreach{ s =>
       val s_restored = SecretShareSerializer.parseBytes(s.bytes, Some(context.group)).get

@@ -36,8 +36,9 @@ object LiftedElGamalEnc {
   }
 
   /* Solve discrete logarithm for m*G. Assuming that the exponent space is not big */
-  def discreteLog(point: GroupElement)(implicit dlogGroup: DiscreteLogGroup): Try[BigInt] = Try {
-    var P = dlogGroup.groupGenerator
+  def discreteLog(point: GroupElement, generatorPointOpt: Option[GroupElement] = None)(implicit dlogGroup: DiscreteLogGroup): Try[BigInt] = Try {
+    val generatorPoint = generatorPointOpt.getOrElse(dlogGroup.groupGenerator)
+    var P = generatorPoint
 
     if (point.equals(dlogGroup.groupIdentity))
       BigInt(0)
@@ -49,7 +50,7 @@ object LiftedElGamalEnc {
       while(exponent < MSG_RANGE && P.equals(point) == false) {
         exponent += 1
         // we are simply multiplying generator to the accumulator on each iteration since it is faster then exponentiate generator each time
-        P = dlogGroup.multiply(P, dlogGroup.groupGenerator).get
+        P = dlogGroup.multiply(P, generatorPoint).get
       }
       if (exponent < MSG_RANGE)
         exponent // we found valid exponent!

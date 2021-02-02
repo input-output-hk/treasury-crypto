@@ -1,20 +1,22 @@
 package io.iohk.protocol.keygen_2_0
 
-import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
+import io.iohk.core.crypto.encryption.KeyPair
 import io.iohk.core.crypto.encryption.hybrid.HybridEncryption
 import io.iohk.protocol.keygen_2_0.datastructures.SecretShare
-import io.iohk.protocol.keygen_2_0.datastructures.{ProactiveShare, ProactiveShareSerializer, Share}
-import io.iohk.protocol.keygen_2_0.dlog_encryption.DLogEncryption
-import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
+import io.iohk.protocol.keygen_2_0.datastructures.{ProactiveShare, Share}
+import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen_2_0.math.{LagrangeInterpolation, Polynomial}
+import io.iohk.protocol.keygen_2_0.rnce_encryption.{RnceKeyPair, RncePrivKey, RncePubKey}
+import io.iohk.protocol.keygen_2_0.rnce_encryption.batched.data.RnceBatchedSecretKeySerializer
+import io.iohk.protocol.keygen_2_0.rnce_encryption.batched.{RnceBatchedEncryption, RnceParams}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Random, Success, Try}
 
-case class SharingParameters(pubKeys: Seq[PubKey]){
+case class SharingParameters(pubKeys: Seq[RncePubKey]){
   val n: Int = pubKeys.size
   val t: Int = n / 2 + 1
-  val keyToIdMap = new CommitteeIdentifier(pubKeys)
+  val keyToIdMap = new CommitteeIdentifierRnce(pubKeys)
   val allIds: Seq[Int] = pubKeys.flatMap(keyToIdMap.getId)
 }
 
@@ -25,12 +27,13 @@ object IdPointMap{
 }
 
 case class Holder(context              : CryptoContext,
-                  ephemeralOwnKeyPairs : Seq[KeyPair],
-                  ephemeralPubKeys     : Seq[PubKey]) {
+                  rnceParams           : RnceParams,
+                  ephemeralOwnKeyPairs : Seq[RnceKeyPair],
+                  ephemeralPubKeys     : Seq[RncePubKey]) {
 
   private val n = ephemeralPubKeys.size
   private val t = n / 2 + 1
-  private val memberIdentifier = new CommitteeIdentifier(ephemeralPubKeys)
+  private val memberIdentifier = new CommitteeIdentifierRnce(ephemeralPubKeys)
   private val membersIds = ephemeralPubKeys.flatMap(memberIdentifier.getId)
 
   val partialSecretsInitial: ArrayBuffer[BigInt] = ArrayBuffer[BigInt]()
@@ -45,7 +48,7 @@ case class Holder(context              : CryptoContext,
       _ =>
         partialSecretsInitial += BigInt(Random.nextInt())
         val shares = Holder.shareSecret(context, IdPointMap.emptyPoint, partialSecretsInitial.last, holdingCommittee)
-        Holder.encryptShares(context, shares, holdingCommittee.keyToIdMap)
+        Holder.encryptShares(context, rnceParams, shares, holdingCommittee.keyToIdMap)
     }
   }
 
@@ -60,9 +63,9 @@ case class Holder(context              : CryptoContext,
     ephemeralOwnKeyPairs.flatMap{
       ownKeyPair =>
         val ownId = memberIdentifier.getId(ownKeyPair._2).get
-        combinedShares += Holder.combineOwnShares(context, ownKeyPair, allShares, sharingCommittee).get
+        combinedShares += Holder.combineOwnShares(context, rnceParams, ownKeyPair, allShares, sharingCommittee).get
         val newShares = Holder.shareSecret(context, IdPointMap.toPoint(ownId), combinedShares.last._2, holdingCommittee)
-        Holder.encryptShares(context, newShares, holdingCommittee.keyToIdMap)
+        Holder.encryptShares(context, rnceParams, newShares, holdingCommittee.keyToIdMap)
     }
   }
 }
@@ -70,6 +73,7 @@ case class Holder(context              : CryptoContext,
 object Holder
 {
   def create(context     : CryptoContext,
+             rnceParams  : RnceParams,
              ownKeyPair  : KeyPair, // own long-term key pair
              nominations : Seq[Nomination]): Option[Holder] = {
     import context.{group, blockCipher}
@@ -79,13 +83,17 @@ object Holder
       nominations.flatMap{
         n =>
           HybridEncryption.decrypt(ownLongTermPrivKey, n.ephemeralPrivKeyEnc) match {
-            case Success(ephemeralPrivKeyPlain) => Option(Tuple2(BigInt(ephemeralPrivKeyPlain.decryptedMessage), n.ephemeralPubKey))
+            case Success(ephemeralPrivKeyPlain) =>
+              Option((
+                  RnceBatchedSecretKeySerializer.parseBytes(ephemeralPrivKeyPlain.decryptedMessage, Some(group)).get,
+                  n.ephemeralPubKey
+                ))
             case _ => None // means that "mac check in GCM failed" in "doFinal" of the "AES/GCM/NoPadding"
           }
       }
 
     if(ownEphemeralKeyPairs.nonEmpty){
-      Option(Holder(context, ownEphemeralKeyPairs, nominations.map(_.ephemeralPubKey)))
+      Option(Holder(context, rnceParams, ownEphemeralKeyPairs, nominations.map(_.ephemeralPubKey)))
     } else {
       None
     }
@@ -115,39 +123,42 @@ object Holder
     LagrangeInterpolation.restoreSecret(context.group, all_shares.map(_.f_share))
   }
 
-  def encryptShares(context: CryptoContext,
-                    shares: Seq[ProactiveShare],
-                    keyToIdMap: CommitteeIdentifier): Seq[SecretShare] = {
+  def encryptShares(context:    CryptoContext,
+                    rnceParams: RnceParams,
+                    shares:     Seq[ProactiveShare],
+                    keyToIdMap: CommitteeIdentifierRnce): Seq[SecretShare] = {
     import context.group
 
     shares.map{
       share =>
         val receiverId = IdPointMap.toId(share.f_share.point)
-        val receiverPubKey = keyToIdMap.getPubKey(receiverId).get
+        val receiverPubKey = keyToIdMap.getRncePubKey(receiverId).get
         SecretShare(
           receiverId,
           share.dealerPoint,
-          DLogEncryption.encrypt(share.f_share.value, receiverPubKey).get._1
+          RnceBatchedEncryption.encrypt(receiverPubKey, share.f_share.value, rnceParams.crs).get._1
         )
     }
   }
 
-  def decryptShares(context: CryptoContext,
+  def decryptShares(context:      CryptoContext,
+                    rnceParams:   RnceParams,
                     secretShares: Seq[SecretShare],
-                    privKey: PrivKey): Try[Seq[ProactiveShare]] = Try {
+                    privKey:      RncePrivKey): Try[Seq[ProactiveShare]] = Try {
     import context.group
 
     secretShares.map{
       secretShare =>
-        val share = DLogEncryption.decrypt(secretShare.S, privKey).get
+        val share = RnceBatchedEncryption.decrypt(privKey, secretShare.S, rnceParams.crs).get
         val point = IdPointMap.toPoint(secretShare.receiverID)
         ProactiveShare(secretShare.dealerPoint, Share(point, share))
     }
   }
 
-  def combineOwnShares(context: CryptoContext,
-                       keyPair: KeyPair,
-                       allShares: Seq[SecretShare],
+  def combineOwnShares(context:         CryptoContext,
+                       rnceParams:      RnceParams,
+                       keyPair:         RnceKeyPair,
+                       allShares:       Seq[SecretShare],
                        committeeParams: SharingParameters): Try[(Int, BigInt)] = Try {
 
     val modulus = context.group.groupOrder
@@ -156,7 +167,7 @@ object Holder
     val ownId = committeeParams.keyToIdMap.getId(pubKey).get
     val ownSecretShares = allShares.filter(_.receiverID == ownId)
 
-    val ownShares = decryptShares(context, ownSecretShares, privKey).get
+    val ownShares = decryptShares(context, rnceParams, ownSecretShares, privKey).get
 
     // Getting all points of Mf's dealers
     // Note: lambda value for Mf can be computed only when a set of all published Mf's is known

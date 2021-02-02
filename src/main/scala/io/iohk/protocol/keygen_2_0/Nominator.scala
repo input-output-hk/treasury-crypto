@@ -1,17 +1,19 @@
 package io.iohk.protocol.keygen_2_0
 
-import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.hybrid.{HybridCiphertext, HybridEncryption}
 import io.iohk.core.crypto.encryption.{KeyPair, PubKey}
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
 import io.iohk.protocol.CryptoContext
+import io.iohk.protocol.keygen_2_0.rnce_encryption.batched.data.RnceBatchedPubKey
+import io.iohk.protocol.keygen_2_0.rnce_encryption.batched.{RnceBatchedEncryption, RnceParams}
 import io.iohk.protocol.keygen_2_0.signature.SchnorrSignature
 
-case class Nomination(ephemeralPubKey     : PubKey,
+case class Nomination(ephemeralPubKey     : RnceBatchedPubKey,
                       ephemeralPrivKeyEnc : HybridCiphertext)
 
 case class Nominator(context         : CryptoContext,
+                     keygenParams    : RnceParams,
                      longTermPubKeys : Seq[PubKey]) {
   import context.{group, blockCipher}
 
@@ -20,8 +22,8 @@ case class Nominator(context         : CryptoContext,
     // select randomly a holder by its long term public key
     val selectedLongTermPubKey = longTermPubKeys.sorted.apply(rng.nextInt().abs % longTermPubKeys.size)
 
-    val (ephemeralPrivKey, ephemeralPubKey) = encryption.createKeyPair.get
-    val ephemeralPrivKeyEnc = HybridEncryption.encrypt(selectedLongTermPubKey, ephemeralPrivKey.toByteArray).get
+    val (ephemeralPrivKey, ephemeralPubKey) = RnceBatchedEncryption.keygen(keygenParams)
+    val ephemeralPrivKeyEnc = HybridEncryption.encrypt(selectedLongTermPubKey, ephemeralPrivKey.bytes).get
     Nomination(ephemeralPubKey, ephemeralPrivKeyEnc)
   }
 }
@@ -29,6 +31,7 @@ case class Nominator(context         : CryptoContext,
 object Nominator
 {
   def create(context         : CryptoContext,
+             keygenParams    : RnceParams,
              ownKeyPair      : KeyPair, // own long-term key pair
              stake           : Int,
              thresholdCoeff  : BigInt,
@@ -43,7 +46,7 @@ object Nominator
       hash <= target
     }
     if(isNominator){
-      Option(Nominator(context, longTermPubKeys))
+      Option(Nominator(context, keygenParams, longTermPubKeys))
     } else {
       None
     }
