@@ -5,11 +5,11 @@ import io.iohk.core.crypto.encryption.{KeyPair, PubKey}
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.keygen_2_0.rnce_encryption.batched.data.RnceBatchedPubKey
+import io.iohk.protocol.keygen_2_0.rnce_encryption.RncePubKey
 import io.iohk.protocol.keygen_2_0.rnce_encryption.batched.{RnceBatchedEncryption, RnceParams}
 import io.iohk.protocol.keygen_2_0.signature.SchnorrSignature
 
-case class Nomination(ephemeralPubKey     : RnceBatchedPubKey,
+case class Nomination(ephemeralPubKey     : RncePubKey,
                       ephemeralPrivKeyEnc : HybridCiphertext)
 
 case class Nominator(context         : CryptoContext,
