@@ -72,9 +72,7 @@ class CorrectSharesEncryptionDkgTests extends FunSuite  {
       (Seq(s) ++ F1_coeffs), (Seq(s_) ++ F2_coeffs) // passing all the coefficients of both polynomials
     )
 
-    val cse = CorrectSharesEncryptionDkg(cse_crs, statement, dlogGroup)
-    val proof = cse.prove(witness)
-
-    assert(cse.verify(proof))
+    val proof = CorrectSharesEncryptionDkg(cse_crs, statement, dlogGroup).prove(witness)
+    assert(CorrectSharesEncryptionDkg(cse_crs, statement, dlogGroup).verify(proof))
   }
 }

@@ -3,14 +3,13 @@ package io.iohk.protocol.keygen_2_0.NIZKs.rnce
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
-import io.iohk.protocol.keygen_2_0.NIZKs.rnce.CorrectSharesEncryptionDkg.{CRS, Challenge, Commitment, CommitmentBatch, CommitmentParams, Proof, Response, Statement, Witness}
+import io.iohk.protocol.keygen_2_0.NIZKs.rnce.CorrectSharesEncryptionDkg._
 import io.iohk.protocol.keygen_2_0.encoding.BaseCodec
 import io.iohk.protocol.keygen_2_0.math.Polynomial
 import io.iohk.protocol.keygen_2_0.rnce_encryption.basic.light.data.RnceCrsLight
 import io.iohk.protocol.keygen_2_0.rnce_encryption.batched.data.{RnceBatchedCiphertext, RnceBatchedPubKey, RnceBatchedRandomness}
 import io.iohk.protocol.keygen_2_0.utils.DlogGroupArithmetics.{exp, mul}
 
-import scala.collection.mutable.ArrayBuffer
 
 // DKG-phase NIZK-proof for correctness of encrypted shares together with correctness of their encryptions
 case class CorrectSharesEncryptionDkg(crs:   CRS,
@@ -24,10 +23,6 @@ case class CorrectSharesEncryptionDkg(crs:   CRS,
   private val M2 = statement.ct1_ct2.length  // number of Holding committee members
   private val l = statement.ct1_ct2.head._1.C.size // number of segments in batched ciphertexts
 
-  private val lambda_g = randZq
-
-  private val sha = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
-
   require(statement.ct1_ct2.forall(_._1.C.size == l))
   require(statement.ct1_ct2.forall(_._2.C.size == l))
 
@@ -35,6 +30,13 @@ case class CorrectSharesEncryptionDkg(crs:   CRS,
 
   private def randZq = group.createRandomNumber
   private def getBatchedRandomness(l: Int) = RnceBatchedRandomness(for(_ <- 0 until l) yield { randZq })
+
+  def getLambda(deltas: Seq[GroupElement]): BigInt = {
+    val sha = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
+    BigInt(1,
+      sha.hash(deltas.foldLeft(Array[Byte]())((buffer, D) => buffer ++ D.bytes))
+    ).mod(modulus)
+  }
 
   def commitCoeffs(F1_coeffs: Seq[BigInt], F2_coeffs: Seq[BigInt], o: Seq[BigInt]): Seq[GroupElement] = {
     require(F1_coeffs.length == F2_coeffs.length)
@@ -160,36 +162,40 @@ case class CorrectSharesEncryptionDkg(crs:   CRS,
     )
   }
 
-  def getCommitment(params: CommitmentParams, witness: Witness, statement: Statement): Commitment = {
+  def getCommitment(params: CommitmentParams, witness: Witness, statement: Statement): (Commitment, BigInt) = {
     val f1_seq = params.f1_f2.map(_._1)
     val f2_seq = params.f1_f2.map(_._2)
 
-    val f1_sum = sumBatchedRandomness(f1_seq, lambda_g)
-    val f2_sum = sumBatchedRandomness(f2_seq, lambda_g)
+    val deltas = commitCoeffs(witness.F1_coeffs, witness.F2_coeffs, params.o)
+    val lambda = getLambda(deltas)
 
-    Commitment(
-      CommitmentBatch(
-        A = exp(g1, f1_sum),
-        B = exp(g2, f1_sum),
-        C = mul(exp(g1, params.b), combinePublicKeys(statement.pubKeys, f1_seq, lambda_g))
-      ),
-      CommitmentBatch(
-        A = exp(g1, f2_sum),
-        B = exp(g2, f2_sum),
-        C = mul(exp(g1, params.c), combinePublicKeys(statement.pubKeys, f2_seq, lambda_g))
-      ),
-      T = product(Seq(exp(g1, params.b), exp(g2, params.c), exp(g3, params.d))),
-      deltas = commitCoeffs(witness.F1_coeffs, witness.F2_coeffs, params.o)
-    )
+    val f1_sum = sumBatchedRandomness(f1_seq, lambda)
+    val f2_sum = sumBatchedRandomness(f2_seq, lambda)
+
+    val commitment =
+      Commitment(
+        CommitmentBatch(
+          A = exp(g1, f1_sum),
+          B = exp(g2, f1_sum),
+          C = mul(exp(g1, params.b), combinePublicKeys(statement.pubKeys, f1_seq, lambda))
+        ),
+        CommitmentBatch(
+          A = exp(g1, f2_sum),
+          B = exp(g2, f2_sum),
+          C = mul(exp(g1, params.c), combinePublicKeys(statement.pubKeys, f2_seq, lambda))
+        ),
+        T = product(Seq(exp(g1, params.b), exp(g2, params.c), exp(g3, params.d))),
+        deltas
+      )
+    (commitment, lambda)
   }
 
   def getChallenge: Challenge = {
-    Challenge(lambda = lambda_g, e = randZq)
+    Challenge(e = randZq)
   }
 
 
-  def getResponse(params: CommitmentParams, witness: Witness, challenge: Challenge): Response = {
-    val lambda = challenge.lambda
+  def getResponse(params: CommitmentParams, witness: Witness, challenge: Challenge, lambda: BigInt): Response = {
     val e = challenge.e
     val n = group.groupOrder
     val p = BaseCodec.defaultBase
@@ -218,15 +224,17 @@ case class CorrectSharesEncryptionDkg(crs:   CRS,
 
     val params = getCommitmentParams(t2, M2, l)
     val challenge = getChallenge
+    val (commitment, lambda) = getCommitment(params, witness, statement)
+
     Proof(
-      getCommitment(params, witness, statement),
+      commitment,
       challenge,
-      getResponse(params, witness, challenge)
+      getResponse(params, witness, challenge, lambda)
     )
   }
 
-  def verifySharesCorrectness(proof: Proof): Boolean = {
-    val delta = combineDeltas(proof.commitment.deltas, proof.challenge.lambda, M2)
+  def verifySharesCorrectness(proof: Proof, lambda: BigInt): Boolean = {
+    val delta = combineDeltas(proof.commitment.deltas, lambda, M2)
 
     val left = product(Seq(exp(g1, proof.response.z1), exp(g2, proof.response.z2), exp(g3, proof.response.z3)))
     val right = mul(exp(delta, proof.challenge.e), proof.commitment.T)
@@ -239,45 +247,46 @@ case class CorrectSharesEncryptionDkg(crs:   CRS,
                   z4_seq:     Seq[RnceBatchedRandomness],
                   z4_sum:     BigInt,
                   z:          BigInt,
-                  challenge:  Challenge): Boolean = {
-
+                  challenge:  Challenge,
+                  lambda:     BigInt): Boolean = {
     val condition1 =
       mul(
-        exp(combineCiphertexts(cts.map(_.C.map(_.u1)), challenge.lambda, BaseCodec.defaultBase), challenge.e),
+        exp(combineCiphertexts(cts.map(_.C.map(_.u1)), lambda, BaseCodec.defaultBase), challenge.e),
         batch.A
       ) == exp(g1, z4_sum)
 
     val condition2 =
       mul(
-        exp(combineCiphertexts(cts.map(_.C.map(_.u2)), challenge.lambda, BaseCodec.defaultBase), challenge.e),
+        exp(combineCiphertexts(cts.map(_.C.map(_.u2)), lambda, BaseCodec.defaultBase), challenge.e),
         batch.B
       ) == exp(g2, z4_sum)
 
     val condition3 =
       mul(
-        exp(combineCiphertexts(cts.map(_.C.map(_.e)), challenge.lambda, BaseCodec.defaultBase), challenge.e),
+        exp(combineCiphertexts(cts.map(_.C.map(_.e)), lambda, BaseCodec.defaultBase), challenge.e),
         batch.C
-      ) == mul(exp(g1, z), combinePublicKeys(statement.pubKeys, z4_seq, challenge.lambda))
+      ) == mul(exp(g1, z), combinePublicKeys(statement.pubKeys, z4_seq, lambda))
 
     condition1 && condition2 && condition3
   }
 
-  def verifyEncryptionCorrectness(proof: Proof): Boolean = {
+  def verifyEncryptionCorrectness(proof: Proof, lambda: BigInt): Boolean = {
     val z41_seq = proof.response.z41_z42.map(_._1)
     val z42_seq = proof.response.z41_z42.map(_._2)
 
-    val z41_sum = sumBatchedRandomness(z41_seq, proof.challenge.lambda)
-    val z42_sum = sumBatchedRandomness(z42_seq, proof.challenge.lambda)
+    val z41_sum = sumBatchedRandomness(z41_seq, lambda)
+    val z42_sum = sumBatchedRandomness(z42_seq, lambda)
 
     val ct1_seq = statement.ct1_ct2.map(_._1)
     val ct2_seq = statement.ct1_ct2.map(_._2)
 
-    verifyBatch(proof.commitment.batch1, ct1_seq, z41_seq, z41_sum, proof.response.z1, proof.challenge) &&
-    verifyBatch(proof.commitment.batch2, ct2_seq, z42_seq, z42_sum, proof.response.z2, proof.challenge)
+    verifyBatch(proof.commitment.batch1, ct1_seq, z41_seq, z41_sum, proof.response.z1, proof.challenge, lambda) &&
+    verifyBatch(proof.commitment.batch2, ct2_seq, z42_seq, z42_sum, proof.response.z2, proof.challenge, lambda)
   }
 
   def verify(proof: Proof): Boolean = {
-    verifySharesCorrectness(proof) && verifyEncryptionCorrectness(proof)
+    val lambda = getLambda(proof.commitment.deltas)
+    verifySharesCorrectness(proof, lambda) && verifyEncryptionCorrectness(proof, lambda)
   }
 }
 
@@ -292,7 +301,7 @@ object CorrectSharesEncryptionDkg {
   case class CommitmentBatch(A: GroupElement, B: GroupElement, C: GroupElement)
   case class Commitment(batch1: CommitmentBatch, batch2: CommitmentBatch, T: GroupElement, deltas: Seq[GroupElement])
 
-  case class Challenge(lambda: BigInt, e: BigInt)
+  case class Challenge(e: BigInt)
 
   case class Response(z1: BigInt, z2: BigInt, z3: BigInt,
                       z41_z42: Seq[(RnceBatchedRandomness, RnceBatchedRandomness)])
