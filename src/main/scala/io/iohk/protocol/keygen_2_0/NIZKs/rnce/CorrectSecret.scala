@@ -5,6 +5,7 @@ import io.iohk.protocol.keygen_2_0.NIZKs.rnce.CorrectSecret.{CRS, Challenge, Com
 import io.iohk.protocol.keygen_2_0.rnce_encryption.basic.light.data.RnceCrsLight
 import io.iohk.protocol.keygen_2_0.utils.DlogGroupArithmetics.{div, exp, mul}
 
+
 case class CorrectSecret(crs:   CRS,
                          implicit val group: DiscreteLogGroup) {
   private val g1 = crs.rnce_crs.g1 // mu
