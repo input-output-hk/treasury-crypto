@@ -2,10 +2,10 @@ package io.iohk.protocol.keygen_2_0
 
 import io.iohk.core.crypto.encryption.KeyPair
 import io.iohk.core.crypto.encryption.hybrid.HybridEncryption
-import io.iohk.protocol.keygen_2_0.datastructures.SecretShare
-import io.iohk.protocol.keygen_2_0.datastructures.{ProactiveShare, Share}
+import io.iohk.protocol.keygen_2_0.datastructures.{HoldersOutput, OutputDKG, OutputMaintenance, ProactiveShare, SecretShare, Share}
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen_2_0.math.{LagrangeInterpolation, Polynomial}
+import io.iohk.protocol.keygen_2_0.rnce_encryption.basic.light.data.RncePublicKeyLight
 import io.iohk.protocol.keygen_2_0.rnce_encryption.{RnceKeyPair, RncePrivKey, RncePubKey}
 import io.iohk.protocol.keygen_2_0.rnce_encryption.batched.data.RnceBatchedSecretKeySerializer
 import io.iohk.protocol.keygen_2_0.rnce_encryption.batched.{RnceBatchedEncryption, RnceParams}
@@ -36,37 +36,69 @@ case class Holder(context              : CryptoContext,
   private val memberIdentifier = new CommitteeIdentifierRnce(ephemeralPubKeys)
   private val membersIds = ephemeralPubKeys.flatMap(memberIdentifier.getId)
 
-  val partialSecretsInitial: ArrayBuffer[BigInt] = ArrayBuffer[BigInt]()
-  val combinedShares: ArrayBuffer[(Int, BigInt)] = ArrayBuffer[(Int, BigInt)]() // set of combined shares for each owned Id (i.e. point)
+  val partialSecretsInitial: ArrayBuffer[(BigInt, BigInt)] = ArrayBuffer[(BigInt, BigInt)]()
+  val combinedShares1: ArrayBuffer[Share] = ArrayBuffer[Share]() // set of combined shares1 for each owned HolderId
+  val combinedShares2: ArrayBuffer[Share] = ArrayBuffer[Share]() // set of combined shares2 for each owned HolderId
 
-  def generate(nominationsNext: Seq[Nomination]): Seq[SecretShare] = {
+  private def randZq = context.group.createRandomNumber
+
+  def generate(nominationsNext: Seq[Nomination]): Seq[HoldersOutput] = {
 
     val ephemeralPubKeysNext = nominationsNext.map(_.ephemeralPubKey)
     val holdingCommittee = SharingParameters(ephemeralPubKeysNext)
 
-    ephemeralOwnKeyPairs.flatMap{
+    ephemeralOwnKeyPairs.map{ // creating and sharing partial secrets according to a Holder-roles number for a current Node
       _ =>
-        partialSecretsInitial += BigInt(Random.nextInt())
-        val shares = Holder.shareSecret(context, IdPointMap.emptyPoint, partialSecretsInitial.last, holdingCommittee)
-        Holder.encryptShares(context, rnceParams, shares, holdingCommittee.keyToIdMap)
-    }
+        val (sk1, sk2) = (randZq, randZq)
+        partialSecretsInitial += Tuple2(sk1, sk2)
+
+        val sk1_shares = Holder.shareSecret(context, IdPointMap.emptyPoint, sk1, holdingCommittee)
+        val sk2_shares = Holder.shareSecret(context, IdPointMap.emptyPoint, sk2, holdingCommittee)
+
+        OutputDKG(
+          sk1_shares = Holder.encryptShares(context, rnceParams, sk1_shares, holdingCommittee.keyToIdMap),
+          sk2_shares = Holder.encryptShares(context, rnceParams, sk2_shares, holdingCommittee.keyToIdMap),
+          pubKeyPartial = RncePublicKeyLight.create(sk1, sk2, rnceParams.crs)(context.group)
+        )
+    }.map(outputDkg => HoldersOutput(Some(outputDkg), None))
   }
 
-  def reshare(allShares: Seq[SecretShare],
-              nominationsNext: Seq[Nomination]): Seq[SecretShare] = {
+  def reshare(allHoldersOuptuts: Seq[HoldersOutput],
+              nominationsNext:   Seq[Nomination]): Seq[HoldersOutput] = {
 
     val ephemeralPubKeysNext = nominationsNext.map(_.ephemeralPubKey)
 
     val sharingCommittee = SharingParameters(ephemeralPubKeys)
     val holdingCommittee = SharingParameters(ephemeralPubKeysNext)
 
-    ephemeralOwnKeyPairs.flatMap{
-      ownKeyPair =>
-        val ownId = memberIdentifier.getId(ownKeyPair._2).get
-        combinedShares += Holder.combineOwnShares(context, rnceParams, ownKeyPair, allShares, sharingCommittee).get
-        val newShares = Holder.shareSecret(context, IdPointMap.toPoint(ownId), combinedShares.last._2, holdingCommittee)
-        Holder.encryptShares(context, rnceParams, newShares, holdingCommittee.keyToIdMap)
+    val allShares_1_2 = allHoldersOuptuts.map{ output =>
+      require(output.dkg.isDefined || output.maintenance.isDefined, "Dkg or Maintenance part should be defined")
+      if(output.dkg.isDefined) { (output.dkg.get.sk1_shares, output.dkg.get.sk2_shares) }
+      else { (output.maintenance.get.s1_shares, output.maintenance.get.s2_shares)}
     }
+
+    // Shares posted by all previous epoch Holders
+    val allShares1 = allShares_1_2.flatMap(_._1) // shares of the first secret sk1
+    val allShares2 = allShares_1_2.flatMap(_._2) // shares of the second secret sk2
+
+    ephemeralOwnKeyPairs.map{
+      ownKeyPair =>
+
+        combinedShares1 += Holder.combineOwnShares(context, rnceParams, ownKeyPair, allShares1, sharingCommittee).get
+        combinedShares2 += Holder.combineOwnShares(context, rnceParams, ownKeyPair, allShares2, sharingCommittee).get
+
+        val ownId = memberIdentifier.getId(ownKeyPair._2).get
+        val ownPoint = IdPointMap.toPoint(ownId)
+        require(ownPoint == combinedShares1.last.point && ownPoint == combinedShares2.last.point, "Own point is inconsistent with combined shares points")
+
+        val s1_shares = Holder.shareSecret(context, IdPointMap.toPoint(ownId), combinedShares1.last.value, holdingCommittee)
+        val s2_shares = Holder.shareSecret(context, IdPointMap.toPoint(ownId), combinedShares2.last.value, holdingCommittee)
+
+        OutputMaintenance(
+          Holder.encryptShares(context, rnceParams, s1_shares, holdingCommittee.keyToIdMap),
+          Holder.encryptShares(context, rnceParams, s2_shares, holdingCommittee.keyToIdMap)
+        )
+    }.map(outputMaintenance => HoldersOutput(None, Some(outputMaintenance)))
   }
 }
 
@@ -155,11 +187,14 @@ object Holder
     }
   }
 
+  // Extracts own shares, i.e. the shares encrypted on public key of the current Holder
+  // Sums up all own shares
+  // Multiplies each share on the corresponding Dealer's lambda if shared secret is a combined share from previous epoch
   def combineOwnShares(context:         CryptoContext,
                        rnceParams:      RnceParams,
                        keyPair:         RnceKeyPair,
                        allShares:       Seq[SecretShare],
-                       committeeParams: SharingParameters): Try[(Int, BigInt)] = Try {
+                       committeeParams: SharingParameters): Try[Share] = Try {
 
     val modulus = context.group.groupOrder
     val (privKey, pubKey) = keyPair
@@ -185,6 +220,6 @@ object Holder
           }
           (sum + lambda * share.f_share.value).mod(modulus)
     }
-    (IdPointMap.toPoint(ownId), ownSharesSum)
+    Share(IdPointMap.toPoint(ownId), ownSharesSum)
   }
 }

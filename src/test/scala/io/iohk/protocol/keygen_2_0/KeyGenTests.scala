@@ -2,7 +2,7 @@ package io.iohk.protocol.keygen_2_0
 
 import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.PubKey
-import io.iohk.protocol.keygen_2_0.datastructures.{SecretShare, SecretShareSerializer}
+import io.iohk.protocol.keygen_2_0.datastructures.{HoldersOutput, SecretShareSerializer}
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.keygen_2_0.math.LagrangeInterpolation
 import io.iohk.protocol.keygen_2_0.rnce_encryption.RnceKeyPair
@@ -42,7 +42,7 @@ case class NominationParameters(seed: BigInt,
 
 case class EpochContext(allNodes: Seq[Node] = Seq(),
                         holders: Seq[Node] = Seq(),
-                        shares: Seq[SecretShare] = Seq()){
+                        holdersOutputs: Seq[HoldersOutput] = Seq()){
   assert(holders == allNodes.filter(_.holderOpt.nonEmpty))
 }
 
@@ -71,46 +71,50 @@ class KeyGenTests extends FunSuite {
     }
   }
 
-  def setNominatingCommittee(allNodes: Seq[Node], params: NominationParameters): Seq[Node] ={
+  def setNominatingCommittee(allNodes: Seq[Node], params: NominationParameters): Seq[Node] = {
     allNodes.foreach(_.setNominator(params))
     allNodes.filter(_.nominatorOpt.nonEmpty)
   }
 
-  def selectHoldingCommittee(nominators: Seq[Node]): Seq[Nomination] ={
+  def selectHoldingCommittee(nominators: Seq[Node]): Seq[Nomination] = {
     nominators.map(_.nominatorOpt.get.selectHolder())
   }
 
-  def setHoldingCommittee(allNodes: Seq[Node], nominations: Seq[Nomination]): Seq[Node] ={
+  def setHoldingCommittee(allNodes: Seq[Node], nominations: Seq[Nomination]): Seq[Node] = {
     allNodes.foreach(_.setHolder(nominations))
     allNodes.filter(_.holderOpt.nonEmpty)
   }
 
-  def generate(holders: Seq[Node], nominationsNext: Seq[Nomination]): Seq[SecretShare] ={
+  def generate(holders: Seq[Node], nominationsNext: Seq[Nomination]): Seq[HoldersOutput] = {
     holders.flatMap(_.holderOpt.get.generate(nominationsNext))
   }
 
-  def reshare(holders: Seq[Node], shares: Seq[SecretShare], nominationsNext: Seq[Nomination]): Seq[SecretShare] ={
-    holders.flatMap(_.holderOpt.get.reshare(shares, nominationsNext))
+  def reshare(holders: Seq[Node], prevHoldersOutputs: Seq[HoldersOutput], nominationsNext: Seq[Nomination]): Seq[HoldersOutput] ={
+    holders.flatMap(_.holderOpt.get.reshare(prevHoldersOutputs, nominationsNext))
   }
 
-  def getCommonSecret(holders: Seq[Node]): BigInt = {
-    holders.foldLeft(BigInt(0)){
+  // Returns (common_sk1, common_sk2), where common_sk1 = sum(sk1_i), common_sk2 = sum(sk2_i)
+  def getCommonSecret(holders: Seq[Node]): (BigInt, BigInt) = {
+    holders.foldLeft((BigInt(0), BigInt(0))){
       (sum, node) =>
-        val partialSum = node.holderOpt.get.partialSecretsInitial.foldLeft(BigInt(0))((sum, ps) => sum + ps)
-        (sum + partialSum).mod(context.group.groupOrder)
+        val partialSum = node.holderOpt.get.partialSecretsInitial
+          .foldLeft((BigInt(0), BigInt(0)))((sum, ps) => (sum._1 + ps._1, sum._2 + ps._2))
+        (
+          (sum._1 + partialSum._1).mod(context.group.groupOrder),
+          (sum._2 + partialSum._2).mod(context.group.groupOrder)
+        )
     }
   }
+  // Returns (common_sk1, common_sk2) reconstructed from their shares
+  def reconstructCommonSecret(holders: Seq[Node]): (BigInt, BigInt) = {
+    val all_shares1 = holders.flatMap(_.holderOpt.get.combinedShares1)
+    val all_shares2 = holders.flatMap(_.holderOpt.get.combinedShares2)
 
-  def reconstructCommonSecret(holders: Seq[Node]): BigInt = {
-    val all_shares = holders.flatMap(_.holderOpt.get.combinedShares)
-    val all_points = all_shares.map(_._1)
+    require(all_shares1.length == all_shares2.length)
+    val t = all_shares1.length / 2 + 1
 
-    all_shares.foldLeft(BigInt(0)){
-      (sum, point_share) =>
-        val (point, share) = point_share
-        val lambda = LagrangeInterpolation.getLagrangeCoeff(context.group, point, all_points)
-        (sum + lambda * share).mod(context.group.groupOrder)
-    }
+    (LagrangeInterpolation.restoreSecret(context.group, all_shares1, t), // common_sk1
+     LagrangeInterpolation.restoreSecret(context.group, all_shares2, t)) // common_sk2
   }
 
   def generateKeys(num: Int) : Seq[RnceKeyPair] =
@@ -121,13 +125,10 @@ class KeyGenTests extends FunSuite {
     val testsNum = 10
 
     for(_ <- 0 until testsNum){
-      val sharingMembersNum = Random.nextInt(20) + 20
       val holdingMembersNum = Random.nextInt(20) + 20
       val secret = BigInt(Random.nextInt().abs)
 
-      val sharingCommitteeKeys = generateKeys(sharingMembersNum)
       val holdingCommitteeKeys = generateKeys(holdingMembersNum)
-
       val holdingCommitteeParams = SharingParameters(holdingCommitteeKeys.map(_._2))
 
       val shares = Holder.shareSecret(context, 0, secret, holdingCommitteeParams)
@@ -184,7 +185,7 @@ class KeyGenTests extends FunSuite {
   test("protocol"){
 
     var prevEpoch = EpochContext()
-    var commonSecret = BigInt(0)
+    var commonSecret: Option[(BigInt, BigInt)] = None
 
     for (epoch <- 0 until epochsNum){
 
@@ -204,14 +205,14 @@ class KeyGenTests extends FunSuite {
         epoch match {
           case 0 => Seq()
           case 1 => generate(prevEpoch.holders, nominations)
-          case _ => reshare(prevEpoch.holders, prevEpoch.shares, nominations)
+          case _ => reshare(prevEpoch.holders, prevEpoch.holdersOutputs, nominations)
         }
 
       // Validate shares
       epoch match {
         case 0 =>
-        case 1 => commonSecret = getCommonSecret(prevEpoch.holders)
-        case _ => assert(commonSecret == reconstructCommonSecret(prevEpoch.holders))
+        case 1 => commonSecret = Some(getCommonSecret(prevEpoch.holders))
+        case _ => assert(commonSecret.get == reconstructCommonSecret(prevEpoch.holders))
       }
       prevEpoch = EpochContext(allNodes, setHoldingCommittee(allNodes, nominations), shares)
 
