@@ -7,6 +7,8 @@ import io.iohk.protocol.integration.DistributedKeyGenerationSimulator
 import io.iohk.protocol.keygen.CommitteeMember
 import io.iohk.protocol.voting.preferential.tally.{PreferentialBallotsSummator, PreferentialTally}
 
+import java.security.SecureRandom
+
 class PreferentialTallyPerformance {
   val crs = CryptoContext.generateRandomCRS
   val ctx = new CryptoContext(Option(crs))
@@ -17,8 +19,8 @@ class PreferentialTallyPerformance {
     val violatorsNum = (commiteeMembersNum.toFloat * (violatorsPercentage.toFloat / 100)).ceil.toInt
 
     val numberOfExperts = 0
-    val numberOfVoters = 5000
-    val stakePerVoter = 1066     // note that it is a normalized stake by dividing on granularity param. Total participating stake can be estimated as "numberOfVoters * stakePerVoter * granularity"
+    val numberOfVoters = 500
+    val stakePerVoter = 10660     // note that it is a normalized stake by dividing on granularity param. Total participating stake can be estimated as "numberOfVoters * stakePerVoter * granularity"
     val numberOfRankedProposals = 20
     val numberOfProposals = 150
     val pctx = new PreferentialContext(ctx, numberOfProposals, numberOfRankedProposals, numberOfExperts)
@@ -45,18 +47,21 @@ class PreferentialTallyPerformance {
     // Generating shared public key by committee members (by running the DKG protocol between them)
     val (sharedPubKey, dkgR1DataAll, dkgViolators) = DistributedKeyGenerationSimulator.runDKG(ctx, committeeMembersAll)
 
-    val vote = (0 until numberOfRankedProposals).toList
+    val proposalIds = (0 until numberOfProposals).toList
 
     val summator = new PreferentialBallotsSummator(pctx)
     var voterBallotsTraffic = 0
     for (i <- 0 until numberOfVoters) {
       if (i % 100 == 0) println(i)
+      val vote = scala.util.Random.shuffle(proposalIds).take(numberOfRankedProposals)
       val ballot = PreferentialVoterBallot.createBallot(pctx, DirectPreferentialVote(vote), sharedPubKey, stakePerVoter).get
       summator.addVoterBallot(ballot)
       voterBallotsTraffic += ballot.bytes.size
     }
-    val expertBallots = for (i <- 0 until numberOfExperts) yield
+    val expertBallots = for (i <- 0 until numberOfExperts) yield {
+      val vote = scala.util.Random.shuffle(proposalIds).take(numberOfRankedProposals)
       PreferentialExpertBallot.createBallot(pctx, 0, DirectPreferentialVote(vote), sharedPubKey).get
+    }
 
     val expertBallotsTraffic = expertBallots.headOption.map(_.bytes.size).getOrElse(0) * expertBallots.size // good enough approximation
     var overallBytes = voterBallotsTraffic + expertBallotsTraffic

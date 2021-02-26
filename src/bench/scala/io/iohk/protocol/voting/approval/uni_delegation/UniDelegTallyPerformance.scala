@@ -8,6 +8,8 @@ import io.iohk.protocol.keygen.CommitteeMember
 import io.iohk.protocol.voting.approval.ApprovalContext
 import io.iohk.protocol.voting.approval.uni_delegation.tally.{UniDelegBallotsSummator, UniDelegTally}
 
+import java.security.SecureRandom
+
 class UniDelegTallyPerformance {
   val crs = CryptoContext.generateRandomCRS
   val ctx = new CryptoContext(Option(crs))
@@ -45,11 +47,15 @@ class UniDelegTallyPerformance {
     // Generating shared public key by committee members (by running the DKG protocol between them)
     val (sharedPubKey, dkgR1DataAll, dkgViolators) = DistributedKeyGenerationSimulator.runDKG(ctx, committeeMembersAll)
 
-    val vote = List.fill(numberOfProposals)(0)
-    val voterBallots = for (i <- 0 until numberOfVoters) yield
+    val rnd = new SecureRandom()
+    val voterBallots = for (i <- 0 until numberOfVoters) yield {
+      val vote = List.fill(numberOfProposals)(rnd.nextInt(numberOfChoices))
       UniDelegPublicStakeBallot.createBallot(pctx, DirectUniDelegVote(vote), sharedPubKey, stakePerVoter).get
-    val expertBallots = for (i <- 0 until numberOfExperts) yield
-      UniDelegExpertBallot.createBallot(pctx, 0, DirectUniDelegVote(vote), sharedPubKey).get
+    }
+    val expertBallots = for (i <- 0 until numberOfExperts) yield {
+      val vote = List.fill(numberOfProposals)(rnd.nextInt(numberOfChoices))
+      UniDelegExpertBallot.createBallot(pctx, i, DirectUniDelegVote(vote), sharedPubKey).get
+    }
 
     var overallBytes: Int = 0
     val voterBallotsTraffic = voterBallots.headOption.map(_.bytes.size).getOrElse(0) * voterBallots.size // good enough approximation
