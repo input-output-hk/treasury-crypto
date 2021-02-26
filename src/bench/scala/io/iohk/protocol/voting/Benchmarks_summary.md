@@ -57,7 +57,7 @@ If number of experts is zero, benchmarks are exactly the same as for uni delegat
 Preferential voting
 -------------------
 
-### Raw benchmarks:
+### Raw benchmarks 1:
     Commitee members:	2
     Commitee violators:	0 (0%)
     Voters: 	500
@@ -80,4 +80,54 @@ Preferential voting
     ----------------------------------
     Overall time (for one committee member):    0.76605946 sec
     Overall traffic:                            31978494 Bytes (31228 KB)
+    -----------------------------------
+
+### Raw benchmarks 2:
+    Commitee members:	2
+    Commitee violators:	0 (0%)
+    Voters: 	1000
+    Experts:	0
+    Stake per voter (normalized by granularity): 	5330
+    Proposals: 	150
+    Ranked proposals:	20
+    ------------------------
+    Voter ballots traffic: 417946 kB
+    Expert ballots traffic: 0 kB
+    
+    Tally Round 1 (data generation):	0.003113349 s;	Tally Round 1 (execution): 0 ms
+    Round 1 traffic: 0 kB
+    Tally Round 2 (data generation):	0.002047311 s;	Tally Round 2 (execution): 2 ms
+    Round 2 traffic: 0 kB
+    Tally Round 3 (data generation):	7.9050393 s;	Tally Round 3 (execution): 6 ms
+    Round 3 traffic: 397 kB
+    Tally Round 4 (data generation):	8.75785E-4 s;	Tally Round 4 (execution): 2178164 ms (36.3 min)
+    Round 4 traffic: 0 kB
+    ----------------------------------
+    Overall time (for one committee member):    7.911076 sec
+    Overall traffic:                            428384527 Bytes (418344 KB)
+    -----------------------------------
+
+### Raw benchmarks 3:
+    Commitee members:	2
+    Commitee violators:	0 (0%)
+    Voters: 	5000
+    Experts:	0
+    Stake per voter (normalized by granularity): 	1066
+    Proposals: 	150
+    Ranked proposals:	20
+    ------------------------
+    Voter ballots traffic: 2040 mB
+    Expert ballots traffic: 0 kB
+    
+    Tally Round 1 (data generation):	0.003590925 s;	Tally Round 1 (execution): 0 ms
+    Round 1 traffic: 0 kB
+    Tally Round 2 (data generation):	0.001703426 s;	Tally Round 2 (execution): 2 ms
+    Round 2 traffic: 0 kB
+    Tally Round 3 (data generation):	7.963135 s;	Tally Round 3 (execution): 5 ms
+    Round 3 traffic: 397 kB
+    Tally Round 4 (data generation):	7.29183E-4 s;	Tally Round 4 (execution): 2017847 ms (33.6 min)
+    Round 4 traffic: 0 kB
+    ----------------------------------
+    Overall time (for one committee member):    7.969158 sec
+    Overall traffic:                            2140291344 Bytes (2041 mB)
     -----------------------------------

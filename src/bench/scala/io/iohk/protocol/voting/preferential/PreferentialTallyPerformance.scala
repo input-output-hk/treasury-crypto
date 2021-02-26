@@ -17,10 +17,10 @@ class PreferentialTallyPerformance {
     val violatorsNum = (commiteeMembersNum.toFloat * (violatorsPercentage.toFloat / 100)).ceil.toInt
 
     val numberOfExperts = 0
-    val numberOfVoters = 500
-    val stakePerVoter = 1066000     // note that it is a normalized stake by dividing on granularity param. Total participating stake can be estimated as "numberOfVoters * stakePerVoter * granularity"
-    val numberOfRankedProposals = 5
-    val numberOfProposals = 50
+    val numberOfVoters = 5000
+    val stakePerVoter = 1066     // note that it is a normalized stake by dividing on granularity param. Total participating stake can be estimated as "numberOfVoters * stakePerVoter * granularity"
+    val numberOfRankedProposals = 20
+    val numberOfProposals = 150
     val pctx = new PreferentialContext(ctx, numberOfProposals, numberOfRankedProposals, numberOfExperts)
 
     println("Commitee members:\t" + commiteeMembersNum)
@@ -46,24 +46,24 @@ class PreferentialTallyPerformance {
     val (sharedPubKey, dkgR1DataAll, dkgViolators) = DistributedKeyGenerationSimulator.runDKG(ctx, committeeMembersAll)
 
     val vote = (0 until numberOfRankedProposals).toList
-    val voterBallots = for (i <- 0 until numberOfVoters) yield {
+
+    val summator = new PreferentialBallotsSummator(pctx)
+    var voterBallotsTraffic = 0
+    for (i <- 0 until numberOfVoters) {
       if (i % 100 == 0) println(i)
-      PreferentialVoterBallot.createBallot(pctx, DirectPreferentialVote(vote), sharedPubKey, stakePerVoter).get
+      val ballot = PreferentialVoterBallot.createBallot(pctx, DirectPreferentialVote(vote), sharedPubKey, stakePerVoter).get
+      summator.addVoterBallot(ballot)
+      voterBallotsTraffic += ballot.bytes.size
     }
     val expertBallots = for (i <- 0 until numberOfExperts) yield
       PreferentialExpertBallot.createBallot(pctx, 0, DirectPreferentialVote(vote), sharedPubKey).get
 
-    var overallBytes: Int = 0
-    val voterBallotsTraffic = voterBallots.headOption.map(_.bytes.size).getOrElse(0) * voterBallots.size // good enough approximation
-    val expertBallotsTraffic = expertBallots.headOption.map(_.bytes.size).getOrElse(0) * expertBallots.size
-    overallBytes += voterBallotsTraffic + expertBallotsTraffic
+    val expertBallotsTraffic = expertBallots.headOption.map(_.bytes.size).getOrElse(0) * expertBallots.size // good enough approximation
+    var overallBytes = voterBallotsTraffic + expertBallotsTraffic
     println("Voter ballots traffic: " + voterBallotsTraffic/1024 + " kB")
     println("Expert ballots traffic: " + expertBallotsTraffic/1024 + " kB\n")
 
     val committeeMembersActive = committeeMembersAll.drop(violatorsNum).filter(c => !dkgViolators.contains(c.publicKey))
-
-    val summator = new PreferentialBallotsSummator(pctx)
-    voterBallots.foreach(summator.addVoterBallot(_))
 
     val tally = new PreferentialTally(pctx, committeeMembersActive.head.memberIdentifier, dkgViolators)
 
