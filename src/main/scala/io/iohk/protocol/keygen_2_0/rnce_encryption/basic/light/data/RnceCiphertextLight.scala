@@ -16,6 +16,26 @@ case class RnceCiphertextLight(u1: GroupElement,
   override val serializer: Serializer[M, DECODER] = RnceCiphertextLightSerializer
 
   def size: Int = bytes.length
+
+  // Adds two plaintexts contained in `this` and `that` ciphertexts
+  def +(that: RnceCiphertextLight)
+       (implicit group: DiscreteLogGroup): RnceCiphertextLight = {
+    RnceCiphertextLight(
+      u1 = group.multiply(this.u1, that.u1).get,
+      u2 = group.multiply(this.u2, that.u2).get,
+      e  = group.multiply(this.e,  that.e).get
+    )
+  }
+
+  // Multiplies plaintext contained in `this` ciphertext by a given scalar
+  def *(scalar: BigInt)
+       (implicit group: DiscreteLogGroup): RnceCiphertextLight = {
+    RnceCiphertextLight(
+      u1 = group.exponentiate(u1, scalar).get,
+      u2 = group.exponentiate(u2, scalar).get,
+      e  = group.exponentiate(e,  scalar).get
+    )
+  }
 }
 
 object RnceCiphertextLightSerializer extends Serializer[RnceCiphertextLight, DiscreteLogGroup]{

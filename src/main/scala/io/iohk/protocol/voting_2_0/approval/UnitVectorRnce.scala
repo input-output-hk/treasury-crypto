@@ -10,14 +10,7 @@ case class UnitVectorRnce(units: Seq[RnceCiphertextLight]){
        (implicit group: DiscreteLogGroup): UnitVectorRnce = {
     require(units.length == that.units.length, "UVs are of different length")
     UnitVectorRnce(
-      (units, that.units).zipped.map(
-        (unit1, unit2) =>
-          RnceCiphertextLight(
-            u1 = group.multiply(unit1.u1, unit2.u1).get,
-            u2 = group.multiply(unit1.u2, unit2.u2).get,
-            e  = group.multiply(unit1.e, unit2.e).get
-          )
-      )
+      (units, that.units).zipped.map(_ + _)
     )
   }
 
@@ -25,15 +18,7 @@ case class UnitVectorRnce(units: Seq[RnceCiphertextLight]){
        (implicit group: DiscreteLogGroup): UnitVectorRnce = {
     require(units.length == scalars.length, "Scalars length is inconsistent with UV length")
     UnitVectorRnce(
-      (units, scalars).zipped.map{
-        (unit, scalar) =>
-          val s = BigInt(scalar)
-          RnceCiphertextLight(
-            u1 = group.exponentiate(unit.u1, s).get,
-            u2 = group.exponentiate(unit.u2, s).get,
-            e  = group.exponentiate(unit.e,  s).get
-          )
-      }
+      (units, scalars).zipped.map(_ * _)
     )
   }
 }
