@@ -12,6 +12,7 @@ import io.iohk.protocol.keygen_2_0.utils.DlogGroupArithmetics.{exp, mul}
 
 
 // DKG-phase NIZK-proof for correctness of encrypted shares together with correctness of their encryptions
+// Implementation of `Figure 15: RNCE DKG Key Generation ZK argument` in doc/rnce-based/DecisionMakingMain.pdf
 case class CorrectSharesEncryptionDkg(crs:   CRS,
                                       statement: Statement,
                                       implicit val group: DiscreteLogGroup) {
