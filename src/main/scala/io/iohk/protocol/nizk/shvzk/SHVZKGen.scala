@@ -16,17 +16,57 @@ class SHVZKGen(pubKey: PubKey,
               (override implicit val dlog: DiscreteLogGroup,
                override implicit val hashFunction: CryptographicHash) extends SHVZKCommon(pubKey, unitVector) {
 
+//  private class Commitment(val idxBit: Byte) {
+//    assert(idxBit == 0 || idxBit == 1)
+//    val ik = BigInt(idxBit)
+//    val alpha = dlog.createRandomNumber
+//    val beta = dlog.createRandomNumber
+//    val gamma = dlog.createRandomNumber
+//    val delta = dlog.createRandomNumber
+//
+//    val I = pedersenCommitment(crs, ik, alpha).get
+//    val B = pedersenCommitment(crs, beta, gamma).get
+//    val A = pedersenCommitment(crs, ik * beta, delta).get
+//  }
+
   private class Commitment(val idxBit: Byte) {
     assert(idxBit == 0 || idxBit == 1)
-    val ik = BigInt(idxBit)
-    val alpha = dlog.createRandomNumber
-    val beta = dlog.createRandomNumber
-    val gamma = dlog.createRandomNumber
-    val delta = dlog.createRandomNumber
+    private val ik_original = BigInt(idxBit)
+    private val alpha_original = dlog.createRandomNumber
+    private val beta_original = dlog.createRandomNumber
+    private val gamma_original = dlog.createRandomNumber
+    private val delta_original = dlog.createRandomNumber
 
-    val I = pedersenCommitment(crs, ik, alpha).get
-    val B = pedersenCommitment(crs, beta, gamma).get
-    val A = pedersenCommitment(crs, ik * beta, delta).get
+    val (ik_fake, alpha_fake) = pedersenCommitmentFakeParams(crs, ik_original, alpha_original).get
+    assert(pedersenCommitment(crs, ik_original, alpha_original).get ==
+           pedersenCommitment(crs, ik_fake, alpha_fake).get)
+
+    val (beta_fake, gamma_fake) = pedersenCommitmentFakeParams(crs, beta_original, gamma_original).get
+    assert(pedersenCommitment(crs, beta_original, gamma_original).get ==
+           pedersenCommitment(crs, beta_fake, gamma_fake).get)
+
+    val (ik_beta_fake, delta_fake) = pedersenCommitmentFakeParams(crs, ik_original * beta_original, delta_original).get
+    assert(pedersenCommitment(crs, ik_original * beta_original, delta_original).get ==
+           pedersenCommitment(crs, ik_beta_fake, delta_fake).get)
+
+    val ik = ik_fake
+    val alpha = alpha_fake
+    val beta = beta_fake
+    val gamma = gamma_fake
+    val delta = delta_fake
+    val I = pedersenCommitment(crs, ik_fake, alpha_fake).get
+    val B = pedersenCommitment(crs, beta_fake, gamma_fake).get
+    val A = pedersenCommitment(crs, ik_beta_fake, delta_fake).get
+
+//    // Valid commitments parameters
+//    val ik = ik_original
+//    val alpha = alpha_original
+//    val beta = beta_original
+//    val gamma = gamma_original
+//    val delta = delta_original
+//    val I = pedersenCommitment(crs, ik, alpha).get
+//    val B = pedersenCommitment(crs, beta, gamma).get
+//    val A = pedersenCommitment(crs, ik * beta, delta).get
   }
 
   private class Polinoms(val comm: Commitment) {
