@@ -55,7 +55,7 @@ In the unit vector zero-knowledge proof, we use Pedersen commitment as a buildin
 More specifically, it consists of the following $4$ PPT algorithms. Note that those algorithms (implicitly) take as input the same group parameters, $\param\leftarrow \Gen(1^{\lambda})$. 
 
 \begin{itemize}
-\item $\Gencom(\param)$: pick $s\leftarrow \ZZ_q^*$ and set $\ck:=h=g^{s}$, and output $\ck$. 
+\item $\Gencom(\param)$: pick a group element $h\in E(\FF_p)$ so that its discrete log $s$ to the base $g$ is not known. Set $\ck:=h=g^{s}$, and output $\ck$. 
 \item $\Com_{\ck}(m;r)$: output $c:=g^m h^r$ and $d:=(m,r)$.
 \item $\Open(c, d)$: output $d:=(m,r)$. 
 \item $\Verify_\ck(c,d)$: return $\valid$ if and only if  $c = g^m h^r$.
@@ -280,7 +280,7 @@ is encryption of $0$ by asking the prover to reveal the randomness.
 
 \mybox{Unit vector ZK argument (Prover)}{white!40}{white!10}{
 \footnotesize
-\textbf{CRS:} the commitment key $\ck=hash(\pk)$
+\textbf{CRS:} the commitment key $\ck=h$, where $h\in E(\FF_p)$
 
 \textbf{Statement:} the public key $\pk$ and the ciphertexts $C_0:=  \Enc_{\pk}(e_{i,0};r_0),\ldots, C_{m-1}:=\Enc_{\pk}(e_{i,m-1};r_{m-1})$
 
@@ -337,7 +337,7 @@ A polynomials $p_j(x)$ can be constructed using the following procedure:
 
 \mybox{Unit vector ZK argument (Verifier)}{white!40}{white!10}{
 \footnotesize
-\textbf{CRS:} the commitment key $\ck=hash(\pk)$
+\textbf{CRS:} the commitment key $\ck=h$, where $h\in E(\FF_p)$
 
 \textbf{Statement:} the public key $\pk$ and the ciphertexts $C_0:=  \Enc_{\pk}(e_{i,0};r_0),\ldots, C_{m-1}:=\Enc_{\pk}(e_{i,m-1};r_{m-1})$
 
