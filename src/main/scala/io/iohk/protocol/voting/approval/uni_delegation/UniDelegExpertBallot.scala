@@ -24,12 +24,12 @@ case class UniDelegExpertBallot(
   override val ballotTypeId: Byte = UniBallotTypes.Expert.id.toByte
 
   override def verifyBallot(pctx: ApprovalContext, pubKey: PubKey): Boolean = Try {
-    import pctx.cryptoContext.{group, hash}
+    import pctx.cryptoContext.{group, hash, commonReferenceString}
     require(choices.size == pctx.numberOfProposals)
     require(expertId >= 0 && expertId < pctx.numberOfExperts)
     choices.zip(choicesProofs.get).foreach { case (vector, proof) =>
       require(vector.size == pctx.numberOfChoices)
-      require(new SHVZKVerifier(pubKey, vector, proof).verifyProof())
+      require(new SHVZKVerifier(commonReferenceString, pubKey, vector, proof).verifyProof())
     }
   }.isSuccess
 }
@@ -51,8 +51,9 @@ object UniDelegExpertBallot {
     }
     val proofs = withProof match {
       case true =>
+        val crs = pctx.cryptoContext.commonReferenceString
         Some(encryptedChoices.map { case (choice, vector, rand) =>
-          new SHVZKGen(ballotEncryptionKey, vector, choice, rand).produceNIZK().get
+          new SHVZKGen(crs, ballotEncryptionKey, vector, choice, rand).produceNIZK().get
         })
       case _ => None
     }

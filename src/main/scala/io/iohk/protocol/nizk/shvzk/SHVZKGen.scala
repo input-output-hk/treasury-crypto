@@ -2,19 +2,20 @@ package io.iohk.protocol.nizk.shvzk
 
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
 import io.iohk.core.crypto.encryption.{PubKey, Randomness}
-import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
+import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHash
 import io.iohk.math.BigIntPolynomial
 
 import scala.util.Try
 
 /* This class implements generation of Special Honest Verifier Zero Knowledge proof for unit vector */
-class SHVZKGen(pubKey: PubKey,
+class SHVZKGen(crs: GroupElement,
+               pubKey: PubKey,
                unitVector: Seq[ElGamalCiphertext],
                choiceIndex: Int,
                randomness: Seq[Randomness])
               (override implicit val dlog: DiscreteLogGroup,
-               override implicit val hashFunction: CryptographicHash) extends SHVZKCommon(pubKey, unitVector) {
+               override implicit val hashFunction: CryptographicHash) extends SHVZKCommon(crs, pubKey, unitVector) {
 
   private class Commitment(val idxBit: Byte) {
     assert(idxBit == 0 || idxBit == 1)

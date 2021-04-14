@@ -68,7 +68,7 @@ class DistrKeyGen(ctx:              CryptoContext,
           val t = (n.toFloat / 2).ceil.toInt    // Threshold number of participants
   private val A = new Array[GroupElement](t)         // Own commitments
 
-  private val crs = ctx.commonReferenceString.get
+  private val crs = ctx.commonReferenceString
   private val g = group.groupGenerator
 
   private val ownTransportPrivateKey = transportKeyPair._1
@@ -707,7 +707,7 @@ object DistrKeyGen {
                          share_b: OpenedShare,
                          E: Array[Array[Byte]]): Boolean = {
     import ctx.group
-    val crs = ctx.commonReferenceString.get
+    val crs = ctx.commonReferenceString
 
     var E_sum: GroupElement = group.groupIdentity
 
@@ -727,7 +727,7 @@ object DistrKeyGen {
                                memberIdentifier:  Identifier[Int],
                                E:                 Array[Array[Byte]]): Boolean = {
     import ctx.{blockCipher, group, hash}
-    val crs = ctx.commonReferenceString.get
+    val crs = ctx.commonReferenceString
 
     def checkProof(pubKey: PubKey, proof: ShareProof): Boolean = {
       ElgamalDecrNIZK.verifyNIZK(
@@ -1152,7 +1152,7 @@ object DistrKeyGen {
                   memberIdentifier: Identifier[Int],
                   membersPubKeys:   Seq[PubKey],
                   r1DataSeq:        Seq[R1Data]): Try[Unit] = Try {
-    val crs = ctx.commonReferenceString.get
+    val crs = ctx.commonReferenceString
 
     val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
     require(membersIDs.contains(r2Data.issuerID), "Illegal issuer's ID")
@@ -1245,7 +1245,7 @@ object DistrKeyGen {
                   r1DataSeq:        Seq[R1Data],
                   r2DataSeq:        Seq[R2Data],
                   r3DataSeq:        Seq[R3Data]): Try[Unit] = Try {
-    val crs = ctx.commonReferenceString.get
+    val crs = ctx.commonReferenceString
 
     val membersIDs = membersPubKeys.map(pk => memberIdentifier.getId(pk).get)
     require(membersIDs.contains(r4Data.issuerID), "Illegal issuer's ID")

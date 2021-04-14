@@ -10,11 +10,12 @@ import io.iohk.core.crypto.primitives.hash.CryptographicHash
 
 import scala.util.Try
 
-class SHVZKVerifier(pubKey: PubKey,
+class SHVZKVerifier(crs: GroupElement,
+                    pubKey: PubKey,
                     unitVector: Seq[ElGamalCiphertext],
                     proof: SHVZKProof)
                    (override implicit val dlog: DiscreteLogGroup,
-                    override implicit val hashFunction: CryptographicHash) extends SHVZKCommon(pubKey, unitVector) {
+                    override implicit val hashFunction: CryptographicHash) extends SHVZKCommon(crs, pubKey, unitVector) {
 
   private val statement = unitVector.foldLeft(Array[Byte]()) {
     (acc, c) => acc ++ c.c1.bytes ++ c.c2.bytes

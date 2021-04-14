@@ -18,9 +18,7 @@ import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHas
   * secret key that was destroyed after calculating crs. So this implies either trusted setup or some setup ceremony for
   * crs derivation. How exactly crs is generated is outside the scope of this library.
   *
-  * @param crsIn common reference string. We allow an Option here because we don't want to generate CRS in case we
-  *              are testing some separate modules that don't require it (actually CRS is needed only for distributed
-  *              key generation)
+  * @param crsIn common reference string. In case None, a random group element will be generated.
   * @param groupIn discrete logarithm group. In case None is passed a default group will be created.
   * @param hashIn cryptographic hash. In case None is passed a default hash function will be used.
   * @param blockCipherIn block cipher. In case None is Passed a default block cipher will be used.
@@ -35,7 +33,7 @@ class CryptoContext(crsIn: Option[GroupElement],
   implicit val blockCipher = blockCipherIn.getOrElse(CryptoContext.defaultBlockCipher)
 
   crsIn.foreach(crs => require(group.isValidGroupElement(crs)))
-  val commonReferenceString: Option[GroupElement] = crsIn
+  val commonReferenceString: GroupElement = crsIn.getOrElse(group.createRandomGroupElement.get)
 }
 
 object CryptoContext {

@@ -35,13 +35,14 @@ case class PreferentialVoterBallot(delegVector: Vector[ElGamalCiphertext],
   }
 
   override def verifyBallot(pctx: PreferentialContext, pubKey: PubKey): Boolean = Try {
-    import pctx.cryptoContext.{group, hash}
+    import pctx.cryptoContext.{group, hash, commonReferenceString}
+    val crs = commonReferenceString
 
     require(stake >= 0)
     require(delegVector.size == pctx.numberOfExperts)
     val neg_w =
       if (pctx.numberOfExperts > 0) {
-        require(new SHVZKVerifier(pubKey, w.get +: delegVector, delegVectorProof.get).verifyProof())
+        require(new SHVZKVerifier(crs, pubKey, w.get +: delegVector, delegVectorProof.get).verifyProof())
         val one = LiftedElGamalEnc.encrypt(pubKey, 1, 1).get
         Vector(one / w.get)
       } else Vector()
@@ -50,7 +51,7 @@ case class PreferentialVoterBallot(delegVector: Vector[ElGamalCiphertext],
     rankVectors.foreach { rv =>
       require(rv.rank.size == pctx.numberOfRankedProposals)
       val v = neg_w ++ (rv.z +: rv.rank)
-      require(new SHVZKVerifier(pubKey, v, rv.proof.get).verifyProof())
+      require(new SHVZKVerifier(crs, pubKey, v, rv.proof.get).verifyProof())
     }
 
     val neg_w_init = neg_w.headOption.getOrElse(ElGamalCiphertext(group.groupIdentity, group.groupIdentity))
@@ -70,7 +71,8 @@ object PreferentialVoterBallot {
                    ballotEncryptionKey: PubKey,
                    stake: BigInt,
                    withProof: Boolean = true): Try[PreferentialVoterBallot] = Try {
-    import pctx.cryptoContext.{group, hash}
+    import pctx.cryptoContext.{group, hash, commonReferenceString}
+    val crs = commonReferenceString
 
     def prepareRankVectorsWithProof(ranking: Option[List[Int]], w: Option[ElGamalCiphertext], w_rand: Option[Randomness]) = {
       import pctx.cryptoContext.{group, hash}
@@ -97,7 +99,7 @@ object PreferentialVoterBallot {
           case true =>
             rankVectorsSum = rankVectorsSum.zip(vector.tail).map(x => x._1.multiply(x._2).get) // sum up vectors without z bit
             randomnessSum = randomnessSum.zip(rand.tail).map(x => x._1 + x._2)
-            Some(new SHVZKGen(ballotEncryptionKey, neg_w ++ vector, nonZeroPos + neg_w.size, neg_w_rand ++ rand).produceNIZK().get)
+            Some(new SHVZKGen(crs, ballotEncryptionKey, neg_w ++ vector, nonZeroPos + neg_w.size, neg_w_rand ++ rand).produceNIZK().get)
           case _ => None
         }
         RankVector(vector.tail, vector.head, proof)
@@ -118,7 +120,7 @@ object PreferentialVoterBallot {
         val (vector, rand) =
           buildEncryptedUnitVector(size = pctx.numberOfExperts + 1, nonZeroBitPosition, ballotEncryptionKey)
         val proof = withProof match {
-          case true => Some(new SHVZKGen(ballotEncryptionKey, vector, nonZeroBitPosition, rand).produceNIZK().get)
+          case true => Some(new SHVZKGen(crs, ballotEncryptionKey, vector, nonZeroBitPosition, rand).produceNIZK().get)
           case _ => None
         }
         (Some(vector.head), Some(rand.head), vector.tail, proof)
