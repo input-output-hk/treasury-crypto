@@ -17,7 +17,7 @@ case class Polynomial(dlogGroup: DiscreteLogGroup, degree: Int, a_0: BigInt, coe
   private val modulus = dlogGroup.groupOrder
 
   // Sequence of coefficients [a_0, a_1, a_2, ..., a_degree]
-  private val polynomial = {
+  val polynomial: Seq[BigInt] = {
     Seq(a_0) ++ {
       if(coeffs.isEmpty){
         val drng = new FieldElementSP800DRNG(dlogGroup.createRandomNumber.toByteArray, modulus)

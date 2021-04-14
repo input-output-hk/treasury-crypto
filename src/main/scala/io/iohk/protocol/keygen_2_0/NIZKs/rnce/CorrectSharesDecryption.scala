@@ -21,6 +21,12 @@ case class CorrectSharesDecryption(crs: CRS, statement: Statement, implicit val 
   private val cts = statement.cts
   private val cts1 = statement.cts1
   private val lambda = statement.lambda
+  private val gammas = // gamma-coefficients appear starting from 2-nd round of Maintenance phase; So in the first round just 1-multipliers are used
+    if(statement.gammas.nonEmpty){
+      statement.gammas
+    } else {
+      Array.fill(statement.cts.length)(BigInt(1)).toSeq // values for the 1-st Maintenance round
+    }
 
   private val l = cts.head.C.length // number of segments in batched encryption
   private val modulus = group.groupOrder
@@ -90,8 +96,8 @@ case class CorrectSharesDecryption(crs: CRS, statement: Statement, implicit val 
       case (sum, (d, k) ) =>
         (sum + d * BaseCodec.defaultBase.pow(k)).mod(modulus)
     }
-    val sum  = params.ds.foldLeft(BigInt(0)) {case (acc, ds_i) => (acc + sumDs(ds_i)).mod(modulus)}
-    val sum1 = params.ds1.foldLeft(BigInt(0)){case (acc, ds_i) => (acc + sumDs(ds_i)).mod(modulus)}
+    val sum  = params.ds.zip(gammas).foldLeft(BigInt(0)) {case (acc, (ds_i, gamma)) => (acc + sumDs(ds_i) * gamma).mod(modulus)}
+    val sum1 = params.ds1.zip(gammas).foldLeft(BigInt(0)){case (acc, (ds_i, gamma)) => (acc + sumDs(ds_i) * gamma).mod(modulus)}
 
     ResponseDecryption(
       (params.w2 + challenge.e * sum).mod(modulus),
@@ -101,7 +107,7 @@ case class CorrectSharesDecryption(crs: CRS, statement: Statement, implicit val 
 
   def verifyDecryption(proof: Proof): Boolean = {
     def getR(D: Seq[GroupElement]): GroupElement = {
-      D.foldLeft(group.groupIdentity)((acc, Di) => mul(acc, Di))
+      D.zip(gammas).foldLeft(group.groupIdentity){case(acc, (di, gamma)) => mul(acc, exp(di, gamma))}
     }
 
     val R  = getR(proof.commitment.commDecryption.D)
@@ -371,7 +377,8 @@ object CorrectSharesDecryption {
   case class Proof(commitment: Commitment, challenge: Challenge, response: Response)
   case class Statement(cts: Seq[RnceBatchedCiphertext],
                        cts1: Seq[RnceBatchedCiphertext],
-                       lambda: BigInt)
+                       lambda: BigInt,
+                       gammas: Seq[BigInt] = Seq())
 
   def decryptionCommitment(ct: RnceBatchedCiphertext,
                            sk: RnceBatchedSecretKey,

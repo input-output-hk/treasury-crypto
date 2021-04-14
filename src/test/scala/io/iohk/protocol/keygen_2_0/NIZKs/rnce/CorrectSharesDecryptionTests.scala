@@ -41,19 +41,22 @@ class CorrectSharesDecryptionTests extends FunSuite {
     // The same keypair is used for encryption of shares and shares_
     val (sk, pk) = RnceBatchedEncryption.keygen(RnceParams(rnce_crs))
 
+    val gammas = (0 until n).map(_ => group.createRandomNumber) // simulates values of shares multipliers
+
     val shares = (0 until n).map(_ => group.createRandomNumber) // simulated values of shares
     val sharesEnc = shares.map(s => RnceBatchedEncryption.encrypt(pk, s, rnce_crs).get._1) // encrypted shares on PK of receiver
-    val sharesSum = shares.foldLeft(BigInt(0))((sum, s) => (sum + s).mod(group.groupOrder)) // sum of decrypted shares
+    val sharesSum = shares.zip(gammas).foldLeft(BigInt(0)){case (sum, (s, g)) => (sum + s * g).mod(group.groupOrder)} // sum of decrypted shares
 
     val shares_ = (0 until n).map(_ => group.createRandomNumber) // simulated values of shares_
     val sharesEnc_ = shares_.map(s => RnceBatchedEncryption.encrypt(pk, s, rnce_crs).get._1) // encrypted shares_ on PK of receiver
-    val sharesSum_ = shares_.foldLeft(BigInt(0))((sum, s) => (sum + s).mod(group.groupOrder)) // sum of decrypted shares_
+    val sharesSum_ = shares_.zip(gammas).foldLeft(BigInt(0)){case (sum, (s, g)) => (sum + s * g).mod(group.groupOrder)} // sum of decrypted shares_
 
     val lambda = group.createRandomNumber // Hash(Delta_0, Delta_1, ... Delta_t)
     val statement = CorrectSharesDecryption.Statement(
       sharesEnc,
       sharesEnc_,
-      lambda
+      lambda,
+      gammas
     )
 
     val proof = CorrectSharesDecryption(cs_crs, statement, group).prove(Witness(sharesSum, sharesSum_, sk))

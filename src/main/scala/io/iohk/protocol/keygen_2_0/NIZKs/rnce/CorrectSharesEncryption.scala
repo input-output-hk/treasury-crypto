@@ -3,7 +3,7 @@ package io.iohk.protocol.keygen_2_0.NIZKs.rnce
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
-import io.iohk.protocol.keygen_2_0.NIZKs.rnce.CorrectSharesEncryptionDkg._
+import io.iohk.protocol.keygen_2_0.NIZKs.rnce.CorrectSharesEncryption._
 import io.iohk.protocol.keygen_2_0.encoding.BaseCodec
 import io.iohk.protocol.keygen_2_0.math.Polynomial
 import io.iohk.protocol.keygen_2_0.rnce_encryption.basic.light.data.RnceCrsLight
@@ -13,9 +13,9 @@ import io.iohk.protocol.keygen_2_0.utils.DlogGroupArithmetics.{exp, mul}
 
 // DKG-phase NIZK-proof for correctness of encrypted shares together with correctness of their encryptions
 // Implementation of `Figure 15: RNCE DKG Key Generation ZK argument` in doc/rnce-based/DecisionMakingMain.pdf
-case class CorrectSharesEncryptionDkg(crs:   CRS,
-                                      statement: Statement,
-                                      implicit val group: DiscreteLogGroup) {
+case class CorrectSharesEncryption(crs:   CRS,
+                                   statement: Statement,
+                                   implicit val group: DiscreteLogGroup) {
 
   private val g1 = crs.rnce_crs.g1 // mu
   private val g2 = crs.rnce_crs.g2 // rho
@@ -50,12 +50,12 @@ case class CorrectSharesEncryptionDkg(crs:   CRS,
 
   def combineCoeffs(coeffs: Seq[BigInt], lambda: BigInt, n: Int): BigInt = {
     val poly = Polynomial(group, coeffs.length - 1, coeffs.head, coeffs.tail)
-    (1 to n).map{ i =>
-      (poly.evaluate(i) * (lambda.pow(i - 1) mod modulus)) mod modulus
+    statement.evaluationPoints.zipWithIndex.map{case (point, i) =>
+      (poly.evaluate(point) * (lambda.pow(i) mod modulus)) mod modulus
     }.foldLeft(BigInt(0)){ (sum, v) => (sum + v) mod modulus }
   }
 
-  def sumBatchedRandomness(r:      Seq[RnceBatchedRandomness],
+  def sumBatchedRandomness(r: Seq[RnceBatchedRandomness],
                            lambda: BigInt): BigInt = {
     r.zipWithIndex.foldLeft(BigInt(0)){
       (sum, r_batched_j) =>
@@ -96,8 +96,8 @@ case class CorrectSharesEncryptionDkg(crs:   CRS,
   private def combineDeltas(deltas: Seq[GroupElement],
                             lambda: BigInt, n: Int): GroupElement = {
     product(
-      (1 to n).map{
-        j =>
+      statement.evaluationPoints.zipWithIndex.map{
+        case (j, i) =>
           exp(
             product(
               deltas.zipWithIndex.map{
@@ -105,7 +105,7 @@ case class CorrectSharesEncryptionDkg(crs:   CRS,
                   val (delta, t) = delta_t
                   exp(delta, BigInt(j).pow(t) mod modulus)
               }
-            ), lambda.pow(j - 1) mod modulus
+            ), lambda.pow(i) mod modulus
           )
       }
     )
@@ -291,7 +291,7 @@ case class CorrectSharesEncryptionDkg(crs:   CRS,
   }
 }
 
-object CorrectSharesEncryptionDkg {
+object CorrectSharesEncryption {
 
   case class CRS(rnce_crs:  RnceCrsLight,  // g1 = mu, g2 = rho
                  g3:        GroupElement)  // g3 = eta
@@ -310,8 +310,10 @@ object CorrectSharesEncryptionDkg {
   case class Proof(commitment: Commitment, challenge: Challenge, response: Response)
 
   case class Statement(ct1_ct2: Seq[(RnceBatchedCiphertext, RnceBatchedCiphertext)], // encrypted shares s_j and s'_j for j = [0, M2)
-                       pubKeys: Seq[RnceBatchedPubKey]) // public keys used for encryption of an each pair of (s, s')
+                       pubKeys: Seq[RnceBatchedPubKey], // public keys used for encryption of an each pair of (s, s')
+                       evaluationPoints: Seq[Int])   // sequence of evaluation points for s1-shares and s2-shares which is the same for both shares types
 
+  // NOTE: Sequence of shares1 and shares2 should be the same as sequence of their randomnesses `r1_r2` and encryptions in statement `ct1_ct2`
   case class Witness(r1_r2: Seq[(RnceBatchedRandomness, RnceBatchedRandomness)], // (r_j,  r'_j) for j = [0, M2)
                      F1_coeffs: Seq[BigInt],  // coefficients (a{0}... a{t2-1}) of polynomial F
                      F2_coeffs: Seq[BigInt])  // coefficients (a'{0}... a'{t2-1}) of polynomial F'

@@ -13,7 +13,7 @@ import org.scalatest.FunSuite
 
 import scala.util.Try
 
-class CorrectSharesEncryptionDkgTests extends FunSuite  {
+class CorrectSharesEncryptionTests extends FunSuite  {
 
   private val crs = CryptoContext.generateRandomCRS
   private val context = new CryptoContext(Option(crs))
@@ -21,20 +21,22 @@ class CorrectSharesEncryptionDkgTests extends FunSuite  {
   private val n = dlogGroup.groupOrder
   private val drng = new FieldElementSP800DRNG(dlogGroup.createRandomNumber.toByteArray, n)
 
-  private val sharesNum = 10
+  private val sharesNum = 20
   private val threshold = (sharesNum * 0.5).toInt
-  private val evaluation_points = for(point <- 1 to sharesNum) yield point
+  private val evaluation_points = {
+    for (point <- 1 to sharesNum) yield point
+  }.reverse
 
   private val alpha = dlogGroup.createRandomNumber
   private val rnce_crs = RnceCrsLight(g1 = crs, g2 = dlogGroup.exponentiate(crs, alpha).get)
 
-  private val cse_crs = CorrectSharesEncryptionDkg.CRS(rnce_crs, dlogGroup.createRandomGroupElement.get)
+  private val cse_crs = CorrectSharesEncryption.CRS(rnce_crs, dlogGroup.createRandomGroupElement.get)
 
   import context.group
 
-  private def shareSecret(secret: BigInt, coeffs: Seq[BigInt]): Seq[Share] = {
-    val poly = Polynomial(dlogGroup, threshold - 1, secret, coeffs)
-    LagrangeInterpolation.getShares(poly, evaluation_points)
+  private def shareSecret(secret: BigInt): (Seq[Share], Polynomial) = {
+    val poly = Polynomial(dlogGroup, threshold - 1, secret)
+    (LagrangeInterpolation.getShares(poly, evaluation_points), poly)
   }
 
   private def encrypt(shares: Seq[Share], pubKey: Seq[RncePubKey]): Try[Seq[(RnceBatchedCiphertext, RnceBatchedRandomness)]] = Try {
@@ -51,11 +53,8 @@ class CorrectSharesEncryptionDkgTests extends FunSuite  {
     val s  = drng.nextRand
     val s_ = drng.nextRand
 
-    val F1_coeffs = for(_ <- 1 until threshold) yield { group.createRandomNumber }
-    val F2_coeffs = for(_ <- 1 until threshold) yield { group.createRandomNumber }
-
-    val shares1 = shareSecret(s,  F1_coeffs)
-    val shares2 = shareSecret(s_, F2_coeffs)
+    val (shares1, f1) = shareSecret(s)
+    val (shares2, f2) = shareSecret(s_)
 
     val cts_r__1 = encrypt(shares1, pubKeys).get
     val cts_r__2 = encrypt(shares2, pubKeys).get
@@ -63,16 +62,17 @@ class CorrectSharesEncryptionDkgTests extends FunSuite  {
     val ct1_ct2_seq = cts_r__1.map(_._1).zip(cts_r__2.map(_._1))
     val r1_r2_seq = cts_r__1.map(_._2).zip(cts_r__2.map(_._2))
 
-    val statement = CorrectSharesEncryptionDkg.Statement(
+    val statement = CorrectSharesEncryption.Statement(
       ct1_ct2_seq,
-      pubKeys
+      pubKeys,
+      evaluation_points
     )
-    val witness = CorrectSharesEncryptionDkg.Witness(
+    val witness = CorrectSharesEncryption.Witness(
       r1_r2_seq,
-      (Seq(s) ++ F1_coeffs), (Seq(s_) ++ F2_coeffs) // passing all the coefficients of both polynomials
+      f1.polynomial, f2.polynomial // passing all the coefficients of both polynomials
     )
 
-    val proof = CorrectSharesEncryptionDkg(cse_crs, statement, dlogGroup).prove(witness)
-    assert(CorrectSharesEncryptionDkg(cse_crs, statement, dlogGroup).verify(proof))
+    val proof = CorrectSharesEncryption(cse_crs, statement, dlogGroup).prove(witness)
+    assert(CorrectSharesEncryption(cse_crs, statement, dlogGroup).verify(proof))
   }
 }
