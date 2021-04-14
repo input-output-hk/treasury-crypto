@@ -51,12 +51,15 @@ class SHVZKCommon(pubKey: PubKey, unitVector: Seq[ElGamalCiphertext])
     c1.multiply(c2).get
   }
 
-  def pedersenCommitmentFakeParams(crs: BigInt, m: BigInt, r: Randomness): Try[(BigInt, BigInt)] = Try {
+  def pedersenCommitmentFakeParams(crs: BigInt, m: BigInt, r: Randomness, fake_m: Option[BigInt] = None): Try[(BigInt, BigInt)] = Try {
 
     val n = dlog.groupOrder
     val comm = (m + crs * r).mod(n)
 
-    val fakeM = dlog.createRandomNumber
+    val fakeM = fake_m match {
+      case Some(m) => m
+      case _ => dlog.createRandomNumber
+    }
     val fakeR = ((comm - fakeM) * crs.modInverse(n)).mod(n)
     val fakeComm = (fakeM + crs * fakeR).mod(n)
 

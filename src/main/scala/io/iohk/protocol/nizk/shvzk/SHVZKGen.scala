@@ -41,13 +41,20 @@ class SHVZKGen(pubKey: PubKey,
     assert(pedersenCommitment(crs, ik_original, alpha_original).get ==
            pedersenCommitment(crs, ik_fake, alpha_fake).get)
 
-    val (beta_fake, gamma_fake) = pedersenCommitmentFakeParams(crs, beta_original, gamma_original).get
-    assert(pedersenCommitment(crs, beta_original, gamma_original).get ==
-           pedersenCommitment(crs, beta_fake, gamma_fake).get)
-
     val (ik_beta_fake, delta_fake) = pedersenCommitmentFakeParams(crs, ik_original * beta_original, delta_original).get
     assert(pedersenCommitment(crs, ik_original * beta_original, delta_original).get ==
            pedersenCommitment(crs, ik_beta_fake, delta_fake).get)
+
+    // Getting beta_fake such that ik_beta_fake = ik_fake * beta_fake
+    private val beta_fake = ik_beta_fake * ik_fake.modInverse(dlog.groupOrder)
+
+    val (_, gamma_fake) = pedersenCommitmentFakeParams(crs, beta_original, gamma_original, Some(beta_fake)).get
+    assert(pedersenCommitment(crs, beta_original, gamma_original).get ==
+           pedersenCommitment(crs, beta_fake, gamma_fake).get)
+
+    // Checking consistency of fake parameters ik_fake and beta_fake
+    assert(pedersenCommitment(crs, ik_original * beta_original, delta_original).get ==
+           pedersenCommitment(crs, ik_fake * beta_fake, delta_fake).get)
 
     val ik = ik_fake
     val alpha = alpha_fake
@@ -56,7 +63,7 @@ class SHVZKGen(pubKey: PubKey,
     val delta = delta_fake
     val I = pedersenCommitment(crs, ik_fake, alpha_fake).get
     val B = pedersenCommitment(crs, beta_fake, gamma_fake).get
-    val A = pedersenCommitment(crs, ik_beta_fake, delta_fake).get
+    val A = pedersenCommitment(crs, ik_fake * beta_fake, delta_fake).get
 
 //    // Valid commitments parameters
 //    val ik = ik_original
