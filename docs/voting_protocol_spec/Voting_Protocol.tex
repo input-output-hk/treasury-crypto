@@ -43,11 +43,11 @@ Remark: The key generation and decryption algorithm of the lifted ElGamal encryp
 We employ a hybrid symmetric/assymetric encryption scheme for long messages that can not be encrypted directly with ElGamal  scheme. The basic idea is that a message is encrypted with a block cipher with a randomly generated symmetric key, whereas the key is encrypted with ElGamal and sent along the encrypted message. The hybrid encryption consists of the following algorithms:
 \begin{itemize}
 	\item $\Genpkc(\sigma)$: pick $\sk\leftarrow \ZZ_q^*$ and set $\pk:=h=g^{sk}$, and output $(\pk,\sk)$. 
-	\item $\Genpkc^S(\sigma)$: pick $s\leftarrow \ZZ_q^*$ and set $\ck:=g^{s}$, and output $\ck$. 
-	\item $\SEnc_{\ck}(m)$: output $e:=AESEnc_{H(ck)}(m)$, where $H$ is a cryptographic hash function and $AESEnc$ is an encryption method of AES block cipher.
-	\item $\SDec_{\ck}(e)$: output $m:=AESDec_{H(ck)}(e)$, where $AESDec$ is a decryption method of AES block cipher.
-	\item $\HEnc_{\pk}(m,r,ck)$: output $e:=(e_1,e_2)=(Enc'_{\pk}(ck,r), SEnc_{\ck}(m))$ is a hybrid encryption.
-	\item $\HDec_{\sk}(e)$: output $m:=SDec_{\ck}(e_2)$, where $ck=Dec'_{\sk}(e_1)$.
+	\item $\Genpkc^S(\sigma)$: pick $s\leftarrow \ZZ_q^*$ and set $\symk:=g^{s}$, and output $\symk$. 
+	\item $\SEnc_{\symk}(m)$: output $e:=AESEnc_{H(\symk)}(m)$, where $H$ is a cryptographic hash function and $AESEnc$ is an encryption method of AES block cipher.
+	\item $\SDec_{\symk}(e)$: output $m:=AESDec_{H(\symk)}(e)$, where $AESDec$ is a decryption method of AES block cipher.
+	\item $\HEnc_{\pk}(m,r,\symk)$: output $e:=(e_1,e_2)=(Enc'_{\pk}(\symk,r), SEnc_{\symk}(m))$ is a hybrid encryption.
+	\item $\HDec_{\sk}(e)$: output $m:=SDec_{\symk}(e_2)$, where $\symk=Dec'_{\sk}(e_1)$.
 \end{itemize}
 
 \subsubsection{Pedersen Commitment}
@@ -110,17 +110,17 @@ Each committee member $C_i$ does the following:
 \item Pick random $a_{i,1},a_{i,2},\ldots,a_{i,t},b_{i,0},b_{i,1},\ldots,b_{i,t} \leftarrow \ZZ_p$.
 \item Define two polynomials $f_i(x):=\sum_{\ell=0}^{t} a_{i,\ell} x^\ell$ and $f'_i(x):=\sum_{\ell=0}^{t} b_{i,\ell} x^\ell$.
 \item For $\ell\in[t]$, post $E_{i,\ell}: = g^{a_{i,\ell}} h^{b_{i,\ell}}$ on the blockchain.
-\item For every other $C_j$, $j\in[k], j\neq i$, compute $s_{i,j}:= f_i(j)$ and $s'_{i,j}:= f'_i(j)$ and post $e_{i,j}\leftarrow \HEnc_{\pk^*_j}(s_{i,j}, r, ck_{i,j})$ and $e'_{i,j}\leftarrow \HEnc_{\pk^*_j}(s'_{i,j}, r', ck'_{i,j})$ on the blockchain, where $r,r'\leftarrow \ZZ_p$, $ck_{i,j},ck'_{i,j} \leftarrow E(\FF_p)$ are randomly generated. Only $C_j$ can decrypt these shares.
+\item For every other $C_j$, $j\in[k], j\neq i$, compute $s_{i,j}:= f_i(j)$ and $s'_{i,j}:= f'_i(j)$ and post $e_{i,j}\leftarrow \HEnc_{\pk^*_j}(s_{i,j}, r, ssk_{i,j})$ and $e'_{i,j}\leftarrow \HEnc_{\pk^*_j}(s'_{i,j}, r', ssk'_{i,j})$ on the blockchain, where $r,r'\leftarrow \ZZ_p$, $ssk_{i,j},ssk'_{i,j} \leftarrow E(\FF_p)$ are randomly generated. Only $C_j$ can decrypt these shares.
 \end{itemize}
 
 \textbf{Round 2:}
 Each committee member $C_i$ does the following:
 \begin{itemize}
 \item Fetch $\{(e_{j,i}, e'_{j,i})\}_{j\in[k], j\neq i}$ from the blockchain, parse as $e_{j,i}=(e_{(j,i),1},e_{(j,i),2})$, $e'_{j,i}=(e'_{(j,i),1},e'_{(j,i),2})$, and use $\pk^*_i$ to decrypt them, obtaining the corresponding shares $\{(s_{j,i}, s'_{j,i})\}_{j\in[k], j\neq i}$.
-\item For $j\in[k], j\neq i$, check if $g^{s_{j,i}}h^{s'_{j,i}}= \prod_{\ell=0}^{t} (E_{j,\ell})^{i^\ell}$. If not, post a complaint against $C_j$ by revealing the evidence: $(s_{j,i},s'_{j,i}, e_{j,i}, e'_{j,i},ck_{j,i},ck'_{j,i},\pi,\pi')$, where $\pi,\pi'$ are zero-knowledge proofs generated as follows (see Fig.~\ref{fig:ElgamalDecrNIZK} for full NIZK description):
+\item For $j\in[k], j\neq i$, check if $g^{s_{j,i}}h^{s'_{j,i}}= \prod_{\ell=0}^{t} (E_{j,\ell})^{i^\ell}$. If not, post a complaint against $C_j$ by revealing the evidence: $(s_{j,i},s'_{j,i}, e_{j,i}, e'_{j,i},ssk_{j,i},ssk'_{j,i},\pi,\pi')$, where $\pi,\pi'$ are zero-knowledge proofs generated as follows (see Fig.~\ref{fig:ElgamalDecrNIZK} for full NIZK description):
 \begin{equation*}
-\pi \leftarrow\nizk\left\{\begin{array}{l} (e_{(j,i),1},\ck_{j,i}, \pk^*_i),(\sk^*_i): \\
- ck_{j,i}=\Dec'_{\sk^*_i}(e_{(j,i),1}) \wedge \pk^*_i=g^{\sk^*_i} \wedge (\pk^*_i,\sk^*_i)\in\RRR_{\textsc{PKE}} \end{array}\right\}
+\pi \leftarrow\nizk\left\{\begin{array}{l} (e_{(j,i),1},ssk_{j,i}, \pk^*_i),(\sk^*_i): \\
+ ssk_{j,i}=\Dec'_{\sk^*_i}(e_{(j,i),1}) \wedge \pk^*_i=g^{\sk^*_i} \wedge (\pk^*_i,\sk^*_i)\in\RRR_{\textsc{PKE}} \end{array}\right\}
 \end{equation*}
 \item (One valid complain against $C_j$, $j\in[k]$ will disqualify $C_j$.)
 \end{itemize}
