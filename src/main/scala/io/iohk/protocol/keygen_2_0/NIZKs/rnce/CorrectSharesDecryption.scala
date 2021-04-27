@@ -352,20 +352,64 @@ object CorrectSharesDecryption {
   case class Commitment(commDelta: CommitmentDelta,
                         commDecryption: CommitmentDecryption,
                         commSK: CommitmentSK,
-                        commPK: CommitmentPK)
-  case class CommitmentDelta(T: GroupElement, Delta0: GroupElement)
+                        commPK: CommitmentPK){
+    val size: Int = {
+      commDelta.size + commDecryption.size + commSK.size + commPK.size
+    }
+  }
+  case class CommitmentDelta(T: GroupElement, Delta0: GroupElement){
+    val size: Int = {
+      T.bytes.length + Delta0.bytes.length
+    }
+  }
   case class CommitmentDecryption(S: GroupElement, S1: GroupElement,
-                                  D: Seq[GroupElement], D1: Seq[GroupElement])
-  case class CommitmentSK(D: Seq[GroupElement], D1: Seq[GroupElement])
-  case class CommitmentPK(Q: GroupElement, Q1: GroupElement)
+                                  D: Seq[GroupElement], D1: Seq[GroupElement]){
+    val size: Int = {
+      S.bytes.length + S1.bytes.length +
+        D.foldLeft(0)((sum, d) => sum + d.bytes.length) +
+        D1.foldLeft(0)((sum, d) => sum + d.bytes.length)
+    }
+  }
+  case class CommitmentSK(D: Seq[GroupElement], D1: Seq[GroupElement]){
+    val size: Int = {
+      D.foldLeft(0)((sum, d) => sum + d.bytes.length) +
+        D1.foldLeft(0)((sum, d) => sum + d.bytes.length)
+    }
+  }
+  case class CommitmentPK(Q: GroupElement, Q1: GroupElement){
+    val size: Int = {
+      Q.bytes.length + Q1.bytes.length
+    }
+  }
 
   case class Response(respDelta: ResponseDelta,
                       respDecryption: ResponseDecryption,
-                      respSK: ResponseSK)
-  case class ResponseDelta(z7: BigInt, z71: BigInt, z8: BigInt)
-  case class ResponseDecryption(z9: BigInt, z91: BigInt)
+                      respSK: ResponseSK){
+    val size: Int = {
+      respDelta.size + respDecryption.size + respSK.size
+    }
+  }
+  case class ResponseDelta(z7: BigInt, z71: BigInt, z8: BigInt){
+    val size: Int = {
+      z7.toByteArray.length + z71.toByteArray.length + z8.toByteArray.length
+    }
+  }
+  case class ResponseDecryption(z9: BigInt, z91: BigInt){
+    val size: Int = {
+      z9.toByteArray.length + z91.toByteArray.length
+    }
+  }
   case class ResponseSK(z4:  Seq[BigInt], z5:  Seq[BigInt], z6: Seq[BigInt],
-                        z41: Seq[BigInt], z51: Seq[BigInt], z61: Seq[BigInt])
+                        z41: Seq[BigInt], z51: Seq[BigInt], z61: Seq[BigInt]){
+    val size: Int = {
+      z4.foldLeft(0)((sum, z) => sum + z.toByteArray.length) +
+        z5.foldLeft(0)((sum, z) => sum + z.toByteArray.length) +
+        z6.foldLeft(0)((sum, z) => sum + z.toByteArray.length) +
+        z41.foldLeft(0)((sum, z) => sum + z.toByteArray.length) +
+        z51.foldLeft(0)((sum, z) => sum + z.toByteArray.length) +
+        z61.foldLeft(0)((sum, z) => sum + z.toByteArray.length)
+    }
+  }
 
   case class Challenge(e: BigInt)
 
@@ -374,7 +418,12 @@ object CorrectSharesDecryption {
                      s_ : BigInt,
                      sk: RnceBatchedSecretKey) // secret value s_
 
-  case class Proof(commitment: Commitment, challenge: Challenge, response: Response)
+  case class Proof(commitment: Commitment, challenge: Challenge, response: Response){
+    val size: Int = {
+      commitment.size + response.size
+    }
+  }
+
   case class Statement(cts: Seq[RnceBatchedCiphertext],
                        cts1: Seq[RnceBatchedCiphertext],
                        lambda: BigInt,

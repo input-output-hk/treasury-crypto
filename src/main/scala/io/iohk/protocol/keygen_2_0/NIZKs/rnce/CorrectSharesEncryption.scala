@@ -299,15 +299,32 @@ object CorrectSharesEncryption {
   case class CommitmentParams(t2: Int, M2: Int, l: Int,
                               o: Seq[BigInt], b: BigInt, c: BigInt, d: BigInt, f1_f2: Seq[(RnceBatchedRandomness, RnceBatchedRandomness)])
 
-  case class CommitmentBatch(A: GroupElement, B: GroupElement, C: GroupElement)
-  case class Commitment(batch1: CommitmentBatch, batch2: CommitmentBatch, T: GroupElement, deltas: Seq[GroupElement])
+  case class CommitmentBatch(A: GroupElement, B: GroupElement, C: GroupElement){
+    val size: Int = {
+      A.bytes.length + B.bytes.length + C.bytes.length
+    }
+  }
+  case class Commitment(batch1: CommitmentBatch, batch2: CommitmentBatch, T: GroupElement, deltas: Seq[GroupElement]){
+    val size: Int = {
+      batch1.size + batch2.size + T.bytes.length + deltas.foldLeft(0)((sum, d) => sum + d.bytes.length)
+    }
+  }
 
   case class Challenge(e: BigInt)
 
   case class Response(z1: BigInt, z2: BigInt, z3: BigInt,
-                      z41_z42: Seq[(RnceBatchedRandomness, RnceBatchedRandomness)])
+                      z41_z42: Seq[(RnceBatchedRandomness, RnceBatchedRandomness)]){
+    val size: Int = {
+      z1.toByteArray.length + z2.toByteArray.length + z3.toByteArray.length +
+        z41_z42.foldLeft(0){(sum, v) => sum + (v._1.size + v._2.size)}
+    }
+  }
 
-  case class Proof(commitment: Commitment, challenge: Challenge, response: Response)
+  case class Proof(commitment: Commitment, challenge: Challenge, response: Response){
+    val size: Int = {
+      commitment.size + response.size
+    }
+  }
 
   case class Statement(ct1_ct2: Seq[(RnceBatchedCiphertext, RnceBatchedCiphertext)], // encrypted shares s_j and s'_j for j = [0, M2)
                        pubKeys: Seq[RnceBatchedPubKey], // public keys used for encryption of an each pair of (s, s')

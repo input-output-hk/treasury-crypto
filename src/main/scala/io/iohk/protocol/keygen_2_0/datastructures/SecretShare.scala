@@ -10,7 +10,9 @@ import scala.util.Try
 
 case class SecretShare(receiverID: Int,
                        dealerPoint: Int = 0, // point corresponding to a share which subshare is encrypted here; Needed for Lagrange coefficient 'Lambda' computation at re-sharing phase
-                       S: RnceBatchedCiphertext)    // encrypted share of a partial secret at DKG phase or encrypted subshare of share at Maintaining phase
+                       S: RnceBatchedCiphertext, // encrypted share of a partial secret at DKG phase or encrypted subshare of share at Maintaining phase
+                       plain_value: Option[BigInt] = None // plain value of a share: used only for testing purposes to avoid DLog search during decryption
+                      )
   extends HasSize with BytesSerializable {
 
   override type M = SecretShare
@@ -34,6 +36,7 @@ object SecretShareSerializer extends Serializer[SecretShare, DiscreteLogGroup] {
     SecretShare(
       Ints.fromByteArray(bytes.slice(0, 4)),
       Ints.fromByteArray(bytes.slice(4, 8)),
-      RnceBatchedCiphertextSerializer.parseBytes(bytes.slice(8, bytes.length), decoder).get)
+      RnceBatchedCiphertextSerializer.parseBytes(bytes.slice(8, bytes.length), decoder).get,
+      None)
   }
 }
