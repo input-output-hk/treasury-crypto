@@ -68,7 +68,7 @@ class SHVZKGen(crs: GroupElement,
     val commitment = commitments.foldLeft(Array[Byte]()) {
       (acc, c) => acc ++ c.I.bytes ++ c.B.bytes ++ c.A.bytes
     }
-    val y = hashFunction.hash(pubKey.bytes ++ statement ++ commitment)
+    val y = hashFunction.hash(crs.bytes ++ pubKey.bytes ++ statement ++ commitment)
     val Y = BigInt(1, y)
 
     /* Step 3. Compute Dk */
@@ -79,7 +79,7 @@ class SHVZKGen(crs: GroupElement,
       val commitment2 = Dk.foldLeft(Array[Byte]()) {
         (acc, d) => acc ++ d._1.c1.bytes ++ d._1.c2.bytes
       }
-      hashFunction.hash(pubKey.bytes ++ statement ++ commitment ++ commitment2)
+      hashFunction.hash(crs.bytes ++ pubKey.bytes ++ statement ++ commitment ++ commitment2)
     }
     val X = BigInt(1, x)
 

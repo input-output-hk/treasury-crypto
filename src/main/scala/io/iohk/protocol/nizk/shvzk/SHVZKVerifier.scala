@@ -26,7 +26,7 @@ class SHVZKVerifier(crs: GroupElement,
 
   /* Compute first verifier challange */
   private val y = {
-    hashFunction.hash(pubKey.bytes ++ statement ++ commitment)
+    hashFunction.hash(crs.bytes ++ pubKey.bytes ++ statement ++ commitment)
   }
   private val Y = BigInt(1, y)
 
@@ -35,7 +35,7 @@ class SHVZKVerifier(crs: GroupElement,
     val commitment2 = proof.Dk.foldLeft(Array[Byte]()) {
       (acc, d) => acc ++ d.c1.bytes ++ d.c2.bytes
     }
-    hashFunction.hash(pubKey.bytes ++ statement ++ commitment ++ commitment2)
+    hashFunction.hash(crs.bytes ++ pubKey.bytes ++ statement ++ commitment ++ commitment2)
   }
   private val X = BigInt(1, x)
 

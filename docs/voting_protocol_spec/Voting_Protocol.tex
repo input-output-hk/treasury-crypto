@@ -300,7 +300,7 @@ is encryption of $0$ by asking the prover to reveal the randomness.
     \end{itemize}
 
 \item Compute first verifier challange (using Fiat-Shamir heuristic):
-\[c_y=hash(\pk\ |\ \{C_l\}_{\ell=0}^{n-1}\ |\ \{I_\ell,B_\ell,A_\ell\}_{\ell=0}^{\log n-1})\]
+\[c_y=hash(\ck\ |\ \pk\ |\ \{C_l\}_{\ell=0}^{n-1}\ |\ \{I_\ell,B_\ell,A_\ell\}_{\ell=0}^{\log n-1})\]
 
 \item For $j = 0,\ldots, n-1$ compute polynomials $p_j(x)$ of the following form:
 \[p_j(x) = e_{i,j} x^{\log n} + \sum_{k=0}^{\log n -1} p_{j,k} x^k,\]
@@ -320,7 +320,7 @@ A polynomials $p_j(x)$ can be constructed using the following procedure:
     \end{itemize}
 
 \item Compute second verifier challange (using Fiat-Shamir heuristic):
-\[c_x=hash(\pk\ |\ \{C_l\}_{\ell=0}^{n-1}\ |\ \{I_\ell,B_\ell,A_\ell\}_{\ell=0}^{\log n-1})\ |\ \{D_l\}_{\ell=0}^{\log n-1})\]
+\[c_x=hash(\ck\ |\ \pk\ |\ \{C_l\}_{\ell=0}^{n-1}\ |\ \{I_\ell,B_\ell,A_\ell\}_{\ell=0}^{\log n-1})\ |\ \{D_l\}_{\ell=0}^{\log n-1})\]
 
 \item For $\ell = 0,\ldots, \log n-1$ compute $z_{\ell}, w_{\ell}$ and $v_{\ell}$ as follows:
     \begin{itemize}
@@ -347,8 +347,8 @@ A polynomials $p_j(x)$ can be constructed using the following procedure:
 
 \begin{itemize}
     \item If the number of ciphertexts $m$ is not a perfect power of 2, extend the set with $C_{j}:=\Enc_{\pk}(0;0), j \in [m,..,n-1]$, where $n$ is a perfect power of 2
-    \item Compute first verifier challenge: $c_y=hash(\pk\ |\ \{C_l\}_{\ell=0}^{n-1}\ |\ \{I_\ell,B_\ell,A_\ell\}_{\ell=0}^{\log n-1})$
-    \item Compute second verifier challenge: $c_x=hash(\pk\ |\ \{C_l\}_{\ell=0}^{n-1}\ |\ \{I_\ell,B_\ell,A_\ell\}_{\ell=0}^{\log n-1})\ |\ \{D_l\}_{\ell=0}^{\log n-1})$
+    \item Compute first verifier challenge: $c_y=hash(\ck\ |\ \pk\ |\ \{C_l\}_{\ell=0}^{n-1}\ |\ \{I_\ell,B_\ell,A_\ell\}_{\ell=0}^{\log n-1})$
+    \item Compute second verifier challenge: $c_x=hash(\ck\ |\ \pk\ |\ \{C_l\}_{\ell=0}^{n-1}\ |\ \{I_\ell,B_\ell,A_\ell\}_{\ell=0}^{\log n-1})\ |\ \{D_l\}_{\ell=0}^{\log n-1})$
     \item Verify that for $\ell = 0,\ldots, \log n-1$ the following equations are true:
         \begin{itemize}
         \item $(I_\ell)^{c_x} \cdot B_\ell = \Com_{\ck}(z_\ell; w_\ell)$
