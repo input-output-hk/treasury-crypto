@@ -84,6 +84,11 @@ trait DiscreteLogGroup {
     BigIntegers.createRandomInRange(BigInteger.ONE, qMinusOne.bigInteger, random)
   }
 
+  def createRandomNumberFromSeed(secretSeed: Array[Byte]): BigInt = {
+    val r = BigInt(secretSeed)
+    r.mod(groupOrder)
+  }
+
   /**
     * Reconstructs a GroupElement from bytes
     * @param bytes serialized GroupElement
