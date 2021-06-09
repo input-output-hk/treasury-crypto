@@ -11,8 +11,7 @@ class ViolatorsSharesDataTest extends FunSuite {
   import ctx.group
 
   test("TallyR2Data serialization") {
-    val mockHybridPlaintext = HybridPlaintext(ctx.group.groupGenerator, Array.fill[Byte](5)(31))
-    val mockShare = Share(0, OpenedShare(receiverID = 5, mockHybridPlaintext), OpenedShare(receiverID = 5, mockHybridPlaintext))
+    val mockShare = Share(0, OpenedShare(receiverID = 5, BigInt(111)), OpenedShare(receiverID = 5, BigInt(123)))
     val issuerId = 134
     val tallyR2Data = new ViolatorsSharesData(issuerId, Seq(mockShare, mockShare))
 

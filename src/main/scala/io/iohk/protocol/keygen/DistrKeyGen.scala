@@ -1,6 +1,6 @@
 package io.iohk.protocol.keygen
 
-import io.iohk.core.crypto.encryption.hybrid.HybridEncryption
+import io.iohk.core.crypto.encryption.hybrid.dlp.DLPHybridEncryption
 import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
 import io.iohk.core.crypto.primitives.dlog.GroupElement
 import io.iohk.core.crypto.primitives.numbergenerator.{FieldElementSP800DRNG, SP800DRNG}
@@ -12,7 +12,7 @@ import io.iohk.protocol.keygen.datastructures.round4.{ComplaintR4, OpenedShare, 
 import io.iohk.protocol.keygen.datastructures.round5_1.R5_1Data
 import io.iohk.protocol.keygen.datastructures.round5_2.{R5_2Data, SecretKey}
 import io.iohk.protocol.keygen.math.{LagrangeInterpolation, Polynomial}
-import io.iohk.protocol.nizk.ElgamalDecrNIZK
+import io.iohk.protocol.nizk.DLPHybridDecrNIZK
 import io.iohk.protocol.{CryptoContext, Identifier}
 
 import scala.collection.mutable.ArrayBuffer
@@ -88,7 +88,7 @@ class DistrKeyGen(ctx:              CryptoContext,
 
     val shareOpt = shares.find(_.issuerID == id)
     shareOpt match {
-      case Some(share) => Some(BigInt(share.share_a.S.decryptedMessage))
+      case Some(share) => Some(share.share_a.S)
       case None => None
     }
   }
@@ -146,8 +146,8 @@ class DistrKeyGen(ctx:              CryptoContext,
 
         val seed = secretSeed ++ BigInt(x).toByteArray ++ receiverPublicKey.bytes ++ "SecretSharesSeed".getBytes //TODO: verify if it is secure to use this seed
         val gen = new SP800DRNG(seed)
-        S_a += SecretShare(recipientID, HybridEncryption.encrypt(receiverPublicKey, poly_a.evaluate(x).toByteArray, gen.nextBytes(32)).get)
-        S_b += SecretShare(recipientID, HybridEncryption.encrypt(receiverPublicKey, poly_b.evaluate(x).toByteArray, gen.nextBytes(32)).get)
+        S_a += SecretShare(recipientID, DLPHybridEncryption.encrypt(receiverPublicKey, poly_a.evaluate(x).toByteArray, gen.nextBytes(32)).get)
+        S_b += SecretShare(recipientID, DLPHybridEncryption.encrypt(receiverPublicKey, poly_b.evaluate(x).toByteArray, gen.nextBytes(32)).get)
       }
     }
     val r1Data = R1Data(ownID, E.toArray, S_a.sortBy(_.receiverID).toArray, S_b.sortBy(_.receiverID).toArray)
@@ -204,8 +204,10 @@ class DistrKeyGen(ctx:              CryptoContext,
           val secretShare_a = r1Data(i).S_a(j)
           val secretShare_b = r1Data(i).S_b(j)
 
-          val openedShare_a = OpenedShare(secretShare_a.receiverID, HybridEncryption.decrypt(ownTransportPrivateKey, secretShare_a.S).get)
-          val openedShare_b = OpenedShare(secretShare_b.receiverID, HybridEncryption.decrypt(ownTransportPrivateKey, secretShare_b.S).get)
+          val share_a_bytes = DLPHybridEncryption.decrypt(ownTransportPrivateKey, secretShare_a.S).get
+          val share_b_bytes = DLPHybridEncryption.decrypt(ownTransportPrivateKey, secretShare_b.S).get
+          val openedShare_a = OpenedShare(secretShare_a.receiverID, BigInt(share_a_bytes))
+          val openedShare_b = OpenedShare(secretShare_b.receiverID, BigInt(share_b_bytes))
 
           if(checkOnCRS(ctx, openedShare_a, openedShare_b, r1Data(i).E)) {
             secretShares += ShareEncrypted(r1Data(i).issuerID, secretShare_a, secretShare_b)
@@ -213,14 +215,14 @@ class DistrKeyGen(ctx:              CryptoContext,
             CRS_commitments += CRS_commitment(r1Data(i).issuerID, r1Data(i).E.map(x => group.reconstructGroupElement(x).get))
           }
           else {
-            val proof_a = ElgamalDecrNIZK.produceNIZK(secretShare_a.S.encryptedSymmetricKey, ownTransportPrivateKey).get
-            val proof_b = ElgamalDecrNIZK.produceNIZK(secretShare_b.S.encryptedSymmetricKey, ownTransportPrivateKey).get
+            val proof_a = DLPHybridDecrNIZK.produceNIZK(secretShare_a.S, ownTransportPrivateKey).get
+            val proof_b = DLPHybridDecrNIZK.produceNIZK(secretShare_b.S, ownTransportPrivateKey).get
 
             complaints += ComplaintR2(
               r1Data(i).issuerID,
               ownTransportPublicKey,
-              ShareProof(secretShare_a.S, openedShare_a.S, proof_a),
-              ShareProof(secretShare_b.S, openedShare_b.S, proof_b))
+              ShareProof(share_a_bytes, proof_a),
+              ShareProof(share_b_bytes, proof_b))
 
             violatorsIDs += r1Data(i).issuerID
           }
@@ -269,32 +271,6 @@ class DistrKeyGen(ctx:              CryptoContext,
     * @return Some(R3Data) if success, None otherwise
     */
   def doRound3(r2DataIn: Seq[R2Data], prevR3Data: Option[R3Data] = None): Option[R3Data] = {
-    def checkComplaint(complaint: ComplaintR2): Boolean = {
-      def checkProof(pubKey: PubKey, proof: ShareProof): Boolean = {
-        ElgamalDecrNIZK.verifyNIZK(
-          pubKey,
-          proof.encryptedShare.encryptedSymmetricKey,
-          proof.decryptedShare.decryptedKey,
-          proof.NIZKProof)
-      }
-
-      def checkEncryption(proof: ShareProof): Boolean = {
-        val ciphertext = HybridEncryption.encrypt(
-          ownTransportPublicKey,                         // for this verification no matter what public key is used
-          proof.decryptedShare.decryptedMessage,
-          proof.decryptedShare.decryptedKey).get
-
-        ciphertext.encryptedMessage.equals(proof.encryptedShare.encryptedMessage)
-      }
-
-      val publicKey = complaint.issuerPublicKey
-      val proof_a = complaint.shareProof_a
-      val proof_b = complaint.shareProof_b
-
-      (checkProof(publicKey, proof_a) && checkEncryption(proof_a)) &&
-      (checkProof(publicKey, proof_b) && checkEncryption(proof_b))
-    }
-
     roundsPassed match {
       case 3 => return roundsDataCache.r3Data.headOption // Round is already executed, return the cashed round output
       case r if (r != 2) => return None // Round should be executed strictly after the previous round
@@ -364,7 +340,7 @@ class DistrKeyGen(ctx:              CryptoContext,
         A_sum = A_sum.multiply(A(i).pow(X.pow(i)).get).get
       }
 
-      val share_a = BigInt(share.get.share_a.S.decryptedMessage)
+      val share_a = share.get.share_a.S
       val g_sa = g.pow(share_a)
 
       g_sa.equals(A_sum)
@@ -714,8 +690,8 @@ object DistrKeyGen {
     for(i <- E.indices) {
       E_sum = E_sum.multiply(group.reconstructGroupElement(E(i)).get.pow(BigInt(share_a.receiverID.toLong + 1).pow(i))).get
     }
-    val CRS_Shares = group.groupGenerator.pow(BigInt(share_a.S.decryptedMessage)).flatMap {
-      _.multiply(crs.pow(BigInt(share_b.S.decryptedMessage)))
+    val CRS_Shares = group.groupGenerator.pow(share_a.S).flatMap {
+      _.multiply(crs.pow(share_b.S))
     }.get
 
     CRS_Shares.equals(E_sum)
@@ -725,54 +701,30 @@ object DistrKeyGen {
                                complaint:         ComplaintR2,
                                secretShare:       ShareEncrypted,
                                memberIdentifier:  Identifier[Int],
-                               E:                 Array[Array[Byte]]): Boolean = {
+                               E:                 Array[Array[Byte]]): Boolean = Try {
     import ctx.{blockCipher, group, hash}
-    val crs = ctx.commonReferenceString
 
-    def checkProof(pubKey: PubKey, proof: ShareProof): Boolean = {
-      ElgamalDecrNIZK.verifyNIZK(
+    def checkProof(pubKey: PubKey, encryptedShare: SecretShare, proof: ShareProof): Boolean = {
+      // proves that a share was decrypted correctly
+      DLPHybridDecrNIZK.verifyNIZK(
         pubKey,
-        proof.encryptedShare.encryptedSymmetricKey,
-        proof.decryptedShare.decryptedKey,
+        encryptedShare.S,
+        proof.decryptedShare,
         proof.NIZKProof)
     }
 
-    def checkEncryption(proof: ShareProof): Boolean = {
-      val ciphertext = HybridEncryption.encrypt(
-        group.groupIdentity,                     // for this verification no matter what public key is used
-        proof.decryptedShare.decryptedMessage,
-        proof.decryptedShare.decryptedKey).get
+    val issuerPubKey = complaint.issuerPublicKey
+    val issuerId = memberIdentifier.getId(issuerPubKey).get
+    require(issuerId == secretShare.share_a.receiverID)
+    require(issuerId == secretShare.share_b.receiverID)
 
-      val shareDecryptedCorrectly = ciphertext.encryptedMessage.equals(proof.encryptedShare.encryptedMessage)
+    val share_a = OpenedShare(issuerId, BigInt(complaint.shareProof_a.decryptedShare))
+    val share_b = OpenedShare(issuerId, BigInt(complaint.shareProof_b.decryptedShare))
 
-      val receiverID = memberIdentifier.getId(complaint.issuerPublicKey)
-
-      val complaintIsCorrect = {
-        if (receiverID.isDefined){
-
-          val share_a = OpenedShare(receiverID.get, complaint.shareProof_a.decryptedShare)
-          val share_b = OpenedShare(receiverID.get, complaint.shareProof_b.decryptedShare)
-
-          // Check, that decrypted shares corresponds to the previously submitted secret shares
-          // Check, that shares doesn't correspond to the submitted CRS commitments
-          sharesAreEqual(ctx, share_a, secretShare.share_a) &&
-          sharesAreEqual(ctx, share_b, secretShare.share_b) &&
-          !checkOnCRS(ctx, share_a, share_b, E)
-
-        } else {
-          false
-        }
-      }
-      shareDecryptedCorrectly && complaintIsCorrect
-    }
-
-    val publicKey = complaint.issuerPublicKey
-    val proof_a = complaint.shareProof_a
-    val proof_b = complaint.shareProof_b
-
-    (checkProof(publicKey, proof_a) && checkEncryption(proof_a)) &&
-      (checkProof(publicKey, proof_b) && checkEncryption(proof_b))
-  }
+    require(checkProof(issuerPubKey, secretShare.share_a, complaint.shareProof_a))
+    require(checkProof(issuerPubKey, secretShare.share_b, complaint.shareProof_b))
+    require(!checkOnCRS(ctx, share_a, share_b, E))    // complaint is valid only if CRS commitment check hasn't been passed
+  }.isSuccess
 
   private def checkCommitmentR3(ctx: CryptoContext,
                                 share: Share,
@@ -788,37 +740,10 @@ object DistrKeyGen {
       A_sum = A_sum.multiply(A(i).pow(X.pow(i)).get).get
     }
 
-    val share_a = BigInt(share.share_a.S.decryptedMessage)
+    val share_a = share.share_a.S
     val g_sa = group.groupGenerator.pow(share_a).get
 
     g_sa.equals(A_sum)
-  }
-
-  /**
-    * Verifies, if a decrypted share corresponds to a specififc encrypted share.
-    * Verification consists in an encryption of the decrypted share (using its opened symmetric key) and checking the obtained ciphertext for equality with the encrypted share.
-    *
-    * @param ctx cryptosystem, used for the protocol running;
-    * @param openedShare decypted share;
-    * @param secretShare encrypted share;
-    * @return true, if shares are equal.
-    */
-  def sharesAreEqual(ctx:         CryptoContext,
-                     openedShare: OpenedShare,
-                     secretShare: SecretShare): Boolean = {
-
-    import ctx.{blockCipher, group}
-
-    val shareCiphertext = HybridEncryption.encrypt(
-      group.groupIdentity,                     // for this verification no matter what public key is used
-      openedShare.S.decryptedMessage,
-      openedShare.S.decryptedKey
-    ).get
-
-    // Check if an encrypted opened share is the same as secret share
-    secretShare.S.encryptedMessage.bytes.sameElements(
-      shareCiphertext.encryptedMessage.bytes
-    )
   }
 
   /**
@@ -1043,8 +968,8 @@ object DistrKeyGen {
 
     val share_a_ForMeFromViolator = r1Data.find(_.issuerID == violatorId).get.S_a.find(_.receiverID == myId).get
     val share_b_ForMeFromViolator = r1Data.find(_.issuerID == violatorId).get.S_b.find(_.receiverID == myId).get
-    val a = OpenedShare(share_a_ForMeFromViolator.receiverID, HybridEncryption.decrypt(myPrivKey, share_a_ForMeFromViolator.S).get)
-    val b = OpenedShare(share_b_ForMeFromViolator.receiverID, HybridEncryption.decrypt(myPrivKey, share_b_ForMeFromViolator.S).get)
+    val a = OpenedShare(share_a_ForMeFromViolator.receiverID, BigInt(DLPHybridEncryption.decrypt(myPrivKey, share_a_ForMeFromViolator.S).get))
+    val b = OpenedShare(share_b_ForMeFromViolator.receiverID, BigInt(DLPHybridEncryption.decrypt(myPrivKey, share_b_ForMeFromViolator.S).get))
     Share(violatorId, a, b)
   }
 

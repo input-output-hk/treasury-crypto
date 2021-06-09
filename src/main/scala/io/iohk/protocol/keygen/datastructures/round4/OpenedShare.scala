@@ -8,7 +8,7 @@ import io.iohk.core.utils.HasSize
 
 import scala.util.Try
 
-case class OpenedShare(receiverID: Int, S: HybridPlaintext)
+case class OpenedShare(receiverID: Int, S: BigInt)
   extends HasSize with BytesSerializable {
 
   override type M = OpenedShare
@@ -22,7 +22,7 @@ object OpenedShareSerializer extends Serializer[OpenedShare, DiscreteLogGroup] {
 
   override def toBytes(obj: OpenedShare): Array[Byte] = {
 
-    val S_bytes = obj.S.bytes
+    val S_bytes = obj.S.toByteArray
 
     Bytes.concat(
       Ints.toByteArray(obj.receiverID),
@@ -44,8 +44,6 @@ object OpenedShareSerializer extends Serializer[OpenedShare, DiscreteLogGroup] {
     val S_bytes_len = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
     val S_bytes = bytes.slice(offset.value, offset.plus(S_bytes_len))
 
-    val S = HybridPlaintextSerializer.parseBytes(S_bytes, Option(ctx))
-
-    OpenedShare(receiverID, S.get)
+    OpenedShare(receiverID, BigInt(S_bytes))
   }
 }

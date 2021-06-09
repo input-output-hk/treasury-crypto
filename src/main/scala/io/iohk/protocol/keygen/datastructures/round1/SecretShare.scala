@@ -1,7 +1,7 @@
 package io.iohk.protocol.keygen.datastructures.round1
 
 import com.google.common.primitives.{Bytes, Ints}
-import io.iohk.core.crypto.encryption.hybrid.{HybridCiphertext, HybridCiphertextSerializer}
+import io.iohk.core.crypto.encryption.hybrid.dlp.{DLPHybridCiphertext, DLPHybridCiphertextSerializer}
 import io.iohk.core.crypto.primitives.blockcipher.BlockCipher
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
@@ -9,7 +9,7 @@ import io.iohk.core.utils.HasSize
 
 import scala.util.Try
 
-case class SecretShare(receiverID: Int, S: HybridCiphertext)
+case class SecretShare(receiverID: Int, S: DLPHybridCiphertext)
   extends HasSize with BytesSerializable {
 
   override type M = SecretShare
@@ -38,7 +38,7 @@ object SecretShareSerializer extends Serializer[SecretShare, (DiscreteLogGroup, 
     val S_bytes_len = Ints.fromByteArray(bytes.slice(4, 8))
     val S_bytes = bytes.slice(8, 8 + S_bytes_len)
 
-    val S = HybridCiphertextSerializer.parseBytes(S_bytes, decoder)
+    val S = DLPHybridCiphertextSerializer.parseBytes(S_bytes, decoder)
 
     SecretShare(receiverID, S.get)
   }

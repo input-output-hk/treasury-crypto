@@ -1,20 +1,17 @@
 package io.iohk.protocol.keygen.datastructures.round2
 
 import com.google.common.primitives.{Bytes, Ints}
-import io.iohk.core.crypto.encryption.hybrid.{HybridCiphertext, HybridCiphertextSerializer, HybridPlaintext, HybridPlaintextSerializer}
+import io.iohk.core.crypto.encryption.hybrid.dlp.{DLPHybridCiphertext, DLPHybridCiphertextSerializer}
 import io.iohk.core.crypto.primitives.blockcipher.BlockCipher
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.core.utils.HasSize
-import io.iohk.protocol.nizk.{ElgamalDecrNIZKProof, ElgamalDecrNIZKProofSerializer}
+import io.iohk.protocol.nizk.{DLPHybridDecrNIZKProof, DLPHybridDecrNIZKProofSerializer}
 
 import scala.util.Try
 
-case class ShareProof(
-                       encryptedShare:  HybridCiphertext,
-                       decryptedShare:  HybridPlaintext,
-                       NIZKProof:       ElgamalDecrNIZKProof
-                     )
+case class ShareProof(decryptedShare:  Array[Byte],
+                      NIZKProof:       DLPHybridDecrNIZKProof)
   extends HasSize with BytesSerializable {
 
   override type M = ShareProof
@@ -28,10 +25,8 @@ object ShareProofSerializer extends Serializer[ShareProof, (DiscreteLogGroup, Bl
 
   override def toBytes(obj: ShareProof): Array[Byte] = {
     Bytes.concat(
-      Ints.toByteArray(obj.encryptedShare.size),
-      obj.encryptedShare.bytes,
       Ints.toByteArray(obj.decryptedShare.size),
-      obj.decryptedShare.bytes,
+      obj.decryptedShare,
       Ints.toByteArray(obj.NIZKProof.size),
       obj.NIZKProof.bytes
     )
@@ -45,9 +40,6 @@ object ShareProofSerializer extends Serializer[ShareProof, (DiscreteLogGroup, Bl
     val ctx = ctxOpt.get
     val offset = IntAccumulator(0)
 
-    val encryptedShareBytesLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
-    val encryptedShareBytes = bytes.slice(offset.value, offset.plus(encryptedShareBytesLen))
-
     val decryptedShareBytesLen = Ints.fromByteArray(bytes.slice(offset.value, offset.plus(4)))
     val decryptedShareBytes = bytes.slice(offset.value, offset.plus(decryptedShareBytesLen))
 
@@ -55,9 +47,8 @@ object ShareProofSerializer extends Serializer[ShareProof, (DiscreteLogGroup, Bl
     val NIZKProofBytes = bytes.slice(offset.value, offset.plus(NIZKProofLen))
 
     ShareProof(
-      HybridCiphertextSerializer.parseBytes(encryptedShareBytes, Option(ctx)).get,
-      HybridPlaintextSerializer.parseBytes(decryptedShareBytes, Option(ctx._1)).get,
-      ElgamalDecrNIZKProofSerializer.parseBytes(NIZKProofBytes, Option(ctx._1)).get
+      decryptedShareBytes,
+      DLPHybridDecrNIZKProofSerializer.parseBytes(NIZKProofBytes, Option(ctx._1)).get
     )
   }
 }
