@@ -2,6 +2,7 @@ package io.iohk.protocol.keygen.datastructures.round5_1
 
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.Serializer
+import io.iohk.protocol.keygen.Share
 import io.iohk.protocol.keygen.datastructures.round4.OpenedShare
 
 import scala.util.Try
@@ -13,7 +14,7 @@ import scala.util.Try
   * @param violatorsShares
   */
 case class R5_1Data(override val issuerID: Int,
-                    override val violatorsShares: Seq[(Int, OpenedShare)]
+                    override val violatorsShares: Seq[Share]
                    ) extends ViolatorsSharesData(issuerID, violatorsShares)
 
 object R5_1DataSerializer extends Serializer[R5_1Data, DiscreteLogGroup] {

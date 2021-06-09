@@ -515,7 +515,7 @@ class DistrKeyGenTest  extends FunSuite {
     }
 
     val openedShare = DistrKeyGen.generateRecoveryKeyShare(ctx, committeeMembers(0).memberIdentifier, keyPairs(0), keyPairs(1)._2, r1Data).get
-    val verified = DistrKeyGen.validateRecoveryKeyShare(ctx, committeeMembers(0).memberIdentifier, keyPairs(0)._2, keyPairs(1)._2, r1Data, openedShare).isSuccess
+    val verified = DistrKeyGen.validateRecoveryKeyShare(ctx, committeeMembers(0).memberIdentifier, keyPairs(0)._2, r1Data, openedShare).isSuccess
 
     assert(verified)
   }
@@ -542,7 +542,7 @@ class DistrKeyGenTest  extends FunSuite {
     val openedShare1 = DistrKeyGen.generateRecoveryKeyShare(ctx, identifier, transportKeyPairs(0), violatorTransportPubKey, r1Data).get
     val openedShare2 = DistrKeyGen.generateRecoveryKeyShare(ctx, identifier, transportKeyPairs(1), violatorTransportPubKey, r1Data).get
 
-    val recoveredPrivKey = DistrKeyGen.recoverPrivateKeyByOpenedShares(ctx, committeeMembers.size, Seq(openedShare1, openedShare2), Some(violatorPubKey))
+    val recoveredPrivKey = DistrKeyGen.recoverPrivateKeyByOpenedShares(ctx, committeeMembers.size, Seq(openedShare1.share_a, openedShare2.share_a), Some(violatorPubKey))
     assert(recoveredPrivKey.isSuccess)
   }
 }

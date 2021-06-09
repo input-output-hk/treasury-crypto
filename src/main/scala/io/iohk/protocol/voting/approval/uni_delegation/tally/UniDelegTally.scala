@@ -131,14 +131,7 @@ class UniDelegTally (ctx: ApprovalContext,
     if (currentRound != UniDelegStages.TallyR1)
       throw new IllegalStateException("Unexpected state! Round 2 should be executed only in the TallyR1 state.")
 
-    val committeID = cmIdentifier.getId(committePubKey).get
-    require(r2Data.issuerID == committeID, "Committee identifier in TallyR2Data is invalid")
-
-    require(r2Data.violatorsShares.map(_._1).toSet == disqualifiedOnTallyR1CommitteeIds, "Unexpected set of recovery shares")
-    r2Data.violatorsShares.foreach { s =>
-      val violatorPubKey = cmIdentifier.getPubKey(s._1).get
-      require(DistrKeyGen.validateRecoveryKeyShare(ctx.cryptoContext, cmIdentifier, committePubKey, violatorPubKey, dkgR1DataAll, s._2).isSuccess)
-    }
+    require(verifyRecoverySharesData(committePubKey, r2Data, disqualifiedOnTallyR1CommitteeIds, dkgR1DataAll).isSuccess)
   }
 
   /**
@@ -151,18 +144,8 @@ class UniDelegTally (ctx: ApprovalContext,
     expertBallots.foreach(b => assert(b.expertId >= 0 && b.expertId < ctx.numberOfExperts))
 
     // Step 1: restore private keys of failed committee members
-    val updatedAllDisqualifiedCommitteeKeys = if (disqualifiedOnTallyR1CommitteeIds.nonEmpty) {
-      val restoredKeys = disqualifiedOnTallyR1CommitteeIds.map{ id =>
-        val pubKey = cmIdentifier.getPubKey(id).get
-        val recoveryShares = r2DataAll.map(_.violatorsShares.find(_._1 == id).map(_._2)).flatten
-
-        // note that there should be at least t/2 recovery shares, where t is the size of the committee, otherwise recovery will fail
-        val privKey = DistrKeyGen.recoverPrivateKeyByOpenedShares(ctx.cryptoContext, cmIdentifier.pubKeys.size, recoveryShares, Some(pubKey)).get
-        (pubKey -> privKey)
-      }
-      // update state and store newly restored keys
-      allDisqualifiedCommitteeKeys ++ restoredKeys
-    } else allDisqualifiedCommitteeKeys
+    val restoredKeys = restorePrivateKeys(disqualifiedOnTallyR1CommitteeIds, r2DataAll).get
+    val updatedAllDisqualifiedCommitteeKeys = allDisqualifiedCommitteeKeys ++ restoredKeys
 
     // Step 2: calculate decryption shares of failed committee members and at the same sum them up with already accumulated shares
     val updatedDelegationsSharesSum = delegationsSharesSum.map { x =>

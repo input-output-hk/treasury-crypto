@@ -480,7 +480,7 @@ class DistrKeyGen(ctx:              CryptoContext,
       case 4 =>
     }
 
-    val violatorsShares = ArrayBuffer[(Int, OpenedShare)]()
+    val violatorsShares = ArrayBuffer[Share]()
 
     val r4Data = r4DataIn.filter(x => {
       !violatorsIDs.contains(x.issuerID) &&
@@ -491,7 +491,7 @@ class DistrKeyGen(ctx:              CryptoContext,
         val violatorID = r4Data(i).complaints(j).violatorID
 
         if(violatorID != ownID &&
-          !violatorsShares.exists(_._1 == violatorID)) {
+          !violatorsShares.exists(_.issuerID == violatorID)) {
 
           val violatorShare = shares.find(_.issuerID == violatorID)
           val violatorCommitment = commitments.find(_.issuerID == violatorID)
@@ -499,7 +499,7 @@ class DistrKeyGen(ctx:              CryptoContext,
           if(violatorCommitment.isDefined) {
             if(checkComplaint(violatorCommitment.get, r4Data(i).complaints(j))) {
               if(violatorShare.isDefined)
-                violatorsShares += Tuple2(violatorID, violatorShare.get.share_a)
+                violatorsShares += violatorShare.get
 
               // Deleting commitment A of the violator
               commitments -= violatorCommitment.get
@@ -510,7 +510,7 @@ class DistrKeyGen(ctx:              CryptoContext,
           }
           else if(violatorShare.isDefined) {
             // Commitment of the violator is absent, because it wasn't accepted on the round 4. So just post the share of the violator.
-            violatorsShares += Tuple2(violatorID, violatorShare.get.share_a)
+            violatorsShares += violatorShare.get
           }
         }
       }
@@ -520,17 +520,17 @@ class DistrKeyGen(ctx:              CryptoContext,
     absenteesIDs.foreach(absenteeID => {
       val absenteeShare = shares.find(_.issuerID == absenteeID)
       if(absenteeShare.isDefined)
-        violatorsShares += Tuple2(absenteeID, absenteeShare.get.share_a)
+        violatorsShares += absenteeShare.get
     })
 
-    val r5_1Data = R5_1Data(ownID, violatorsShares.sortBy(_._1))
+    val r5_1Data = R5_1Data(ownID, violatorsShares.sortBy(_.issuerID))
 
     roundsPassed += 1
     roundsDataCache.r5_1Data = Seq(r5_1Data) // round output is always cached
 
     prevR5_1Data match {
       case Some(data) =>
-        val prevR5_1DataSorted = R5_1Data(data.issuerID, data.violatorsShares.sortBy(_._1))
+        val prevR5_1DataSorted = R5_1Data(data.issuerID, data.violatorsShares.sortBy(_.issuerID))
         prevR5_1DataSorted match {
           case prevData if !prevData.equals(r5_1Data) => None
           case _ => Some(r5_1Data)
@@ -574,15 +574,15 @@ class DistrKeyGen(ctx:              CryptoContext,
     // Retrieving shares of each violator
     for(i <- r5_1Data.indices) {
       for(j <- r5_1Data(i).violatorsShares.indices) {
-        val violatorID = r5_1Data(i).violatorsShares(j)._1
+        val violatorID = r5_1Data(i).violatorsShares(j).issuerID
 
         if(violatorID != ownID) {
-          val violatorShare = r5_1Data(i).violatorsShares(j)._2
+          val violatorShare = r5_1Data(i).violatorsShares(j)
 
           if(violatorsShares.exists(_.violatorID == violatorID))
             violatorsShares.find(_.violatorID == violatorID).get.violatorShares += violatorShare
           else
-            violatorsShares += ViolatorShare(violatorID, new ArrayBuffer[OpenedShare]() += violatorShare)
+            violatorsShares += ViolatorShare(violatorID, new ArrayBuffer[Share]() += violatorShare)
         }
       }
     }
@@ -599,7 +599,7 @@ class DistrKeyGen(ctx:              CryptoContext,
       if(sufficientNumOfShares){
 
         val violatorsSecretKeys = for(i <- violatorsShares.indices) yield {
-          SecretKey(violatorsShares(i).violatorID, LagrangeInterpolation.restoreSecret(ctx, violatorsShares(i).violatorShares, t).toByteArray)
+          SecretKey(violatorsShares(i).violatorID, LagrangeInterpolation.restoreSecret(ctx, violatorsShares(i).violatorShares.map(_.share_a), t).toByteArray)
         }
 
         val violatorsPublicKeys = for(i <- violatorsSecretKeys.indices) yield {
@@ -934,11 +934,9 @@ object DistrKeyGen {
     r5_1DataFiltered.foreach {
       _.violatorsShares.foreach{
         share =>
-          val (violatorID, violatorShare) = share
-
-          disqualifiedR3MembersShares.find(_.violatorID == violatorID) match {
-            case Some(vs) => vs.violatorShares += violatorShare
-            case _ => disqualifiedR3MembersShares += ViolatorShare(violatorID, new ArrayBuffer[OpenedShare] += violatorShare)
+          disqualifiedR3MembersShares.find(_.violatorID == share.issuerID) match {
+            case Some(vs) => vs.violatorShares += share
+            case _ => disqualifiedR3MembersShares += ViolatorShare(share.issuerID, new ArrayBuffer[Share] += share)
           }
       }
     }
@@ -954,7 +952,7 @@ object DistrKeyGen {
 
     if (sufficientNumOfShares){
       val violatorsSecretKeys = disqualifiedR3MembersShares.map(
-        share => LagrangeInterpolation.restoreSecret(ctx, share.violatorShares, t)
+        share => LagrangeInterpolation.restoreSecret(ctx, share.violatorShares.map(_.share_a), t)
       )
       val violatorsPublicKeys = violatorsSecretKeys.map(group.groupGenerator.pow(_).get)
 
@@ -1036,15 +1034,18 @@ object DistrKeyGen {
                                memberIdentifier: Identifier[Int],
                                keys: (PrivKey, PubKey),
                                violatorPubKey: PubKey,
-                               r1Data: Seq[R1Data]): Try[OpenedShare] = Try {
+                               r1Data: Seq[R1Data]): Try[Share] = Try {
     import ctx.{blockCipher, group}
 
     val (myPrivKey, myPubKey) = keys
     val myId = memberIdentifier.getId(myPubKey).get
     val violatorId = memberIdentifier.getId(violatorPubKey).get
 
-    val shareForMeFromViolator = r1Data.find(_.issuerID == violatorId).get.S_a.find(_.receiverID == myId).get
-    OpenedShare(shareForMeFromViolator.receiverID, HybridEncryption.decrypt(myPrivKey, shareForMeFromViolator.S).get)
+    val share_a_ForMeFromViolator = r1Data.find(_.issuerID == violatorId).get.S_a.find(_.receiverID == myId).get
+    val share_b_ForMeFromViolator = r1Data.find(_.issuerID == violatorId).get.S_b.find(_.receiverID == myId).get
+    val a = OpenedShare(share_a_ForMeFromViolator.receiverID, HybridEncryption.decrypt(myPrivKey, share_a_ForMeFromViolator.S).get)
+    val b = OpenedShare(share_b_ForMeFromViolator.receiverID, HybridEncryption.decrypt(myPrivKey, share_b_ForMeFromViolator.S).get)
+    Share(violatorId, a, b)
   }
 
   /**
@@ -1063,14 +1064,16 @@ object DistrKeyGen {
   def validateRecoveryKeyShare(ctx: CryptoContext,
                                memberIdentifier: Identifier[Int],
                                issuerPubKey: PubKey,
-                               violatorPubKey: PubKey,
                                r1Data: Seq[R1Data],
-                               openedShare: OpenedShare): Try[Unit] = Try {
+                               share: Share): Try[Unit] = Try {
     val issuerId = memberIdentifier.getId(issuerPubKey).get
-    val violatorId = memberIdentifier.getId(violatorPubKey).get
-    val submittedShare = r1Data.find(_.issuerID == violatorId).get.S_a.find(_.receiverID == issuerId).get
+    val violatorId = share.issuerID
 
-    require(sharesAreEqual(ctx, openedShare, submittedShare), "OpenedShare doesn't conform to the submitted share")
+    require(issuerId == share.share_a.receiverID)
+    require(issuerId == share.share_b.receiverID)
+
+    val commitment = r1Data.find(_.issuerID == violatorId).get.E
+    require(checkOnCRS(ctx, share.share_a, share.share_b, commitment))
   }
 
   /**
@@ -1323,26 +1326,15 @@ object DistrKeyGen {
     val membersNum = membersPubKeys.length
     require(r5_1Data.violatorsShares.length <= membersNum, "Exceeding number of R5_1 opened shares")
 
-    def checkOpenedShare(shareIssuerID: Int, share: OpenedShare): Boolean = {
+    val issuerPubKey = memberIdentifier.getPubKey(r5_1Data.issuerId).get
 
-      val r1DataOpt = r1DataSeq.find(_.issuerID == shareIssuerID)
-      require(r1DataOpt.isDefined, s"Missing secret shares of $shareIssuerID")
-
-      val secretShareOpt = r1DataOpt.get.S_a.find(_.receiverID == share.receiverID)
-      require(secretShareOpt.isDefined, s"Secret share for ${share.receiverID} is missing among secret shares of $shareIssuerID")
-
-      // Check if an encrypted opened share is the same as previously submitted secret share
-      sharesAreEqual(ctx, share, secretShareOpt.get)
-    }
-
-    val violatorsSharesIDs = r5_1Data.violatorsShares.map(_._1)
+    val violatorsSharesIDs = r5_1Data.violatorsShares.map(_.issuerID)
     require(violatorsSharesIDs.distinct.length == violatorsSharesIDs.length, "Duplicates of violators shares are present")
 
     r5_1Data.violatorsShares.foreach {
       s =>
-        require(membersIDs.contains(s._1), "Illegal violator's ID")
-        require(s._2.receiverID == r5_1Data.issuerID, s"Share doesn't belong to the issuer ${r5_1Data.issuerID} (share receiver ID is ${s._2.receiverID})")
-        require(checkOpenedShare(s._1, s._2))
+        require(membersIDs.contains(s.issuerID), "Illegal violator's ID")
+        require(validateRecoveryKeyShare(ctx, memberIdentifier, issuerPubKey, r1DataSeq, s).isSuccess)
     }
   }
 }
