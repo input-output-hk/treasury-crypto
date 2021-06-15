@@ -18,9 +18,11 @@ object DecryptionShareNIZK {
     val A1 = dlogGroup.exponentiate(G, w).get
     val A2 = dlogGroup.exponentiate(share, w).get
     val D = dlogGroup.exponentiate(share, privKey).get
+    val pubKey = dlogGroup.exponentiate(G, privKey).get
 
     val e = BigInt(
       hashFunction.hash {
+        pubKey.bytes ++
         share.bytes ++
           D.bytes ++
           A1.bytes ++
@@ -37,6 +39,7 @@ object DecryptionShareNIZK {
 
     val e = BigInt(
       hashFunction.hash {
+        pubKey.bytes ++
         share.bytes ++
         decryptedShare.bytes ++
         proof.A1.bytes ++

@@ -162,14 +162,14 @@ $\nizk\{(\pk, C, M ),(\sk): M = \Dec'_{\sk}(C) \, \wedge \, \pk = g^{\sk}\}$
 \begin{itemize}
 \item Pick random $w \leftarrow  {\ZZ_p}$; 
 \item Compute $D=(C_1)^{sk}$ , $A_1 := g^w$, and $A_2 := (C_1)^w $
-\item Compute $e = \hash(C,D,A_1,A_2)$ and  $ z = \sk*e + w$
+\item Compute $e = \hash(\pk,C,D,A_1,A_2)$ and  $ z = \sk*e + w$
 \item Return $\pi:=(A_1,A_2,z)$
 \end{itemize}
 
 \textbf{Verifier:}
 \begin{itemize}
 \item Compute $D=C_2 \cdot M^{-1}$
-\item Compute $e = \hash(C,D,A_1,A_2)$
+\item Compute $e = \hash(\pk,C,D,A_1,A_2)$
 \item Verify that:
     \begin{itemize}
     \item $g^z = h^e \cdot A_1$, and
@@ -474,14 +474,14 @@ $\nizk\{(\pk, C, D ),(\sk): D = (C_1)^{\sk} \, \wedge \, \pk = g^{\sk}\}$
 \begin{itemize}
 \item Pick random $w \leftarrow  {\ZZ_p}$; 
 \item Compute $A_1 := g^w$, and $A_2 := (C_1)^w $
-\item Compute $e = \hash(C,D,A_1,A_2)$ and  $ z = \sk*e + w$
+\item Compute $e = \hash(\pk,C,D,A_1,A_2)$ and  $ z = \sk*e + w$
 \item Return $\pi:=(A_1,A_2,z)$
 \end{itemize}
 
 \textbf{Verifier:}
 \begin{itemize}
 \item Compute $d$
-\item Compute $e = \hash(C,D,A_1,A_2)$
+\item Compute $e = \hash(\pk,C,D,A_1,A_2)$
 \item Verify that:
     \begin{itemize}
     \item $g^z = h^e \cdot A_1$, and

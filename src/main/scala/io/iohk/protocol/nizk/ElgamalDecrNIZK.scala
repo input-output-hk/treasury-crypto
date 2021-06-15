@@ -30,9 +30,11 @@ object ElgamalDecrNIZK {
     val A1 = dlogGroup.groupGenerator.pow(w).get
     val A2 = ciphertext.c1.pow(w).get
     val D = ciphertext.c1.pow(privKey).get
+    val pubKey = dlogGroup.groupGenerator.pow(privKey).get
 
     val e = BigInt(
       hashFunction.hash {
+        pubKey.bytes ++
         ciphertext.bytes ++
         D.bytes ++
         A1.bytes ++
@@ -50,6 +52,7 @@ object ElgamalDecrNIZK {
     val D = ciphertext.c2.divide(plaintext).get
     val e = BigInt(
       hashFunction.hash {
+        pubKey.bytes ++
         ciphertext.bytes ++
         D.bytes ++
         proof.A1.bytes ++
