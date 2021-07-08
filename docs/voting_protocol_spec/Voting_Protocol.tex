@@ -40,14 +40,13 @@ It is well known that lifted ElGamal encryption scheme is IND-CPA secure under t
 Remark: The key generation and decryption algorithm of the lifted ElGamal encryption can be efficiently distributed.
 
 \subsubsection{Hybrid Encryption}
-We employ a hybrid symmetric/assymetric encryption scheme for long messages that can not be encrypted directly with ElGamal  scheme. The basic idea is that a message is encrypted with a block cipher with a randomly generated symmetric key, whereas the key is encrypted with ElGamal and sent along the encrypted message. The hybrid encryption consists of the following algorithms:
+We employ a hybrid symmetric/assymetric encryption scheme for long messages that can not be encrypted directly with ElGamal scheme. The basic idea is that a message is encrypted with a block cipher, whereas the symmetric key is encrypted with a DLP-based assymetric scheme and sent along the encrypted message. The hybrid encryption consists of the following algorithms:
 \begin{itemize}
 	\item $\Genpkc(\sigma)$: pick $\sk\leftarrow \ZZ_q^*$ and set $\pk:=h=g^{sk}$, and output $(\pk,\sk)$. 
-	\item $\Genpkc^S(\sigma)$: pick $s\leftarrow \ZZ_q^*$ and set $\symk:=g^{s}$, and output $\symk$. 
 	\item $\SEnc_{\symk}(m)$: output $e:=AESEnc_{H(\symk)}(m)$, where $H$ is a cryptographic hash function and $AESEnc$ is an encryption method of AES block cipher.
 	\item $\SDec_{\symk}(e)$: output $m:=AESDec_{H(\symk)}(e)$, where $AESDec$ is a decryption method of AES block cipher.
-	\item $\HEnc_{\pk}(m,r,\symk)$: output $e:=(e_1,e_2)=(Enc'_{\pk}(\symk,r), SEnc_{\symk}(m))$ is a hybrid encryption.
-	\item $\HDec_{\sk}(e)$: output $m:=SDec_{\symk}(e_2)$, where $\symk=Dec'_{\sk}(e_1)$.
+	\item $\HEnc_{\pk}(m,r)$: output $e:=(e_1,e_2)=(g^r, SEnc_{\symk}(m))$, where $k=h^r$ and $r\leftarrow \ZZ_q^*$.
+	\item $\HDec_{\sk}(e)$: output $m:=SDec_{\symk}(e_2)$, where $\symk=(e_1)^{\sk}$.
 \end{itemize}
 
 \subsubsection{Pedersen Commitment}
@@ -65,6 +64,26 @@ Pedersen commitment is also additively homomorphic, i.e.
 $$
 \Com_{\ck}(m_1;r_1)\cdot \Com_{\ck}(m_2;r_2) = \Com_{\ck}(m_1+m_2; r_1+r_2)\enspace.
 $$
+
+\subsubsection{Non-interactive zero-knowledge proof for the equality of discrete logarithms (DLEQ NIZK)} \label{sec:DLEQ}
+We employ a standard DLEQ NIZK as a base for several zero-knowledge proofs used throughout the protocol. It proves that for the group elements $h_1,h_2,g_1,g_2\in\group$ and a witness $sk\in\ZZ_q^*$ the following statement holds: $h_1=(g_1)^{sk}$ and $h_2=(g_2)^{sk}$. The DLEQ NIZK consists of the following algorithms:
+\begin{itemize}
+\item $\DLEQProve(h_1,h_2,g_1,g_2)(sk)$:
+\begin{itemize}
+	\item Generate randomly $w\leftarrow \ZZ_q^*$
+	\item Compute $A_1:=(g_1)^w$ and $A_2:=(g_2)^w$
+	\item Compute $e:=H(h_1 || h_2 || g_1 || g_2 || A_1 || A_2)$, where $H$ is a cryptographic hash function
+	\item Compute $z:=sk\cdot e+w$
+	\item Output proof $\pi:=(A_1,A_2,z)$
+\end{itemize}
+\item $\DLEQVerify(h_1,h_2,g_1,g_2)(A_1,A_2,z)$:
+\begin{itemize}
+	\item Compute $e:=H(h_1 || h_2 || g_1 || g_2 || A_1 || A_2)$
+	\item Verify $(g_1)^z=(h_1)^e\cdot A_1$
+	\item Verify $(g_2)^z=(h_2)^e\cdot A_2$
+	\item Output $\mathit{true}$ if verifications passed, otherwise $\mathit{false}$
+\end{itemize}
+\end{itemize}
 
 \subsection{Distributed Key Generation}
 Distributed key generation (DKG) is a fundamental building block of the voting process in our proposed treasury system. Ideally, the protocol termination should be guaranteed when up to $t=\ceil{\frac{n}{2}} -1$ out of $n$ committee members are corrupted.  A naive way of achieving threshold distributed key generation is as follows. Each of the voting committee members $\VC_i$ first generates a public/private key pair $(\pk_i,\sk_i)\leftarrow\Genpkc(\param)$. Each $\VC_i$ then posts $\pk_i$ to the blockchain and use $(t+1,n)$-threshold \emph{verifiable secret sharing} (VSS) to share $\sk_i$ to all the other committee members. The combined voting public key can then be defined as $\pk:= \prod_{i=1}^{n} \pk_{i}$.
@@ -97,7 +116,7 @@ Finally, the shared election public key is calculated as $\pk := \prod_{j\in[\JJ
 
 Note that, when implemented in a decentralized blockchain setting, it is supposed that all communications among committee members are done through the blockchain. It means that on each round they will post a transaction with relevant data that will also be checked by the whole network (where possible). At the end of the final round, every node in the network will be able to reconstruct a shared election public key without any additional messages from the committee. 
 
-The full DKG protocol is summarized in Figure~\ref{fig:DKG}.\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/treasury-crypto/tree/master/src/main/scala/io/iohk/protocol/keygen}{https://github.com/input-output-hk/treasury-crypto/.../protocol/keygen}} The NIZK used in Round 2 is described in Fig.~\ref{fig:ElgamalDecrNIZK}.\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/treasury-crypto/blob/master/src/main/scala/io/iohk/protocol/nizk/ElgamalDecrNIZK.scala}{https://github.com/input-output-hk/treasury-crypto/../protocol/nizk/ElgamalDecrNIZK.scala}}
+The full DKG protocol is summarized in Figure~\ref{fig:DKG}.\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/treasury-crypto/tree/master/src/main/scala/io/iohk/protocol/keygen}{https://github.com/input-output-hk/treasury-crypto/.../protocol/keygen}} The NIZK used in Round 2 is described in Fig.~\ref{fig:HybridDecrNIZK}.\footnote{See implementation here:\\ \href{https://github.com/input-output-hk/treasury-crypto/blob/master/src/main/scala/io/iohk/protocol/nizk/ElgamalDecrNIZK.scala}{https://github.com/input-output-hk/treasury-crypto/../protocol/nizk/ElgamalDecrNIZK.scala}}
 
 \FloatBarrier
 % \end{boxfig}
@@ -110,17 +129,17 @@ Each committee member $C_i$ does the following:
 \item Pick random $a_{i,1},a_{i,2},\ldots,a_{i,t},b_{i,0},b_{i,1},\ldots,b_{i,t} \leftarrow \ZZ_p$.
 \item Define two polynomials $f_i(x):=\sum_{\ell=0}^{t} a_{i,\ell} x^\ell$ and $f'_i(x):=\sum_{\ell=0}^{t} b_{i,\ell} x^\ell$.
 \item For $\ell\in[t]$, post $E_{i,\ell}: = g^{a_{i,\ell}} h^{b_{i,\ell}}$ on the blockchain.
-\item For every other $C_j$, $j\in[k], j\neq i$, compute $s_{i,j}:= f_i(j)$ and $s'_{i,j}:= f'_i(j)$ and post $e_{i,j}\leftarrow \HEnc_{\pk^*_j}(s_{i,j}, r, ssk_{i,j})$ and $e'_{i,j}\leftarrow \HEnc_{\pk^*_j}(s'_{i,j}, r', ssk'_{i,j})$ on the blockchain, where $r,r'\leftarrow \ZZ_p$, $ssk_{i,j},ssk'_{i,j} \leftarrow E(\FF_p)$ are randomly generated. Only $C_j$ can decrypt these shares.
+\item For every other $C_j$, $j\in[k], j\neq i$, compute $s_{i,j}:= f_i(j)$ and $s'_{i,j}:= f'_i(j)$ and post $e_{i,j}\leftarrow \HEnc_{\pk^*_j}(s_{i,j}, r)$ and $e'_{i,j}\leftarrow \HEnc_{\pk^*_j}(s'_{i,j}, r')$ on the blockchain, where $r,r'\leftarrow \ZZ_p$ are randomly generated. Only $C_j$ can decrypt these shares.
 \end{itemize}
 
 \textbf{Round 2:}
 Each committee member $C_i$ does the following:
 \begin{itemize}
-\item Fetch $\{(e_{j,i}, e'_{j,i})\}_{j\in[k], j\neq i}$ from the blockchain, parse as $e_{j,i}=(e_{(j,i),1},e_{(j,i),2})$, $e'_{j,i}=(e'_{(j,i),1},e'_{(j,i),2})$, and use $\pk^*_i$ to decrypt them, obtaining the corresponding shares $\{(s_{j,i}, s'_{j,i})\}_{j\in[k], j\neq i}$.
-\item For $j\in[k], j\neq i$, check if $g^{s_{j,i}}h^{s'_{j,i}}= \prod_{\ell=0}^{t} (E_{j,\ell})^{i^\ell}$. If not, post a complaint against $C_j$ by revealing the evidence: $(s_{j,i},s'_{j,i}, e_{j,i}, e'_{j,i},ssk_{j,i},ssk'_{j,i},\pi,\pi')$, where $\pi,\pi'$ are zero-knowledge proofs generated as follows (see Fig.~\ref{fig:ElgamalDecrNIZK} for full NIZK description):
+\item Fetch $\{(e_{j,i}, e'_{j,i})\}_{j\in[k], j\neq i}$ from the blockchain and use $\pk^*_i$ to decrypt them, obtaining the corresponding shares $\{(s_{j,i}, s'_{j,i})\}_{j\in[k], j\neq i}$.
+\item For $j\in[k], j\neq i$, check if $g^{s_{j,i}}h^{s'_{j,i}}= \prod_{\ell=0}^{t} (E_{j,\ell})^{i^\ell}$. If not, post a complaint against $C_j$ by revealing the evidence: $(s_{j,i},s'_{j,i}, e_{j,i}, e'_{j,i},\pi,\pi')$, where $\pi,\pi'$ are zero-knowledge proofs generated as follows (see Fig.~\ref{fig:HybridDecrNIZK} for full NIZK description):
 \begin{equation*}
-\pi \leftarrow\nizk\left\{\begin{array}{l} (e_{(j,i),1},ssk_{j,i}, \pk^*_i),(\sk^*_i): \\
- ssk_{j,i}=\Dec'_{\sk^*_i}(e_{(j,i),1}) \wedge \pk^*_i=g^{\sk^*_i} \wedge (\pk^*_i,\sk^*_i)\in\RRR_{\textsc{PKE}} \end{array}\right\}
+\pi \leftarrow\nizk\left\{\begin{array}{l} (e_{j,i}, s_{j,i}, \pk^*_i),(\sk^*_i): \\
+ s_{j,i}=\HDec_{\sk^*_i}(e_{j,i}) \wedge \pk^*_i=g^{\sk^*_i} \wedge (\pk^*_i,\sk^*_i)\in\RRR_{\textsc{PKE}} \end{array}\right\}
 \end{equation*}
 \item (One valid complain against $C_j$, $j\in[k]$ will disqualify $C_j$.)
 \end{itemize}
@@ -148,32 +167,29 @@ Each committee member $C_i$ does the following:
 %\end{boxfig}
 }{Distributed key generation $\Pi_{\textsc{DKG}}$\label{fig:DKG}}
 
-\begin{boxfig}{\label{fig:ElgamalDecrNIZK}Non-Interactive Zero Knowledge proof for correct ElGamal decryption}{}
+\begin{boxfig}{\label{fig:HybridDecrNIZK} Non-Interactive Zero Knowledge proof for correct Hybrid decryption}{}
 \begin{center}
-$\nizk\{(\pk, C, M ),(\sk): M = \Dec'_{\sk}(C) \, \wedge \, \pk = g^{\sk}\}$
+$\nizk\{(\pk, C, M ),(\sk): M = \HDec_{\sk}(C) \, \wedge \, \pk = g^{\sk}\}$
 \end{center}
 
-\textbf{Statement:} Public key, $\pk:=h \in\group$,  ciphertext $C: =(C_1, C_2 )$, and the plaintext $M:=g^m \in\group$
+\textbf{Statement:} Public key, $\pk\in\group$, hybrid ciphertext $C: =(C_1, C_2 )$, and plaintext $M$
 
 \textbf{Witness:} $\sk\in\ZZ_p$
 
 \medskip
 \textbf{Prover:}
 \begin{itemize}
-\item Pick random $w \leftarrow  {\ZZ_p}$; 
-\item Compute $D=(C_1)^{sk}$ , $A_1 := g^w$, and $A_2 := (C_1)^w $
-\item Compute $e = \hash(\pk,C,D,A_1,A_2)$ and  $ z = \sk*e + w$
-\item Return $\pi:=(A_1,A_2,z)$
+\item Compute $D:=(C_1)^{sk}$
+\item Compute $\pi_{DLEQ}:=\DLEQProve(\pk,D,g,C_1)(\sk)$
+\item Return $\pi:=(D,\pi_{DLEQ})$
 \end{itemize}
 
 \textbf{Verifier:}
 \begin{itemize}
-\item Compute $D=C_2 \cdot M^{-1}$
-\item Compute $e = \hash(\pk,C,D,A_1,A_2)$
 \item Verify that:
     \begin{itemize}
-    \item $g^z = h^e \cdot A_1$, and
-    \item $(C_1)^{z} = D^e \cdot A_2$ 
+    \item $\SEnc_{D}(M) = C_2$, and
+    \item $\DLEQVerify(\pk,D,g,C_1)(\pi_{DLEQ})=\mathit{true}$
     \end{itemize}
 \end{itemize}
 \end{boxfig}
@@ -395,9 +411,9 @@ Each committee member $C_j$ does the following:
     \item For $i = 1,\ldots, m$ compute decryption shares for delegation sums as follows:
     \begin{itemize}
         \item Parse $d_{e_i}$ to $(d_{e_i,1}, d_{e_i,2})$ (recall that $c_{e_i}$ and, correspondingly, $d_{e_i}$ are ElGamal ciphertexts, which comprise of 2 group elements [\ref{sec:elgamal}])
-        \item Compute $D_{j,e_i}=(d_{e_i,1})^{sk_j}$, where $sk_j$ is a secret key\footnote{Here we refer to the secret key $sk_j$ that was used to generate shared election public key and for which a corresponding $pk_j$ was registered by $C_j$.} of the committee member $C_j$, and a proof $\pi_i$ that the share is generated correctly (see Fig.~\ref{fig:DecrShareNIZK} for NIZK description):
+        \item Compute $D_{j,e_i}=(d_{e_i,1})^{sk_j}$, where $sk_j$ is a secret key\footnote{Here we refer to the secret key $sk_j$ that was used to generate shared election public key and for which a corresponding $pk_j$ was registered by $C_j$.} of the committee member $C_j$, and a proof $\pi_i$ that the share is generated correctly (the standard DLEQ NIZK can be used, see section~[\ref{sec:DLEQ}] for the description):
         \begin{equation*}
-        \pi_{j,i}\leftarrow\nizk\left\{\begin{array}{l} (\pk_j, d_{e_i,1}, D_{j,e_i}),(\sk_j): \\
+        \pi_{j,i}\leftarrow\nizk\left\{\begin{array}{l} (\pk_j, D_{j,e_i}, g, d_{e_i,1})(\sk_j): \\
          D_{j,e_i}=(d_{e_i,1})^{sk_j} \; \wedge pk_j=g^{sk_j} \; \wedge \;  (\pk_j,\sk_j)\in\RRR_{\textsc{PKE}} \end{array}\right\}
         \end{equation*}
     \end{itemize}
@@ -433,9 +449,9 @@ Each qualified committee member $C_j,\ j\in\JJJ$ does the following:
     \item For $i = 0,.., 2$ compute decryption shares for tally results as follows:
     \begin{itemize}
         \item Parse $r_i$ to $(r_{i,1}, r_{i,2})$ (recall that $r_{i}$ is an ElGamal ciphertext, which comprises 2 group elements [\ref{sec:elgamal}])
-        \item Compute decryption share $R_{j,i}=(r_{i,1})^{sk_j}$, where $sk_j$ is a secret key of the committee member $C_j$, and a proof $\pi_{j,i}$ that the share is generated correctly (see Fig.~\ref{fig:DecrShareNIZK} for NIZK description):
+        \item Compute decryption share $R_{j,i}=(r_{i,1})^{sk_j}$, where $sk_j$ is a secret key of the committee member $C_j$, and a proof $\pi_{j,i}$ that the share is generated correctly (the standard DLEQ NIZK can be used, see section~[\ref{sec:DLEQ}] for the description):
         \begin{equation*}
-        \pi_{j,i}\leftarrow\nizk\left\{\begin{array}{l} (\pk_j, r_{i,1}, R_{j,i}),(\sk_j): \\
+        \pi_{j,i}\leftarrow\nizk\left\{\begin{array}{l} (\pk_j, R_{j,i}, g, r_{i,1}),(\sk_j): \\
          R_{j,i}=(r_{i,1})^{sk_j} \; \wedge pk_j=g^{sk_j} \; \wedge \;  (\pk_j,\sk_j)\in\RRR_{\textsc{PKE}} \end{array}\right\}
         \end{equation*}
     \end{itemize}
@@ -456,37 +472,6 @@ After obtaining all decryption shares $R_{j,i}$ from all committee members $C_j,
 \begin{itemize}
     \item For $i = 0,.., 2$ compute $R_i=\prod_{j=1}^{l} R_{j,i}$, where $l$ is the number of committee members.
     \item Compute number of votes for each choice $i\in\{0,1,2\}$ as $res_{i}=DLOG_g(r_{i,2} \cdot (R_i)^{-1})$, where $r_{i,2}$ is computed as in Round 3 and $DLOG$ is a discrete logarithm for the resulting group element. Note that the logarithm is the number of votes so it can be effectively found by brute force.\\
-\end{itemize}
-\end{boxfig}
-
-\FloatBarrier
-\begin{boxfig}{\label{fig:DecrShareNIZK}Non-Interactive Zero Knowledge proof for correct ElGamal decryption share (note that this NIZK is basically the same as ElGamal decryption NIZK in Fig.~\ref{fig:ElgamalDecrNIZK} except slightly different interface)}{}
-\begin{center}
-$\nizk\{(\pk, C, D ),(\sk): D = (C_1)^{\sk} \, \wedge \, \pk = g^{\sk}\}$
-\end{center}
-
-\textbf{Statement:} Public key, $\pk:=h \in\group$,  ciphertext $C: =(C_1, C_2 )$, and the decryption share $D:=(C_1)^{sk} \in\group$
-
-\textbf{Witness:} $\sk\in\ZZ_p$
-
-\medskip
-\textbf{Prover:}
-\begin{itemize}
-\item Pick random $w \leftarrow  {\ZZ_p}$; 
-\item Compute $A_1 := g^w$, and $A_2 := (C_1)^w $
-\item Compute $e = \hash(\pk,C,D,A_1,A_2)$ and  $ z = \sk*e + w$
-\item Return $\pi:=(A_1,A_2,z)$
-\end{itemize}
-
-\textbf{Verifier:}
-\begin{itemize}
-\item Compute $d$
-\item Compute $e = \hash(\pk,C,D,A_1,A_2)$
-\item Verify that:
-    \begin{itemize}
-    \item $g^z = h^e \cdot A_1$, and
-    \item $(C_1)^{z} = D^e \cdot A_2$ 
-    \end{itemize}
 \end{itemize}
 \end{boxfig}
 
@@ -548,6 +533,31 @@ Each qualified committee member $C_i,\ i \in \JJJ''$ does the following:
 	\item Decrypt missing random values of failed committee members $C_j,\ j\in\FFF''$ as $D_{j}=\Dec'_{\sk_j}(R_j)$.
 	\item After obtaining all random values $D_{j}$ from all committee members $C_j,\ j\in\JJJ''$, compute randomness as follows: \[rand=H(\mathbin\Vert_{j\in\JJJ''} D_j),\]
 	where $\mathbin\Vert_{j\in\JJJ''} D_j$ denotes a concatanation of $D_j,~j\in\JJJ''$.
+\end{itemize}
+\end{boxfig}
+
+\begin{boxfig}{\label{fig:ElgamalDecrNIZK}Non-Interactive Zero Knowledge proof for correct ElGamal decryption}{}
+\begin{center}
+$\nizk\{(\pk, C, M ),(\sk): M = \Dec'_{\sk}(C) \, \wedge \, \pk = g^{\sk}\}$
+\end{center}
+
+\textbf{Statement:} Public key $\pk:=g^{\sk}\in\group$, ElGamal ciphertext $C: =(C_1, C_2 )\in G^2$, and plaintext $M:=g^m \in\group$
+
+\textbf{Witness:} $\sk\in\ZZ_q^*$
+
+\medskip
+\textbf{Prover:}
+\begin{itemize}
+\item Compute $D:=(C_1)^{sk}$
+\item Compute $\pi:=\DLEQProve(\pk,D,g,C_1)(\sk)$
+\item Return $\pi$
+\end{itemize}
+
+\textbf{Verifier:}
+\begin{itemize}
+\item Compute $D=C_2 \cdot M^{-1}$
+\item Verify $\DLEQVerify(\pk,D,g,C_1)(\pi)=\mathit{true}$
+
 \end{itemize}
 \end{boxfig}
 
