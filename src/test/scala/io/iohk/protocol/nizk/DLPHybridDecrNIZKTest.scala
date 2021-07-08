@@ -26,11 +26,14 @@ class DLPHybridDecrNIZKTest extends FunSuite {
 
     assert(verified)
 
-    val corruptedProof = DLPHybridDecrNIZKProof(proof.C2, proof.A1, proof.A2, proof.z + 1)
+    val corruptedProof = DLPHybridDecrNIZKProof(proof.decryptedKey,
+      DLEQStandardNIZKProof(proof.dleqProof.A1, proof.dleqProof.A2, proof.dleqProof.z + 1))
     assert(!DLPHybridDecrNIZK.verifyNIZK(pubKey, ciphertext, decrypted, corruptedProof))
 
-    val corruptedProof2 = DLPHybridDecrNIZKProof(proof.C2.pow(privKey).get, proof.A1, proof.A2, proof.z)
+    val corruptedProof2 = DLPHybridDecrNIZKProof(proof.decryptedKey.pow(privKey).get, proof.dleqProof)
     assert(!DLPHybridDecrNIZK.verifyNIZK(pubKey, ciphertext, decrypted, corruptedProof2))
+    decrypted(0) = (decrypted(0)+1).toByte // corrupting decrypted text
+    assert(!DLPHybridDecrNIZK.verifyNIZK(pubKey, ciphertext, decrypted, proof))
   }
 
   test("serialization") {

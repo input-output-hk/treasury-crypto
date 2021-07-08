@@ -7,13 +7,13 @@ import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.core.utils.HasSize
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.nizk.{ElgamalDecrNIZK, ElgamalDecrNIZKProof, ElgamalDecrNIZKProofSerializer}
+import io.iohk.protocol.nizk.{DLEQStandardNIZK, DLEQStandardNIZKProof, DLEQStandardNIZKProofSerializer, ElgamalDecrNIZK}
 
 import scala.util.Try
 
 
 case class DecryptionShare(proposalId:   Int,
-                           decryptedC1:  Seq[(GroupElement, ElgamalDecrNIZKProof)]
+                           decryptedC1:  Seq[(GroupElement, DLEQStandardNIZKProof)]
                           ) extends HasSize with BytesSerializable {
 
   override type M = DecryptionShare
@@ -63,7 +63,7 @@ object DecryptionShareSerializer extends Serializer[DecryptionShare, DiscreteLog
       val len = bytes(pos)
       val point = group.reconstructGroupElement(bytes.slice(pos+1, pos+1+len)).get
       pos = pos + len + 1
-      val proof = ElgamalDecrNIZKProofSerializer.parseBytes(bytes.drop(pos), decoder).get
+      val proof = DLEQStandardNIZKProofSerializer.parseBytes(bytes.drop(pos), decoder).get
       pos = pos + proof.bytes.length
       (point, proof)
     }

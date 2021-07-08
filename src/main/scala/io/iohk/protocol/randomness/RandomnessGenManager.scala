@@ -4,11 +4,10 @@ import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalEnc}
 import io.iohk.core.crypto.encryption.{PrivKey, PubKey}
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
-import io.iohk.core.crypto.primitives.hash.CryptographicHash
 import io.iohk.core.crypto.primitives.numbergenerator.FieldElementSP800DRNG
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.nizk.{ElgamalDecrNIZK, ElgamalDecrNIZKProof, ElgamalDecrNIZKProofSerializer}
+import io.iohk.protocol.nizk.{DLEQStandardNIZKProof, DLEQStandardNIZKProofSerializer, ElgamalDecrNIZK}
 
 import scala.util.Try
 
@@ -57,7 +56,7 @@ object RandomnessGenManager {
     * @return
     */
   def decryptRandomnessShare(ctx: CryptoContext, privKey: PrivKey, ciphertext: ElGamalCiphertext): DecryptedRandomnessShare = {
-    import ctx.{group,hash}
+    import ctx.{group, hash}
     val decryptedRandomness = ElGamalEnc.decrypt(privKey, ciphertext).get
     val proof = ElgamalDecrNIZK.produceNIZK(ciphertext, privKey).get
     DecryptedRandomnessShare(decryptedRandomness, proof)
@@ -76,13 +75,13 @@ object RandomnessGenManager {
                                        pubKey: PubKey,
                                        ciphertext: ElGamalCiphertext,
                                        decryptedShare: DecryptedRandomnessShare): Boolean = {
-    import ctx.{group,hash}
+    import ctx.{group, hash}
     ElgamalDecrNIZK.verifyNIZK(pubKey, ciphertext, decryptedShare.randomness, decryptedShare.proof)
   }
 }
 
 case class DecryptedRandomnessShare(randomness: GroupElement,
-                                    proof: ElgamalDecrNIZKProof) extends BytesSerializable {
+                                    proof: DLEQStandardNIZKProof) extends BytesSerializable {
 
   override type M = DecryptedRandomnessShare
   override type DECODER = DiscreteLogGroup
@@ -102,7 +101,7 @@ object DecryptedRandomnessShareSerializer extends Serializer[DecryptedRandomness
     val group = decoder.get
     val randomnessBytesLen = Ints.fromByteArray(bytes.slice(0, 4))
     val randomness = group.reconstructGroupElement(bytes.slice(4, 4 + randomnessBytesLen)).get
-    val proof = ElgamalDecrNIZKProofSerializer.parseBytes(bytes.drop(4 + randomnessBytesLen), decoder).get
+    val proof = DLEQStandardNIZKProofSerializer.parseBytes(bytes.drop(4 + randomnessBytesLen), decoder).get
     DecryptedRandomnessShare(randomness, proof)
   }
 }

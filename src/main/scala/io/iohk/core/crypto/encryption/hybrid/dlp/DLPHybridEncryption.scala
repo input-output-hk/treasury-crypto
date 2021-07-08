@@ -48,7 +48,7 @@ object DLPHybridEncryption {
 
   def decrypt(privKey: PrivKey, ciphertext: DLPHybridCiphertext)
              (implicit dlogGroup: DiscreteLogGroup, blockCipher: BlockCipher): Try[Array[Byte]] = {
-    ciphertext.C1.pow(privKey).flatMap { C2 =>
+    ciphertext.encryptedKey.pow(privKey).flatMap { C2 =>
       val k = blockCipher.generateKey(C2.bytes)
       blockCipher.decrypt(k, ciphertext.encryptedMessage)
     }

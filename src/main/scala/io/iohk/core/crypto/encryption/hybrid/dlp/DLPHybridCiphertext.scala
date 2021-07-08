@@ -7,7 +7,7 @@ import io.iohk.core.serialization.{BytesSerializable, Serializer}
 
 import scala.util.Try
 
-case class DLPHybridCiphertext(C1: GroupElement, encryptedMessage: BlockCipher.Ciphertext)
+case class DLPHybridCiphertext(encryptedKey: GroupElement, encryptedMessage: BlockCipher.Ciphertext)
   extends BytesSerializable {
 
   override type M = DLPHybridCiphertext
@@ -20,26 +20,26 @@ case class DLPHybridCiphertext(C1: GroupElement, encryptedMessage: BlockCipher.C
 object DLPHybridCiphertextSerializer extends Serializer[DLPHybridCiphertext, (DiscreteLogGroup, BlockCipher)] {
 
   override def toBytes(obj: DLPHybridCiphertext): Array[Byte] = {
-    val c1Bytes = obj.C1.bytes
+    val keyBytes = obj.encryptedKey.bytes
     val ciphertextBytes = obj.encryptedMessage.bytes
     assert(ciphertextBytes.length < Short.MaxValue)
 
     Bytes.concat(
-      Array(c1Bytes.length.toByte), c1Bytes,
+      Array(keyBytes.length.toByte), keyBytes,
       Shorts.toByteArray(ciphertextBytes.length.toShort), ciphertextBytes
     )
   }
 
   override def parseBytes(bytes: Array[Byte], decoder: Option[(DiscreteLogGroup, BlockCipher)]): Try[DLPHybridCiphertext] = Try {
-      val c1Len = bytes(0)
-      val c1Bytes = bytes.slice(1, c1Len + 1)
-      val ciphertextLen = Shorts.fromByteArray(bytes.slice(c1Len + 1, c1Len + 1 + Shorts.BYTES))
-      val ciphertextBytes = bytes.slice(c1Len + 1 + Shorts.BYTES, c1Len + 1 + Shorts.BYTES + ciphertextLen)
+      val keyLen = bytes(0)
+      val keyBytes = bytes.slice(1, keyLen + 1)
+      val ciphertextLen = Shorts.fromByteArray(bytes.slice(keyLen + 1, keyLen + 1 + Shorts.BYTES))
+      val ciphertextBytes = bytes.slice(keyLen + 1 + Shorts.BYTES, keyLen + 1 + Shorts.BYTES + ciphertextLen)
 
       val (group, cipher) = decoder.get
-      val C1 = group.reconstructGroupElement(c1Bytes).get
+      val key = group.reconstructGroupElement(keyBytes).get
       val ciphertext = cipher.reconstructCiphertextFromBytes(ciphertextBytes).get
 
-      DLPHybridCiphertext(C1, ciphertext)
+      DLPHybridCiphertext(key, ciphertext)
   }
 }
