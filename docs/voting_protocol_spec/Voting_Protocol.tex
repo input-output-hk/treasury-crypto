@@ -50,7 +50,7 @@ We employ a hybrid symmetric/assymetric encryption scheme for long messages that
 \end{itemize}
 
 \subsubsection{Pedersen Commitment}
-In the unit vector zero-knowledge proof, we use Pedersen commitment ~\cite{Ped91} as a building block. It is perfectly hiding and computationally binding under the discrete logarithm assumption. 
+In the unit vector zero-knowledge proof, we use Pedersen commitment \cite{Ped91} as a building block. It is perfectly hiding and computationally binding under the discrete logarithm assumption. 
 More specifically, it consists of the following $4$ PPT algorithms. Note that those algorithms (implicitly) take as input the same group parameters, $\param\leftarrow \Gen(1^{\lambda})$. 
 
 \begin{itemize}
@@ -66,7 +66,7 @@ $$
 $$
 
 \subsubsection{Non-interactive zero-knowledge proof for the equality of discrete logarithms (DLEQ NIZK)} \label{sec:DLEQ}
-We employ a Chaum-Pedersen protocol ~\cite{CP92} as a base for several zero-knowledge proofs used throughout the protocol. It proves that for the group elements $h_1,h_2,g_1,g_2\in\group$ and a witness $sk\in\ZZ_q^*$ the following statement holds: $h_1=(g_1)^{sk}$ and $h_2=(g_2)^{sk}$. The DLEQ NIZK consists of the following algorithms:
+We employ a Chaum-Pedersen protocol \cite{CP92} as a base for several zero-knowledge proofs used throughout the protocol. It proves that for the group elements $h_1,h_2,g_1,g_2\in\group$ and a witness $sk\in\ZZ_q^*$ the following statement holds: $h_1=(g_1)^{sk}$ and $h_2=(g_2)^{sk}$. The DLEQ NIZK consists of the following algorithms:
 \begin{itemize}
 \item $\DLEQProve(h_1,h_2,g_1,g_2)(sk)$:
 \begin{itemize}
@@ -97,7 +97,7 @@ We will use the blockchain to realize the broadcast channel and peer-to-peer cha
 \noindent\textbf{Protocol description.}
 Given $(g,h)$ as the common reference string (CRS), let $\VC:=\{\VC_1, \VC_2,...,\VC_k\}$ be the set of election committee members, and let $(\pk_{i},\sk_{i}),(\pk^*_{i},\sk^*_{i})$ be two pairs of public/secret keys\footnote{Note that we named public keys as \textit{pubKey} and \textit{committeePubKey} correspondingly in the definition of a committee registration transaction [\ref{ref:reg_tx}]} associated with $C_i, i \in [k]$. Note that $(\pk^*_{i},\sk^*_{i})$ is used to communicate with other committee members, while $(\pk_{i},\sk_{i})$ is used to generate a shared election public key $\pk = \prod_{i\in\JJJ} \pk_i = g^{\sum_{i\in\JJJ}\sk_i} = g^{\sk}$. The adversary is able to corrupt up to $t < k/2$ committee members.\\
 
-In the first round, each committee member $C_i$ performs Pedersen VSS ~\cite{Ped91} as a dealer: sets $a_{i,0}=\sk_{i}$ and picks random $a_{i,1},...a_{i,t} $ and random $ a'_{i,0},...,a'_{i,t}$ where $t$ is the maximum number of members that can be corrupted. Each member then defines two polynomials of degree t of the form:
+In the first round, each committee member $C_i$ performs Pedersen VSS~\cite{Ped91} as a dealer: sets $a_{i,0}=\sk_{i}$ and picks random $a_{i,1},...a_{i,t} $ and random $ a'_{i,0},...,a'_{i,t}$ where $t$ is the maximum number of members that can be corrupted. Each member then defines two polynomials of degree t of the form:
 \[ f_i(x) = a_{i,0}+a_{i,1}x+...+a_{i,t}x^t \]
 \[ f'_i(x) = a'_{i,0}+a'_{i,1}x+...+a'_{i,t}x^t \]
 Therefore, each committee member $\VC_i$ contributes $\sk_{i} = a_{i,0} = f(0)$ to the combined election secret key $\sk$.
@@ -110,7 +110,7 @@ In the third round, following the disqualification of some members, each qualifi
 
 In the fourth round, each qualified committee member $C_i$ checks  if : $g^{s_{j,i}}= \prod_{\ell=0}^{t} (A_{j,\ell})^{i^\ell}$ for $j\in\JJJ, j\neq i$. Where the check fails, $\VC_i$ posts a complaint against $\VC_j$ together with the evidence $(s_{j,i},s'_{j,i})$ on the blockchain, such that $g^{s_{j,i}}h^{s'_{j,i}}= \prod_{\ell=0}^{t} (E_{j,\ell})^{i^\ell}$ and $g^{s_{j,i}}\neq  \prod_{\ell=0}^{t} (A_{j,\ell})^{i^\ell}$. Committee members who got at least one valid complaint against them are disqualified from further participation. \\
 
-In the fifth and final round, each qualified committee member $\VC_i$ checks if complaints raised against other committee members in the fourth round are valid. For all members $C_j, j\in\JJJ$, against whom valid complaints were raised, other qualified committee members $C_i, i\in\JJJ$ post shares $(s_{j,i}, s'_{j,i})$ they received from them in the first round. Therefore, allowing to run the reconstruction phase of Pedersen VSS ~\cite{Ped91} to reconstruct each disqualified member's $C_j$ polynomial $f_j(x)$, then compute its coefficients commitments $A_{j, \ell} \ for \ \ell \in [t]$ and the partial secret key $sk_j = f_j(0)$. 
+In the fifth and final round, each qualified committee member $\VC_i$ checks if complaints raised against other committee members in the fourth round are valid. For all members $C_j, j\in\JJJ$, against whom valid complaints were raised, other qualified committee members $C_i, i\in\JJJ$ post shares $(s_{j,i}, s'_{j,i})$ they received from them in the first round. Therefore, allowing to run the reconstruction phase of Pedersen VSS~\cite{Ped91} to reconstruct each disqualified member's $C_j$ polynomial $f_j(x)$, then compute its coefficients commitments $A_{j, \ell} \ for \ \ell \in [t]$ and the partial secret key $sk_j = f_j(0)$. 
 
 Finally, the shared election public key is calculated as $\pk := \prod_{j\in[\JJJ]}  A_{j,0}$. Note that since all needed data to calculate $\pk$ is posted on the blockchain, every node in the network can reconstruct $\pk$ locally.\\
 
@@ -123,7 +123,7 @@ The full DKG protocol is summarized in Figure~\ref{fig:DKG}.\footnote{See implem
 \mybox{Distributed key generation $\Pi_{\textsc{DKG}}$}{white!40}{white!10}{
 \footnotesize
 \textbf{Round 1:}
-Each committee member $C_i$ performs Pedersen VSS ~\cite{Ped91} as a dealer by doing the following:
+Each committee member $C_i$ performs Pedersen VSS~\cite{Ped91} as a dealer by doing the following:
 \begin{itemize}
 \item Set $a_{i,0}=sk_{i}$
 \item Pick random $a_{i,1},a_{i,2},\ldots,a_{i,t},b_{i,0},b_{i,1},\ldots,b_{i,t} \leftarrow \ZZ_p$.
@@ -141,12 +141,9 @@ Each committee member $C_i$ does the following:
 \pi \leftarrow\nizk\left\{\begin{array}{l} (e_{j,i}, s_{j,i}, \pk^*_i),(\sk^*_i): \\
  s_{j,i}=\HDec_{\sk^*_i}(e_{j,i}) \wedge \pk^*_i=g^{\sk^*_i} \wedge (\pk^*_i,\sk^*_i)\in\RRR_{\textsc{PKE}} \end{array}\right\}
 \end{equation*}
+\item Each committee member $C_i$, $i\in[k]$ builds a qualified set of committee members (one valid complaint against $C_j$, $j\in[k]$ will disqualify $C_j$); denote with $\JJJ$ the indices of this set.
+\item Each committee member $C_i$ sets his share of the secret key as $s_i = \sum_{j \in \JJJ} s_{j, i}$. The distributed secret key $\sk$ is not explicitly computed by any party but it equals $\sk=\sum_{i \in \JJJ} sk_i$.
 \end{itemize}
-
-Each committee member $C_i$, $i\in[k]$ builds a qualified set of committee members (one valid complaint against $C_j$, $j\in[k]$ will disqualify $C_j$); denote with $\JJJ$ the indices of this set.
-\\~\\
-The distributed secret key $\sk$ is not explicitly computed by any party but it equals $\sk=\sum_{i \in \JJJ} sk_i$. Each committee member $C_i$ sets his share of the secret key as $s_i = \sum_{j \in \JJJ} s_{j, i}$
-\\~\\
 
 \textbf{Round 3:} Each committee member $C_i$ posts to the blockchain $A_{i,\ell} : = g^{a_{i,\ell}}$ for $\ell\in[t]$.
 
@@ -158,7 +155,7 @@ The distributed secret key $\sk$ is not explicitly computed by any party but it 
 
 \textbf{Round 5:} Each committee member $C_i$ does the following:
 \begin{itemize}
-\item If there is at least one valid complaint against $C_j$, $j\in\JJJ$, then post shares $(s_{j,i}, s'_{j,i})$ on the blockchain (so the committee members could run the reconstruction phase of Pedersen VSS ~\cite{Ped91} to compute $f_j(x)$, $A_{j, \ell} \ for \ \ell \in [t]$  and $sk_j = f_j(0)$).
+\item If there is at least one valid complaint against $C_j$, $j\in\JJJ$, then post shares $(s_{j,i}, s'_{j,i})$ on the blockchain (so the committee members could run the reconstruction phase of Pedersen VSS~\cite{Ped91} to compute $f_j(x)$, $A_{j, \ell} \ for \ \ell \in [t]$  and $sk_j = f_j(0)$).
 
 \item Return the election public key as $\pk := \prod_{j\in\JJJ}  A_{j,0}$.
 \end{itemize}
