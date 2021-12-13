@@ -31,10 +31,10 @@ case class MultiDelegPublicStakeBallot(override val proposalId: Int,
   }
 
   override def verifyBallot(pctx: ApprovalContext, pubKey: PubKey): Boolean = Try {
-    import pctx.cryptoContext.{group, hash}
+    import pctx.cryptoContext.{group, hash, commonReferenceString}
     require(uVector.delegations.size == pctx.numberOfExperts)
     require(uVector.choice.size == pctx.numberOfChoices)
-    require(new SHVZKVerifier(pubKey, uVector.combine, uProof.get).verifyProof())
+    require(new SHVZKVerifier(commonReferenceString, pubKey, uVector.combine, uProof.get).verifyProof())
   }.isSuccess
 }
 
@@ -58,7 +58,9 @@ object MultiDelegPublicStakeBallot {
     val (uDeleg, uChoice) = u.splitAt(pctx.numberOfExperts)
     val uVector = EncryptedUnitVector(uDeleg, uChoice)
     val uProof = withProof match {
-      case true => Some(new SHVZKGen(ballotEncryptionKey, u, nonZeroBitIndex, uRand).produceNIZK().get)
+      case true =>
+        val crs = pctx.cryptoContext.commonReferenceString
+        Some(new SHVZKGen(crs, ballotEncryptionKey, u, nonZeroBitIndex, uRand).produceNIZK().get)
       case _ => None
     }
 

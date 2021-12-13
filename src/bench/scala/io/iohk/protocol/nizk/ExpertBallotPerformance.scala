@@ -16,6 +16,7 @@ class ExpertBallotPerformance {
   implicit val hash = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
 
   private val (privKey, pubKey) = encryption.createKeyPair.get
+  private val crs = group.createRandomGroupElement.get
 
   def run() = {
     val C = for (i <- 0 until 3) yield {
@@ -55,11 +56,11 @@ class ExpertBallotPerformance {
     println
 
     TimeUtils.accurate_time("SHV NIZK creation for expert ballot (3 ciphertexts): ", {
-      new SHVZKGen(pubKey, C.map(_._1), 0, C.map(_._2)).produceNIZK.get
+      new SHVZKGen(crs, pubKey, C.map(_._1), 0, C.map(_._2)).produceNIZK.get
     })
-    val shvzkProof = new SHVZKGen(pubKey, C.map(_._1), 0, C.map(_._2)).produceNIZK.get
+    val shvzkProof = new SHVZKGen(crs, pubKey, C.map(_._1), 0, C.map(_._2)).produceNIZK.get
     TimeUtils.accurate_time("SHV NIZK verification for expert ballot (3 ciphertexts): ", {
-      new SHVZKVerifier(pubKey, C.map(_._1), shvzkProof).verifyProof
+      new SHVZKVerifier(crs, pubKey, C.map(_._1), shvzkProof).verifyProof
     })
     val proofsize: Int =
       shvzkProof.R.toByteArray.size +

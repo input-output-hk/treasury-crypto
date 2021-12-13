@@ -41,7 +41,7 @@ class UniDelegTallyRound4Test extends FunSuite with UniDelegTallyTestSetup {
     tallyR4DataAll.foreach { tallyR4Data =>
       val issuerKey = cmIdentifier.getPubKey(tallyR4Data.issuerID).get
       require(tallyR4Data.violatorsShares.size == 1)
-      require(tallyR4Data.violatorsShares.head._1 == cmIdentifier.getId(committeeKeys.head._2).get)
+      require(tallyR4Data.violatorsShares.head.issuerID == cmIdentifier.getId(committeeKeys.head._2).get)
       require(tally.verifyRound4Data(issuerKey, tallyR4Data, dkgR1DataAll).isSuccess)
     }
   }

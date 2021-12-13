@@ -10,11 +10,12 @@ import io.iohk.core.crypto.primitives.hash.CryptographicHash
 
 import scala.util.Try
 
-class SHVZKVerifier(pubKey: PubKey,
+class SHVZKVerifier(crs: GroupElement,
+                    pubKey: PubKey,
                     unitVector: Seq[ElGamalCiphertext],
                     proof: SHVZKProof)
                    (override implicit val dlog: DiscreteLogGroup,
-                    override implicit val hashFunction: CryptographicHash) extends SHVZKCommon(pubKey, unitVector) {
+                    override implicit val hashFunction: CryptographicHash) extends SHVZKCommon(crs, pubKey, unitVector) {
 
   private val statement = unitVector.foldLeft(Array[Byte]()) {
     (acc, c) => acc ++ c.c1.bytes ++ c.c2.bytes
@@ -25,7 +26,7 @@ class SHVZKVerifier(pubKey: PubKey,
 
   /* Compute first verifier challange */
   private val y = {
-    hashFunction.hash(pubKey.bytes ++ statement ++ commitment)
+    hashFunction.hash(crs.bytes ++ pubKey.bytes ++ statement ++ commitment)
   }
   private val Y = BigInt(1, y)
 
@@ -34,7 +35,7 @@ class SHVZKVerifier(pubKey: PubKey,
     val commitment2 = proof.Dk.foldLeft(Array[Byte]()) {
       (acc, d) => acc ++ d.c1.bytes ++ d.c2.bytes
     }
-    hashFunction.hash(pubKey.bytes ++ statement ++ commitment ++ commitment2)
+    hashFunction.hash(crs.bytes ++ pubKey.bytes ++ statement ++ commitment ++ commitment2)
   }
   private val X = BigInt(1, x)
 

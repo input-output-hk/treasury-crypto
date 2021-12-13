@@ -17,7 +17,8 @@ object SHVZKBench extends Bench.ForkedTime {
     val (privKey, pubKey) = encryption.createKeyPair(dlogGroup).get
 
     val (uv, rand) = shvzkTest.createUnitVector(vectorSize, 3, pubKey)(dlogGroup)
-    val proof = new SHVZKGen(pubKey, uv, 3, rand)(dlogGroup, hash).produceNIZK.get
+    val crs = dlogGroup.createRandomGroupElement.get
+    val proof = new SHVZKGen(crs, pubKey, uv, 3, rand)(dlogGroup, hash).produceNIZK.get
   }
 
   val dlogIdsGen = Gen.enumeration("dlog group")(AvailableGroups.values.toSeq:_*)
@@ -42,7 +43,7 @@ object SHVZKBench extends Bench.ForkedTime {
       using(testDataGen) in { testData: TestData =>
         implicit val dlog = testData.dlogGroup
         implicit val hash = testData.hash
-        new SHVZKGen(testData.pubKey, testData.uv, 3, testData.rand).produceNIZK.get
+        new SHVZKGen(testData.crs, testData.pubKey, testData.uv, 3, testData.rand).produceNIZK.get
       }
     }
 
@@ -50,7 +51,7 @@ object SHVZKBench extends Bench.ForkedTime {
       using(testDataGen) in { testData: TestData =>
         implicit val dlog = testData.dlogGroup
         implicit val hash = testData.hash
-        new SHVZKVerifier(testData.pubKey, testData.uv, testData.proof).verifyProof
+        new SHVZKVerifier(testData.crs, testData.pubKey, testData.uv, testData.proof).verifyProof
       }
     }
   }

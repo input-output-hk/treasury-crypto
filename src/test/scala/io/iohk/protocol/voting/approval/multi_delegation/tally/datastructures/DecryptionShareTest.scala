@@ -1,16 +1,16 @@
 package io.iohk.protocol.voting.approval.multi_delegation.tally.datastructures
 
 import io.iohk.core.crypto.encryption
-import io.iohk.core.crypto.encryption.{PrivKey, PubKey}
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalEnc}
+import io.iohk.core.crypto.encryption.{PrivKey, PubKey}
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.nizk.{ElgamalDecrNIZK, ElgamalDecrNIZKProof}
+import io.iohk.protocol.nizk.ElgamalDecrNIZK
 import org.scalatest.FunSuite
 
 class DecryptionShareTest extends FunSuite {
   val ctx = new CryptoContext(None)
-  import ctx.{group,hash}
   import DecryptionShareTest.createRandomDecryptionShare
+  import ctx.{group, hash}
 
   val (privKey, pubKey) = encryption.createKeyPair.get
 
@@ -54,7 +54,7 @@ object DecryptionShareTest {
                                   privKey: PrivKey,
                                   id: Int,
                                   size: Int): (Seq[ElGamalCiphertext], DecryptionShare) = {
-    import ctx.{group,hash}
+    import ctx.{group, hash}
 
     val ciphertexts = for (i <- 1 to size) yield {
       val plaintext = group.createRandomGroupElement.get

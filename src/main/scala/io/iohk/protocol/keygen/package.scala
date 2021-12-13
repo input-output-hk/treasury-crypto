@@ -22,7 +22,7 @@ package object keygen {
   case class Share          (issuerID: Int, share_a: OpenedShare, share_b: OpenedShare)
   case class ShareEncrypted (issuerID: Int, share_a: SecretShare, share_b: SecretShare)
 
-  case class ViolatorShare(violatorID: Int, violatorShares: ArrayBuffer[OpenedShare])
+  case class ViolatorShare(violatorID: Int, violatorShares: ArrayBuffer[Share])
 
   type SharedPublicKey = Array[Byte]
 

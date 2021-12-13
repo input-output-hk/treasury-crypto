@@ -31,13 +31,13 @@ case class MultiDelegPrivateStakeBallot(override val proposalId: Int,
   override def weightedUnitVector(implicit g: DiscreteLogGroup) = vVector
 
   override def verifyBallot(pctx: ApprovalContext, pubKey: PubKey): Boolean = Try {
-    import pctx.cryptoContext.{group, hash}
+    import pctx.cryptoContext.{group, hash, commonReferenceString}
     require(uVector.delegations.size == pctx.numberOfExperts)
     require(uVector.choice.size == pctx.numberOfChoices)
     require(vVector.delegations.size == pctx.numberOfExperts)
     require(vVector.choice.size == pctx.numberOfChoices)
 
-    require(new SHVZKVerifier(pubKey, uVector.combine, uProof.get).verifyProof())
+    require(new SHVZKVerifier(commonReferenceString, pubKey, uVector.combine, uProof.get).verifyProof())
     require(MultRelationNIZK.verifyNIZK(pubKey, encryptedStake, uVector.combine, vVector.combine, vProof.get))
   }.isSuccess
 }
@@ -72,9 +72,10 @@ object MultiDelegPrivateStakeBallot {
     val (uDeleg, uChoice) = u.splitAt(pctx.numberOfExperts)
     val uVector = EncryptedUnitVector(uDeleg, uChoice)
     val uProof =
-      if (withProof)
-        Some(new SHVZKGen(ballotEncryptionKey, u, nonZeroBitIndex, uRand).produceNIZK().get)
-      else None
+      if (withProof) {
+        val crs = pctx.cryptoContext.commonReferenceString
+        Some(new SHVZKGen(crs, ballotEncryptionKey, u, nonZeroBitIndex, uRand).produceNIZK().get)
+      } else None
 
     // Step 2: building a vector of (a^e_i)*Enc(0), where 'a' is an encrypted stake and 'e_i' is a corresponding bit of a unit vector
     val plainUnitVector = Array.fill(u.size)(0)

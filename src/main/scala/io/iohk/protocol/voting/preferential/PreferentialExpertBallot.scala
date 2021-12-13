@@ -22,13 +22,13 @@ case class PreferentialExpertBallot (expertId: Int,
   override val ballotTypeId: Byte = PreferentialBallotTypes.Expert.id.toByte
 
   override def verifyBallot(pctx: PreferentialContext, pubKey: PubKey): Boolean = Try {
-    import pctx.cryptoContext.{group, hash}
+    import pctx.cryptoContext.{group, hash, commonReferenceString}
 
     require(expertId >= 0 && expertId < pctx.numberOfExperts)
     require(rankVectors.size == pctx.numberOfProposals)
     rankVectors.foreach { v =>
       require(v.rank.size == pctx.numberOfRankedProposals)
-      require(new SHVZKVerifier(pubKey, v.z+:v.rank, v.proof.get).verifyProof())
+      require(new SHVZKVerifier(commonReferenceString, pubKey, v.z+:v.rank, v.proof.get).verifyProof())
     }
 
     val init = Vector.fill(pctx.numberOfRankedProposals)(ElGamalCiphertext(group.groupIdentity, group.groupIdentity))
@@ -66,7 +66,8 @@ object PreferentialExpertBallot {
         case true =>
           rankVectorsSum = rankVectorsSum.zip(vector.tail).map(x => x._1.multiply(x._2).get) // sum up vectors without z bit
           randomnessSum = randomnessSum.zip(rand.tail).map(x => x._1 + x._2)
-          Some(new SHVZKGen(ballotEncryptionKey, vector, nonZeroPos, rand).produceNIZK().get)
+          val crs = pctx.cryptoContext.commonReferenceString
+          Some(new SHVZKGen(crs, ballotEncryptionKey, vector, nonZeroPos, rand).produceNIZK().get)
       }
       RankVector(rank = vector.tail, z = vector.head, proof)
     }.toList

@@ -20,29 +20,10 @@ class ElgamalDecrNIZKTest extends FunSuite {
     assert(plaintext.equals(decrypted))
 
     val proof = ElgamalDecrNIZK.produceNIZK(ciphertext, privKey).get
-    val verified = ElgamalDecrNIZK.verifyNIZK(pubKey, ciphertext, decrypted, proof)
+    assert(ElgamalDecrNIZK.verifyNIZK(pubKey, ciphertext, decrypted, proof))
 
-    assert(verified)
-
-    val corruptedProof = ElgamalDecrNIZKProof(proof.A1, proof.A2, proof.z + 1)
-    val res = ElgamalDecrNIZK.verifyNIZK(pubKey, ciphertext, decrypted, corruptedProof)
-
-    assert(!res)
-  }
-
-  test("serialization") {
-    val (privKey, pubKey) = createKeyPair.get
-    val plaintext = group.createRandomGroupElement.get
-    val ciphertext = ElGamalEnc.encrypt(pubKey, plaintext).get._1
-    val decrypted = ElGamalEnc.decrypt(privKey, ciphertext).get
-
-    assert(plaintext.equals(decrypted))
-
-    val bytes = ElgamalDecrNIZK.produceNIZK(ciphertext, privKey).get.bytes
-    val proof = ElgamalDecrNIZKProofSerializer.parseBytes(bytes, Option(group)).get
-
-    val verified = ElgamalDecrNIZK.verifyNIZK(pubKey, ciphertext, decrypted, proof)
-
-    assert(verified)
+    val corruptedProof = DLEQStandardNIZKProof(proof.A1, proof.A2, proof.z + 1)
+    assert(!ElgamalDecrNIZK.verifyNIZK(pubKey, ciphertext, decrypted, corruptedProof))
+    assert(!ElgamalDecrNIZK.verifyNIZK(pubKey, ciphertext, decrypted.pow(2).get, proof))
   }
 }

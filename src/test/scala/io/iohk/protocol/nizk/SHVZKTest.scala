@@ -34,10 +34,11 @@ class SHVZKTest extends FunSuite with TableDrivenPropertyChecks {
   test("unit vector padding") {
     forAll(dlogGroups) { implicit group =>
       val (privKey, pubKey) = encryption.createKeyPair.get
+      val crs = group.createRandomGroupElement.get
 
       val choice = 6
       val (uv, rand) = createUnitVector(13, choice, pubKey)
-      val nizk = new SHVZKGen(pubKey, uv, choice, rand)
+      val nizk = new SHVZKGen(crs, pubKey, uv, choice, rand)
 
       val paddedUv = nizk.padUnitVector(uv).get
       val paddedRand = nizk.padRandVector(rand)
@@ -70,11 +71,13 @@ class SHVZKTest extends FunSuite with TableDrivenPropertyChecks {
   test("produce nizk") {
     forAll(dlogGroups) { implicit group =>
       val (privKey, pubKey) = encryption.createKeyPair.get
+      val crs = group.createRandomGroupElement.get
+
       val choice = 3
       val (uv, rand) = createUnitVector(13, choice, pubKey)
 
-      val proof = new SHVZKGen(pubKey, uv, choice, rand).produceNIZK().get
-      val verified = new SHVZKVerifier(pubKey, uv, proof).verifyProof()
+      val proof = new SHVZKGen(crs, pubKey, uv, choice, rand).produceNIZK().get
+      val verified = new SHVZKVerifier(crs, pubKey, uv, proof).verifyProof()
 
       assert(verified)
     }
@@ -83,11 +86,13 @@ class SHVZKTest extends FunSuite with TableDrivenPropertyChecks {
   test("produce nizk 2") {
     forAll(dlogGroups) { implicit group =>
       val (privKey, pubKey) = encryption.createKeyPair.get
+      val crs = group.createRandomGroupElement.get
+
       val choice = 2
       val (uv, rand) = createUnitVector(3, choice, pubKey)
 
-      val proof = new SHVZKGen(pubKey, uv, choice, rand).produceNIZK().get
-      val verified = new SHVZKVerifier(pubKey, uv, proof).verifyProof()
+      val proof = new SHVZKGen(crs, pubKey, uv, choice, rand).produceNIZK().get
+      val verified = new SHVZKVerifier(crs, pubKey, uv, proof).verifyProof()
 
       assert(verified)
     }
@@ -96,11 +101,12 @@ class SHVZKTest extends FunSuite with TableDrivenPropertyChecks {
   test("produce nizk 3") {
     forAll(dlogGroups) { implicit group =>
       val (privKey, pubKey) = encryption.createKeyPair.get
+      val crs = group.createRandomGroupElement.get
       val choice = 62
       val (uv, rand) = createUnitVector(64, choice, pubKey)
 
-      val proof = new SHVZKGen(pubKey, uv, choice, rand).produceNIZK().get
-      val verified = new SHVZKVerifier(pubKey, uv, proof).verifyProof()
+      val proof = new SHVZKGen(crs, pubKey, uv, choice, rand).produceNIZK().get
+      val verified = new SHVZKVerifier(crs, pubKey, uv, proof).verifyProof()
 
       assert(verified)
     }
@@ -109,9 +115,10 @@ class SHVZKTest extends FunSuite with TableDrivenPropertyChecks {
   test("proof size") {
     forAll(dlogGroups) { implicit group =>
       val (privKey, pubKey) = encryption.createKeyPair.get
+      val crs = group.createRandomGroupElement.get
       val choice = 0
       val (uv, rand) = createUnitVector(5, choice, pubKey)
-      val proof = new SHVZKGen(pubKey, uv, choice, rand).produceNIZK.get
+      val proof = new SHVZKGen(crs, pubKey, uv, choice, rand).produceNIZK.get
 
       assert(proof.IBA.size == 3)
       assert(proof.Dk.size == 3)
@@ -122,9 +129,10 @@ class SHVZKTest extends FunSuite with TableDrivenPropertyChecks {
   test("proof size 2") {
     forAll(dlogGroups) { implicit group =>
       val (privKey, pubKey) = encryption.createKeyPair.get
+      val crs = group.createRandomGroupElement.get
       val choice = 3
       val (uv, rand) = createUnitVector(16, choice, pubKey)
-      val proof = new SHVZKGen(pubKey, uv, choice, rand).produceNIZK.get
+      val proof = new SHVZKGen(crs, pubKey, uv, choice, rand).produceNIZK.get
 
       assert(proof.IBA.size == 4)
       assert(proof.Dk.size == 4)
@@ -135,11 +143,12 @@ class SHVZKTest extends FunSuite with TableDrivenPropertyChecks {
   test("serialization") {
     forAll(dlogGroups) { implicit group =>
       val (privKey, pubKey) = encryption.createKeyPair.get
+      val crs = group.createRandomGroupElement.get
       val (uv, rand) = createUnitVector(5, 0, pubKey)
-      val proofBytes = new SHVZKGen(pubKey, uv, 0, rand).produceNIZK.get.bytes
+      val proofBytes = new SHVZKGen(crs, pubKey, uv, 0, rand).produceNIZK.get.bytes
       val proof = SHVZKProofSerializer.parseBytes(proofBytes, Option(group))
 
-      assert(new SHVZKVerifier(pubKey, uv, proof.get).verifyProof)
+      assert(new SHVZKVerifier(crs, pubKey, uv, proof.get).verifyProof)
     }
   }
 }

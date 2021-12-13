@@ -31,13 +31,14 @@ case class UniDelegPublicStakeBallot(delegationVector: Vector[ElGamalCiphertext]
   }
 
   override def verifyBallot(pctx: ApprovalContext, pubKey: PubKey): Boolean = Try {
-    import pctx.cryptoContext.{group, hash}
+    import pctx.cryptoContext.{group, hash, commonReferenceString}
+    val crs = commonReferenceString
 
     require(stake >= 0)
     require(delegationVector.size == pctx.numberOfExperts)
     val neg_w =
       if (pctx.numberOfExperts > 0) {
-        require(new SHVZKVerifier(pubKey, w.get +: delegationVector, delegationVectorProof.get).verifyProof())
+        require(new SHVZKVerifier(crs, pubKey, w.get +: delegationVector, delegationVectorProof.get).verifyProof())
         val one = LiftedElGamalEnc.encrypt(pubKey, 1, 1).get
         Vector(one / w.get)
       } else Vector()
@@ -46,7 +47,7 @@ case class UniDelegPublicStakeBallot(delegationVector: Vector[ElGamalCiphertext]
     choiceVectors.foreach { rv =>
       require(rv.choice.size == pctx.numberOfChoices)
       val v = neg_w ++ rv.choice
-      require(new SHVZKVerifier(pubKey, v, rv.proof.get).verifyProof())
+      require(new SHVZKVerifier(crs, pubKey, v, rv.proof.get).verifyProof())
     }
   }.isSuccess
 }
@@ -58,7 +59,8 @@ object UniDelegPublicStakeBallot {
                    ballotEncryptionKey: PubKey,
                    stake: BigInt,
                    withProof: Boolean = true): Try[UniDelegPublicStakeBallot] = Try {
-    import pctx.cryptoContext.{group, hash}
+    import pctx.cryptoContext.{group, hash, commonReferenceString}
+    val crs = commonReferenceString
 
     def prepareChoiceVectors(choices: Option[List[Int]], w: Option[ElGamalCiphertext], w_rand: Option[Randomness]) = {
       import pctx.cryptoContext.{group, hash}
@@ -72,7 +74,7 @@ object UniDelegPublicStakeBallot {
         val (vector, rand) = buildEncryptedUnitVector(size = pctx.numberOfChoices, nonZeroPos, ballotEncryptionKey)
         val proof = withProof match {
           case true =>
-            Some(new SHVZKGen(ballotEncryptionKey, neg_w ++ vector, nonZeroPos + neg_w.size, neg_w_rand ++ rand).produceNIZK().get)
+            Some(new SHVZKGen(crs, ballotEncryptionKey, neg_w ++ vector, nonZeroPos + neg_w.size, neg_w_rand ++ rand).produceNIZK().get)
           case _ => None
         }
         ChoiceVector(vector, proof)
@@ -87,7 +89,7 @@ object UniDelegPublicStakeBallot {
         val (vector, rand) =
           buildEncryptedUnitVector(size = pctx.numberOfExperts + 1, nonZeroBitPosition, ballotEncryptionKey)
         val proof = withProof match {
-          case true => Some(new SHVZKGen(ballotEncryptionKey, vector, nonZeroBitPosition, rand).produceNIZK().get)
+          case true => Some(new SHVZKGen(crs, ballotEncryptionKey, vector, nonZeroBitPosition, rand).produceNIZK().get)
           case _ => None
         }
         (Some(vector.head), Some(rand.head), vector.tail, proof)

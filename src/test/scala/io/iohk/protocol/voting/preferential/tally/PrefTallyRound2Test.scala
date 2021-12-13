@@ -1,5 +1,6 @@
 package io.iohk.protocol.voting.preferential.tally
 
+import io.iohk.protocol.keygen.Share
 import io.iohk.protocol.keygen.datastructures.round5_1.ViolatorsSharesData
 import io.iohk.protocol.voting.preferential.tally.PreferentialTally.PrefStages
 import io.iohk.protocol.voting.preferential.{DirectPreferentialVote, PreferentialContext, PreferentialVoterBallot}
@@ -29,7 +30,7 @@ class PrefTallyRound2Test extends FunSuite with PreferentialTallyTestSetup {
     tallyR2DataAll.foreach { tallyR2Data =>
       val issuerKey = cmIdentifier.getPubKey(tallyR2Data.issuerID).get
       require(tallyR2Data.violatorsShares.size == 1)
-      require(tallyR2Data.violatorsShares.head._1 == cmIdentifier.getId(committeeKeys.head._2).get)
+      require(tallyR2Data.violatorsShares.head.issuerID == cmIdentifier.getId(committeeKeys.head._2).get)
       require(tally.verifyRound2Data(issuerKey, tallyR2Data, dkgR1DataAll).isSuccess)
     }
   }
@@ -60,7 +61,8 @@ class PrefTallyRound2Test extends FunSuite with PreferentialTallyTestSetup {
     // bad share
     val validR2Data = tallyR2DataAll.head
     val validShare = validR2Data.violatorsShares.head
-    val badR2Data4 = new ViolatorsSharesData(validR2Data.issuerID, Seq((validShare._1 + 1, validShare._2)))
+    val badShare = Share(validShare.issuerID+1, validShare.share_a, validShare.share_b)
+    val badR2Data4 = new ViolatorsSharesData(validR2Data.issuerID, Seq(badShare))
     require(tally.verifyRound2Data(key, badR2Data4, dkgR1DataAll).isFailure)
   }
 

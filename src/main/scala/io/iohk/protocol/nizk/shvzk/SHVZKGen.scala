@@ -2,19 +2,20 @@ package io.iohk.protocol.nizk.shvzk
 
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalEnc}
 import io.iohk.core.crypto.encryption.{PubKey, Randomness}
-import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
+import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHash
 import io.iohk.math.BigIntPolynomial
 
 import scala.util.Try
 
 /* This class implements generation of Special Honest Verifier Zero Knowledge proof for unit vector */
-class SHVZKGen(pubKey: PubKey,
+class SHVZKGen(crs: GroupElement,
+               pubKey: PubKey,
                unitVector: Seq[ElGamalCiphertext],
                choiceIndex: Int,
                randomness: Seq[Randomness])
               (override implicit val dlog: DiscreteLogGroup,
-               override implicit val hashFunction: CryptographicHash) extends SHVZKCommon(pubKey, unitVector) {
+               override implicit val hashFunction: CryptographicHash) extends SHVZKCommon(crs, pubKey, unitVector) {
 
   private class Commitment(val idxBit: Byte) {
     assert(idxBit == 0 || idxBit == 1)
@@ -67,7 +68,7 @@ class SHVZKGen(pubKey: PubKey,
     val commitment = commitments.foldLeft(Array[Byte]()) {
       (acc, c) => acc ++ c.I.bytes ++ c.B.bytes ++ c.A.bytes
     }
-    val y = hashFunction.hash(pubKey.bytes ++ statement ++ commitment)
+    val y = hashFunction.hash(crs.bytes ++ pubKey.bytes ++ statement ++ commitment)
     val Y = BigInt(1, y)
 
     /* Step 3. Compute Dk */
@@ -78,7 +79,7 @@ class SHVZKGen(pubKey: PubKey,
       val commitment2 = Dk.foldLeft(Array[Byte]()) {
         (acc, d) => acc ++ d._1.c1.bytes ++ d._1.c2.bytes
       }
-      hashFunction.hash(pubKey.bytes ++ statement ++ commitment ++ commitment2)
+      hashFunction.hash(crs.bytes ++ pubKey.bytes ++ statement ++ commitment ++ commitment2)
     }
     val X = BigInt(1, x)
 

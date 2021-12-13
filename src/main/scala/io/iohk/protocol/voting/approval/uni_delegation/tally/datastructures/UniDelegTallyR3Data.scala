@@ -6,13 +6,13 @@ import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.nizk.{ElgamalDecrNIZK, ElgamalDecrNIZKProof, ElgamalDecrNIZKProofSerializer}
+import io.iohk.protocol.nizk.{DLEQStandardNIZKProof, DLEQStandardNIZKProofSerializer, ElgamalDecrNIZK}
 import io.iohk.protocol.voting.common.Issuer
 
 import scala.util.Try
 
 case class UniDelegTallyR3Data (issuerID: Int,
-                                choicesDecryptedC1: List[Seq[(GroupElement, ElgamalDecrNIZKProof)]],
+                                choicesDecryptedC1: List[Seq[(GroupElement, DLEQStandardNIZKProof)]],
                                ) extends BytesSerializable with Issuer {
 
   override type M = UniDelegTallyR3Data
@@ -71,7 +71,7 @@ object UniDelegTallyR3DataSerializer extends Serializer[UniDelegTallyR3Data, Dis
         val len = bytes(pos)
         val point = group.reconstructGroupElement(bytes.slice(pos + 1, pos + 1 + len)).get
         pos = pos + len + 1
-        val proof = ElgamalDecrNIZKProofSerializer.parseBytes(bytes.drop(pos), decoder).get
+        val proof = DLEQStandardNIZKProofSerializer.parseBytes(bytes.drop(pos), decoder).get
         pos = pos + proof.bytes.length
         (point, proof)
       }.toSeq

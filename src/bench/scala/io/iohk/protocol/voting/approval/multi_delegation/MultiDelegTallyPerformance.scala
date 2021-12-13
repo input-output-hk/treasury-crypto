@@ -18,14 +18,21 @@ class MultiDelegTallyPerformance {
   {
     val violatorsNum = (commiteeMembersNum.toFloat * (violatorsPercentage.toFloat / 100)).ceil.toInt
 
-    val numberOfExperts = 10
-    val numberOfVoters = 100
-    val pctx = new ApprovalContext(ctx, 3, numberOfExperts, 1)
+    val numberOfExperts = 0
+    val numberOfVoters = 5000
+    val stakePerVoter = 1066     // note that it is a normalized stake by dividing on granularity param. Total participating stake can be estimated as "numberOfVoters * stakePerVoter * granularity"
+    val numberOfProposals = 1   // note that all numbers (traffic, tally time) grows linearly with the number of proposals, so we can just multiply benchmarks to the number of proposals to get estimated values for many proposals
+    val numberOfChoices = 3
+
+    val pctx = new ApprovalContext(ctx, numberOfChoices, numberOfExperts, numberOfProposals)
 
     println("Commitee members:\t" + commiteeMembersNum)
     println("Commitee violators:\t" + violatorsNum + " (" + violatorsPercentage + "%)")
     println("Voters: \t" + numberOfVoters)
     println("Experts:\t" + numberOfExperts)
+    println("Stake per voter (normalized by granularity): \t" + stakePerVoter)
+    println("Proposals: \t" + numberOfProposals)
+    println("Number of choices: \t" + numberOfChoices)
     println("------------------------")
 
     // Generating keypairs for every commitee member
@@ -42,11 +49,17 @@ class MultiDelegTallyPerformance {
     val (sharedPubKey, dkgR1DataAll, dkgViolators) = DistributedKeyGenerationSimulator.runDKG(ctx, committeeMembersAll)
 
     val voterBallots = for (i <- 0 until numberOfVoters) yield
-      MultiDelegPublicStakeBallot.createBallot(pctx, 0, DelegatedMultiDelegVote(0), sharedPubKey, 1).get
+      MultiDelegPublicStakeBallot.createBallot(pctx, 0, DirectMultiDelegVote(0), sharedPubKey, stakePerVoter).get
     val expertBallots = for (i <- 0 until numberOfExperts) yield
       MultiDelegExpertBallot.createBallot(pctx, 0, 0, DirectMultiDelegVote(0), sharedPubKey).get
 
     var overallBytes: Int = 0
+    val voterBallotsTraffic = voterBallots.headOption.map(_.bytes.size).getOrElse(0) * voterBallots.size // good enough approximation
+    val expertBallotsTraffic = expertBallots.headOption.map(_.bytes.size).getOrElse(0) * expertBallots.size
+    overallBytes += voterBallotsTraffic + expertBallotsTraffic
+    println("Voter ballots traffic: " + voterBallotsTraffic/1024 + " kB")
+    println("Expert ballots traffic: " + expertBallotsTraffic/1024 + " kB\n")
+
     val committeeMembersActive = committeeMembersAll.drop(violatorsNum).filter(c => !dkgViolators.contains(c.publicKey))
 
     val summator = new MultiDelegBallotsSummator(pctx)
@@ -55,7 +68,7 @@ class MultiDelegTallyPerformance {
     val tally = new MultiDelegTally(pctx, committeeMembersActive.head.memberIdentifier, dkgViolators)
 
     val (tallyR1DataAll, timeR1) = TimeUtils.get_time_average_s(
-      "Tally Round 1 (ballot generation):",
+      "Tally Round 1 (data generation):",
       committeeMembersActive.map(c => tally.generateR1Data(summator, (c.secretKey, c.publicKey)).get),
       committeeMembersActive.length
     )
@@ -64,7 +77,7 @@ class MultiDelegTallyPerformance {
     overallBytes += tallyR1DataAll.foldLeft(0)((acc,r1Data) => acc + r1Data.bytes.size)
 
     val (tallyR2DataAll, timeR2) = TimeUtils.get_time_average_s(
-      "Tally Round 2 (ballot generation):",
+      "Tally Round 2 (data generation):",
       committeeMembersActive.map(c => tally.generateR2Data((c.secretKey, c.publicKey), dkgR1DataAll).get),
       committeeMembersActive.length
     )
@@ -73,7 +86,7 @@ class MultiDelegTallyPerformance {
     overallBytes += tallyR2DataAll.foldLeft(0)((acc,r2Data) => acc + r2Data.bytes.size)
 
     val (tallyR3DataAll, timeR3) = TimeUtils.get_time_average_s(
-      "Tally Round 3 (ballot generation):",
+      "Tally Round 3 (data generation):",
       committeeMembersActive.map(c => tally.generateR3Data((c.secretKey, c.publicKey)).get),
       committeeMembersActive.length
     )
@@ -82,7 +95,7 @@ class MultiDelegTallyPerformance {
     overallBytes += tallyR3DataAll.foldLeft(0)((acc,r3Data) => acc + r3Data.bytes.size)
 
     val (tallyR4DataAll, timeR4) = TimeUtils.get_time_average_s(
-      "Tally Round 4 (ballot generation):",
+      "Tally Round 4 (data generation):",
       committeeMembersActive.map(c => tally.generateR4Data((c.secretKey, c.publicKey), dkgR1DataAll).get),
       committeeMembersActive.length
     )
@@ -101,8 +114,10 @@ class MultiDelegTallyPerformance {
 
   def start() =
   {
-    val commiteeMembersNum = List(10, 20, 40, 50, 60, 80, 100)
-    val violatorsPercentage = List(0, 25, 50)
+    //val commiteeMembersNum = List(10, 20, 40, 50, 60, 80, 100)
+    //val violatorsPercentage = List(0, 25, 50)
+    val commiteeMembersNum = List(2)
+    val violatorsPercentage = List(0)
 
     for(i <- commiteeMembersNum.indices;
         j <- violatorsPercentage.indices)

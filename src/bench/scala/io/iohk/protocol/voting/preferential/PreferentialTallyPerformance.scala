@@ -7,6 +7,8 @@ import io.iohk.protocol.integration.DistributedKeyGenerationSimulator
 import io.iohk.protocol.keygen.CommitteeMember
 import io.iohk.protocol.voting.preferential.tally.{PreferentialBallotsSummator, PreferentialTally}
 
+import java.security.SecureRandom
+
 class PreferentialTallyPerformance {
   val crs = CryptoContext.generateRandomCRS
   val ctx = new CryptoContext(Option(crs))
@@ -16,18 +18,20 @@ class PreferentialTallyPerformance {
   {
     val violatorsNum = (commiteeMembersNum.toFloat * (violatorsPercentage.toFloat / 100)).ceil.toInt
 
-    val numberOfExperts = 10
-    val numberOfVoters = 10
-    val numberOfRankedProposals = 10
-    val numberOfProposals = 250
+    val numberOfExperts = 0
+    val numberOfVoters = 500
+    val stakePerVoter = 10660     // note that it is a normalized stake by dividing on granularity param. Total participating stake can be estimated as "numberOfVoters * stakePerVoter * granularity"
+    val numberOfRankedProposals = 20
+    val numberOfProposals = 150
     val pctx = new PreferentialContext(ctx, numberOfProposals, numberOfRankedProposals, numberOfExperts)
 
     println("Commitee members:\t" + commiteeMembersNum)
     println("Commitee violators:\t" + violatorsNum + " (" + violatorsPercentage + "%)")
     println("Voters: \t" + numberOfVoters)
     println("Experts:\t" + numberOfExperts)
+    println("Stake per voter (normalized by granularity): \t" + stakePerVoter)
     println("Proposals: \t" + numberOfProposals)
-    println("Ranked proposals:\t" + numberOfExperts)
+    println("Ranked proposals:\t" + numberOfRankedProposals)
     println("------------------------")
 
     // Generating keypairs for every commitee member
@@ -43,22 +47,33 @@ class PreferentialTallyPerformance {
     // Generating shared public key by committee members (by running the DKG protocol between them)
     val (sharedPubKey, dkgR1DataAll, dkgViolators) = DistributedKeyGenerationSimulator.runDKG(ctx, committeeMembersAll)
 
-    val vote = (0 until numberOfRankedProposals).toList
-    val voterBallots = for (i <- 0 until numberOfVoters) yield
-      PreferentialVoterBallot.createBallot(pctx, DelegatedPreferentialVote(0), sharedPubKey, 1).get
-    val expertBallots = for (i <- 0 until numberOfExperts) yield
-      PreferentialExpertBallot.createBallot(pctx, 0, DirectPreferentialVote(vote), sharedPubKey).get
-
-    var overallBytes: Int = 0
-    val committeeMembersActive = committeeMembersAll.drop(violatorsNum).filter(c => !dkgViolators.contains(c.publicKey))
+    val proposalIds = (0 until numberOfProposals).toList
 
     val summator = new PreferentialBallotsSummator(pctx)
-    voterBallots.foreach(summator.addVoterBallot(_))
+    var voterBallotsTraffic = 0
+    for (i <- 0 until numberOfVoters) {
+      if (i % 100 == 0) println(i)
+      val vote = scala.util.Random.shuffle(proposalIds).take(numberOfRankedProposals)
+      val ballot = PreferentialVoterBallot.createBallot(pctx, DirectPreferentialVote(vote), sharedPubKey, stakePerVoter).get
+      summator.addVoterBallot(ballot)
+      voterBallotsTraffic += ballot.bytes.size
+    }
+    val expertBallots = for (i <- 0 until numberOfExperts) yield {
+      val vote = scala.util.Random.shuffle(proposalIds).take(numberOfRankedProposals)
+      PreferentialExpertBallot.createBallot(pctx, 0, DirectPreferentialVote(vote), sharedPubKey).get
+    }
+
+    val expertBallotsTraffic = expertBallots.headOption.map(_.bytes.size).getOrElse(0) * expertBallots.size // good enough approximation
+    var overallBytes = voterBallotsTraffic + expertBallotsTraffic
+    println("Voter ballots traffic: " + voterBallotsTraffic/1024 + " kB")
+    println("Expert ballots traffic: " + expertBallotsTraffic/1024 + " kB\n")
+
+    val committeeMembersActive = committeeMembersAll.drop(violatorsNum).filter(c => !dkgViolators.contains(c.publicKey))
 
     val tally = new PreferentialTally(pctx, committeeMembersActive.head.memberIdentifier, dkgViolators)
 
     val (tallyR1DataAll, timeR1) = TimeUtils.get_time_average_s(
-      "Tally Round 1 (ballot generation):",
+      "Tally Round 1 (data generation):",
       committeeMembersActive.map(c => tally.generateR1Data(summator, (c.secretKey, c.publicKey)).get),
       committeeMembersActive.length
     )
@@ -69,7 +84,7 @@ class PreferentialTallyPerformance {
     println("Round 1 traffic: " + r1Traffic/1024 + " kB")
 
     val (tallyR2DataAll, timeR2) = TimeUtils.get_time_average_s(
-      "Tally Round 2 (ballot generation):",
+      "Tally Round 2 (data generation):",
       committeeMembersActive.map(c => tally.generateR2Data((c.secretKey, c.publicKey), dkgR1DataAll).get),
       committeeMembersActive.length
     )
@@ -80,7 +95,7 @@ class PreferentialTallyPerformance {
     println("Round 2 traffic: " + r2Traffic/1024 + " kB")
 
     val (tallyR3DataAll, timeR3) = TimeUtils.get_time_average_s(
-      "Tally Round 3 (ballot generation):",
+      "Tally Round 3 (data generation):",
       committeeMembersActive.map(c => tally.generateR3Data((c.secretKey, c.publicKey)).get),
       committeeMembersActive.length
     )
@@ -91,7 +106,7 @@ class PreferentialTallyPerformance {
     println("Round 3 traffic: " + r3Traffic/1024 + " kB")
 
     val (tallyR4DataAll, timeR4) = TimeUtils.get_time_average_s(
-      "Tally Round 4 (ballot generation):",
+      "Tally Round 4 (data generation):",
       committeeMembersActive.map(c => tally.generateR4Data((c.secretKey, c.publicKey), dkgR1DataAll).get),
       committeeMembersActive.length
     )
@@ -112,7 +127,8 @@ class PreferentialTallyPerformance {
 
   def start() =
   {
-    val commiteeMembersNum = List(10, 25, 50, 100)
+    //val commiteeMembersNum = List(10, 25, 50, 100)
+    val commiteeMembersNum = List(2)
     val violatorsPercentage = List(0)
 
     for(i <- commiteeMembersNum.indices;

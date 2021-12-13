@@ -11,10 +11,9 @@ class ViolatorsSharesDataTest extends FunSuite {
   import ctx.group
 
   test("TallyR2Data serialization") {
-    val mockHybridPlaintext = HybridPlaintext(ctx.group.groupGenerator, Array.fill[Byte](5)(31))
-    val mockOpenedShare = OpenedShare(receiverID = 5, mockHybridPlaintext)
+    val mockShare = Share(0, OpenedShare(receiverID = 5, BigInt(111)), OpenedShare(receiverID = 5, BigInt(123)))
     val issuerId = 134
-    val tallyR2Data = new ViolatorsSharesData(issuerId, Array((2, mockOpenedShare), (5, mockOpenedShare)))
+    val tallyR2Data = new ViolatorsSharesData(issuerId, Seq(mockShare, mockShare))
 
     val bytes = tallyR2Data.bytes
     val recoveredData = ViolatorsSharesDataSerializer.parseBytes(bytes, Option(group)).get
@@ -22,8 +21,9 @@ class ViolatorsSharesDataTest extends FunSuite {
     require(recoveredData.issuerID == issuerId)
     require(recoveredData.violatorsShares.length == tallyR2Data.violatorsShares.length)
     recoveredData.violatorsShares.zip(tallyR2Data.violatorsShares).foreach { case (s1,s2) =>
-      require(s1._1 == s2._1)
-      require(s1._2.bytes.sameElements(s2._2.bytes))
+      require(s1.issuerID == s2.issuerID)
+      require(s1.share_a.bytes.sameElements(s2.share_a.bytes))
+      require(s1.share_b.bytes.sameElements(s2.share_b.bytes))
     }
   }
 }
