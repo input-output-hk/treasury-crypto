@@ -2,8 +2,8 @@ package io.iohk.protocol.keygen_2_0.NIZKs.basic
 
 import io.iohk.core.crypto.encryption
 import io.iohk.protocol.CryptoContext
+import io.iohk.protocol.common.dlog_encryption.DLogEncryption
 import io.iohk.protocol.keygen_2_0.NIZKs.basic.CorrectEncryption.Witness
-import io.iohk.protocol.keygen_2_0.dlog_encryption.DLogEncryption
 import org.scalatest.FunSuite
 
 class CorrectEncryptionTests extends FunSuite {

@@ -4,10 +4,10 @@ import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
+import io.iohk.protocol.common.dlog_encryption.{DLogCiphertext, DLogRandomness}
+import io.iohk.protocol.common.utils.DlogGroupArithmetics.{_}
 import io.iohk.protocol.keygen_2_0.NIZKs.basic.CorrectCiphertextsMapping.{Challenge, Commitment, CommitmentParams, Proof, Response, Statement, Witness}
 import io.iohk.protocol.keygen_2_0.NIZKs.utils.Combining.combine
-import io.iohk.protocol.keygen_2_0.dlog_encryption.{DLogCiphertext, DLogRandomness}
-import io.iohk.protocol.keygen_2_0.utils.DlogGroupArithmetics.{div, exp, mul}
 
 case class CorrectCiphertextsMapping(pubKeyFrom: PubKey,
                                      pubKeyTo:   PubKey,

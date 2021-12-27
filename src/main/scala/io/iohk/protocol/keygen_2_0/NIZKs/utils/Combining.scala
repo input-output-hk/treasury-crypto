@@ -1,8 +1,8 @@
 package io.iohk.protocol.keygen_2_0.NIZKs.utils
 
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
-import io.iohk.protocol.keygen_2_0.math.Polynomial
-import io.iohk.protocol.keygen_2_0.utils.DlogGroupArithmetics.{exp, mul}
+import io.iohk.protocol.common.math.Polynomial
+import io.iohk.protocol.common.utils.DlogGroupArithmetics.{_}
 
 object Combining {
 

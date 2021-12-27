@@ -4,10 +4,10 @@ import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.core.crypto.primitives.numbergenerator.FieldElementSP800DRNG
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.keygen_2_0.datastructures.Share
-import io.iohk.protocol.keygen_2_0.dlog_encryption.{DLogCiphertext, DLogEncryption}
-import io.iohk.protocol.keygen_2_0.encoding.BaseCodec
-import io.iohk.protocol.keygen_2_0.math.{LagrangeInterpolation, Polynomial}
+import io.iohk.protocol.common.datastructures.Share
+import io.iohk.protocol.common.dlog_encryption.{DLogCiphertext, DLogEncryption}
+import io.iohk.protocol.common.encoding.BaseCodec
+import io.iohk.protocol.common.math.{LagrangeInterpolation, Polynomial}
 import org.scalatest.FunSuite
 
 import scala.util.Try

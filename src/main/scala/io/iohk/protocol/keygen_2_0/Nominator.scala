@@ -6,7 +6,7 @@ import io.iohk.core.crypto.encryption.{KeyPair, PubKey}
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.keygen_2_0.signature.SchnorrSignature
+import io.iohk.protocol.common.signature.SchnorrSignature
 
 case class Nomination(ephemeralPubKey     : PubKey,
                       ephemeralPrivKeyEnc : HybridCiphertext)

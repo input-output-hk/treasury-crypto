@@ -3,8 +3,8 @@ package io.iohk.protocol.keygen_2_0.NIZKs.basic
 import io.iohk.core.crypto.encryption.elgamal.ElGamalCiphertext
 import io.iohk.core.crypto.encryption.{PrivKey, PubKey}
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
+import io.iohk.protocol.common.utils.DlogGroupArithmetics.{_}
 import io.iohk.protocol.keygen_2_0.NIZKs.basic.CorrectSecret.{Challenge, Commitment, CommitmentParams, Proof, Response, Statement, Witness}
-import io.iohk.protocol.keygen_2_0.utils.DlogGroupArithmetics.{div, exp, inv, mul}
 
 case class CorrectSecret(crs:   GroupElement,       // base for commitment of the G(x) coefficients [C0,.. Ct-1]
                          mfCt:  ElGamalCiphertext,  // encryption of a secret value mf, which is a constant coefficient of F(x)

@@ -2,11 +2,12 @@ package io.iohk.protocol.keygen_2_0
 
 import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
 import io.iohk.core.crypto.encryption.hybrid.HybridEncryption
+import io.iohk.protocol.common.datastructures.Share
+import io.iohk.protocol.common.dlog_encryption.DLogEncryption
+import io.iohk.protocol.common.math.{LagrangeInterpolation, Polynomial}
 import io.iohk.protocol.keygen_2_0.datastructures.SecretShare
-import io.iohk.protocol.keygen_2_0.datastructures.{ProactiveShare, ProactiveShareSerializer, Share}
-import io.iohk.protocol.keygen_2_0.dlog_encryption.DLogEncryption
+import io.iohk.protocol.keygen_2_0.datastructures.{ProactiveShare, ProactiveShareSerializer}
 import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
-import io.iohk.protocol.keygen_2_0.math.{LagrangeInterpolation, Polynomial}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Random, Success, Try}

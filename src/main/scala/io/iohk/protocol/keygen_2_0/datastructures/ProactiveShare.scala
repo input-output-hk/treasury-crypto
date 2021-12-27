@@ -4,6 +4,7 @@ import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core.crypto.primitives.blockcipher.BlockCipher
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
+import io.iohk.protocol.common.datastructures.{Share, ShareSerializer}
 
 import scala.util.Try
 

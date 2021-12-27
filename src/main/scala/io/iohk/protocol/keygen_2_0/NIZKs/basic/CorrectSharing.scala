@@ -2,11 +2,11 @@ package io.iohk.protocol.keygen_2_0.NIZKs.basic
 
 import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
-import io.iohk.protocol.keygen_2_0.dlog_encryption.DLogCiphertext
-import io.iohk.protocol.keygen_2_0.encoding.BaseCodec
-import io.iohk.protocol.keygen_2_0.math.LagrangeInterpolation
+import io.iohk.protocol.common.dlog_encryption.DLogCiphertext
+import io.iohk.protocol.common.encoding.BaseCodec
+import io.iohk.protocol.common.math.LagrangeInterpolation
+import io.iohk.protocol.common.utils.DlogGroupArithmetics._
 import io.iohk.protocol.keygen_2_0.NIZKs.basic.CorrectSharing.{Challenge, Commitment, CommitmentParams, Proof, Response, Statement, Witness}
-import io.iohk.protocol.keygen_2_0.utils.DlogGroupArithmetics.{exp, mul}
 
 case class CorrectSharing(pubKey: PubKey, dlogGroup: DiscreteLogGroup) {
 
