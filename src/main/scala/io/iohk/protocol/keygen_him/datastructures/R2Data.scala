@@ -3,6 +3,7 @@ package io.iohk.protocol.keygen_him.datastructures
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
+import io.iohk.core.utils.HasSize
 import io.iohk.protocol.common.utils.GroupElementSerializer
 import io.iohk.protocol.common.utils.Serialization.{parseSeq, serializeSeq}
 
@@ -10,10 +11,11 @@ import scala.util.Try
 
 case class R2Data(senderID: Int,
                   coeffsCommitments: Seq[GroupElement]) // g^a commitments
-  extends BytesSerializable {
+  extends BytesSerializable with HasSize {
   override type M = R2Data
   override type DECODER = DiscreteLogGroup
   override val serializer: Serializer[M, DECODER] = R2DataSerializer
+  def size: Int = bytes.length
 }
 
 object R2DataSerializer extends Serializer[R2Data, DiscreteLogGroup]{

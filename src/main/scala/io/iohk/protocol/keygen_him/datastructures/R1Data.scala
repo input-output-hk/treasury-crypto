@@ -3,6 +3,7 @@ package io.iohk.protocol.keygen_him.datastructures
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
+import io.iohk.core.utils.HasSize
 import io.iohk.protocol.common.datastructures.{SecretShare, SecretShareSerializer}
 import io.iohk.protocol.common.utils.GroupElementSerializer
 import io.iohk.protocol.common.utils.Serialization.{parseSeq, serializeSeq}
@@ -14,10 +15,11 @@ case class R1Data(senderID: Int,
                   encShares: Seq[SecretShare],
                   coeffsCommitments: Seq[GroupElement], // Pedersen commitments: g^a * h^r
                   proofNIZK: Proof)
-  extends BytesSerializable {
+  extends BytesSerializable with HasSize {
   override type M = R1Data
   override type DECODER = DiscreteLogGroup
   override val serializer: Serializer[M, DECODER] = R1DataSerializer
+  def size: Int = bytes.length
 }
 
 object R1DataSerializer extends Serializer[R1Data, DiscreteLogGroup]{
