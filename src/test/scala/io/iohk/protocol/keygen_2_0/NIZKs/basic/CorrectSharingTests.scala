@@ -7,7 +7,7 @@ import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.common.datastructures.Share
 import io.iohk.protocol.common.dlog_encryption.{DLogCiphertext, DLogEncryption}
 import io.iohk.protocol.common.encoding.BaseCodec
-import io.iohk.protocol.common.math.{LagrangeInterpolation, Polynomial}
+import io.iohk.protocol.common.math.{LagrangeInterpolation, LagrangeInterpolationTests, Polynomial}
 import org.scalatest.FunSuite
 
 import scala.util.Try

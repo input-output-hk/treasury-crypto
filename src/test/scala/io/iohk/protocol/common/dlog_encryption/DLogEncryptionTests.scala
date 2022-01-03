@@ -3,7 +3,7 @@ package io.iohk.protocol.common.dlog_encryption
 import io.iohk.core.crypto.encryption
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.common.dlog_encryption.{DLogCiphertextSerializer, DLogEncryption}
-import io.iohk.protocol.common.math.LagrangeInterpolation
+import io.iohk.protocol.common.math.LagrangeInterpolationTests
 import org.scalatest.FunSuite
 
 import scala.util.Success

@@ -79,6 +79,25 @@ public class BigIntPolynomial
     }
 
     /**
+     * Plain multiplication of polynomial with arbitrary number of coefficients.
+     *
+     * @param poly2 the polynomial to multiply by
+     * @return a new polynomial
+     */
+    public BigIntPolynomial multPlain(BigIntPolynomial poly2)
+    {
+        BigInteger[] result = new BigInteger[coeffs.length + poly2.coeffs.length - 1];
+        java.util.Arrays.fill(result, Constants.BIGINT_ZERO);
+
+        for(int i = 0; i < coeffs.length; i++){
+            for(int j = 0; j < poly2.coeffs.length; j++){
+                result[i + j] = result[i + j].add(coeffs[i].multiply(poly2.coeffs[j]));
+            }
+        }
+        return new BigIntPolynomial(result);
+    }
+
+    /**
      * Multiplies the polynomial by another, taking the indices mod N. Does not
      * change this polynomial but returns the result as a new polynomial.<br>
      * Both polynomials must have the same number of coefficients.

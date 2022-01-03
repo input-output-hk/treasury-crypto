@@ -7,7 +7,7 @@ import org.scalatest.FunSuite
 
 import scala.util.Random
 
-class DlogGroupArithmeticsTests  extends FunSuite {
+class DlogGroupArithmeticsTests extends FunSuite {
 
   private val crs = CryptoContext.generateRandomCRS
   private val context = new CryptoContext(Option(crs))

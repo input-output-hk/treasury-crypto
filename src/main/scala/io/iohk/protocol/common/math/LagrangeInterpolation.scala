@@ -2,8 +2,11 @@ package io.iohk.protocol.common.math
 
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.numbergenerator.FieldElementSP800DRNG
+import io.iohk.math.BigIntPolynomial
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.common.datastructures.Share
+
+import scala.annotation.tailrec
 
 object LagrangeInterpolation {
 
@@ -43,7 +46,7 @@ object LagrangeInterpolation {
         ) * value + sum).mod(group.groupOrder)
     }
   }
-
+  // The same as the 'evaluate' method but coefficients of evaluated polynomial are in lifted representation, i.e.: g^coeff
   def evaluateLifted(point_liftedValue_set: Seq[(BigInt, GroupElement)], eval_point: BigInt)
                     (implicit group: DiscreteLogGroup): GroupElement = {
     val all_points = point_liftedValue_set.map(_._1)
@@ -57,6 +60,53 @@ object LagrangeInterpolation {
         )
         liftedValue.pow(lambda).get.multiply(product).get
     }
+  }
+
+  // Returns the interpolated (reconstructed) polynomial (coefficients)
+  def interpolate(point_value_set: Seq[(BigInt, BigInt)])
+                 (implicit group: DiscreteLogGroup): Polynomial = {
+    val n = group.groupOrder
+
+    def basicPoly(xj: BigInt, x_all: Seq[BigInt]): BigIntPolynomial = {
+      val (nominator, denominator) =
+        x_all.foldLeft((new BigIntPolynomial(Array(BigInt(1).bigInteger)), BigInt(1))){
+          case ((nom, denom), xi) =>
+            if(xi != xj)
+            {
+              val xi_minus_x = new BigIntPolynomial(Array(xi.bigInteger, BigInt(-1).mod(n).bigInteger))
+              val xi_minus_xj = (xi - xj).mod(n)
+
+              val nominator = nom.multPlain(xi_minus_x); nominator.mod(n.bigInteger)
+              (nominator, (denom * xi_minus_xj).mod(n))
+            } else {
+              (nom, denom)
+            }
+      }
+      nominator.mult(denominator.modInverse(n).bigInteger); nominator.mod(n.bigInteger)
+      nominator
+    }
+
+    @tailrec
+    def removeLeadingZeroes(coeffs: Seq[BigInt]): Seq[BigInt] = {
+      if(coeffs.head == BigInt(0)) removeLeadingZeroes(coeffs.tail)
+      else coeffs
+    }
+
+    val all_points = point_value_set.map(_._1)
+
+    val coeffs =
+      point_value_set.foldLeft(new BigIntPolynomial(Array(BigInt(0).bigInteger))){
+        case(sum, (point, value)) =>
+          val result = basicPoly(point, all_points)
+          result.mult(value.bigInteger); result.mod(n.bigInteger)
+          sum.add(result); sum.mod(n.bigInteger)
+          sum
+      }.getCoeffs.map(BigInt(_))
+
+    // Removing the most significant zero-coefficients in case when the degree of interpolated polynomial is lesser
+    //  then the number of specified point-values
+    val coeffs_normalized = removeLeadingZeroes(coeffs.reverse).reverse
+    Polynomial(group, coeffs_normalized.length - 1, coeffs_normalized.head, coeffs_normalized.tail)
   }
 
   def restoreSecret(group: DiscreteLogGroup, shares_in: Seq[Share], threshold: Int = 0): BigInt = {

@@ -4,7 +4,7 @@ import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.{KeyPair, PubKey}
 import io.iohk.protocol.keygen_2_0.datastructures.{SecretShare, SecretShareSerializer}
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.common.math.LagrangeInterpolation
+import io.iohk.protocol.common.math.{LagrangeInterpolation, LagrangeInterpolationTests}
 import org.scalatest.FunSuite
 
 import scala.util.Random
