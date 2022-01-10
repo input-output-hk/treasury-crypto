@@ -1,4 +1,4 @@
-package io.iohk.protocol.keygen_him.NIZKs
+package io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK
 
 import io.iohk.core.crypto.encryption.PubKey
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
@@ -10,8 +10,8 @@ import io.iohk.protocol.common.encoding.BaseCodec
 import io.iohk.protocol.common.math.Polynomial
 import io.iohk.protocol.common.utils.DlogGroupArithmetics.{evaluateLiftedPoly, exp, mul}
 import io.iohk.protocol.keygen_him.IdPointMap
-import io.iohk.protocol.keygen_him.NIZKs.CorrectSharing.{CommitmentParams, Statement, Witness, combine, decodeLifted}
-import io.iohk.protocol.keygen_him.NIZKs.datastructures.{Commitment, Proof, Response}
+import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.CorrectSharing.{CommitmentParams, Statement, Witness, combine, decodeLifted}
+import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.datastructures.{Commitment, Proof, Response}
 
 case class CorrectSharing(h: GroupElement,
                           pubKeysIn: Seq[PubKey],
@@ -97,7 +97,7 @@ case class CorrectSharing(h: GroupElement,
     val lambda = getLambda(statement)
     val e = getChallenge(commitment)
 
-    Proof(
+    datastructures.Proof(
       commitment,
       getResponse(params, witness, lambda, e)
     )

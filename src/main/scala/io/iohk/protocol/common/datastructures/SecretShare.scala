@@ -9,7 +9,8 @@ import io.iohk.protocol.common.dlog_encryption.{DLogCiphertext, DLogCiphertextSe
 import scala.util.Try
 
 case class SecretShare(receiverID: Int,
-                       S: DLogCiphertext)    // encrypted share of a partial secret at DKG phase or encrypted subshare of share at Maintaining phase
+                       S: DLogCiphertext, // encrypted share of a partial secret at DKG phase or encrypted subshare of share at Maintaining phase
+                       plainS: Option[BigInt] = None) // plain value of encrypted share: ONLY for testing and debugging purposes to avoid significant slowdown caused by DLOG bruteforcing during decryption
   extends HasSize with BytesSerializable {
 
   override type M = SecretShare

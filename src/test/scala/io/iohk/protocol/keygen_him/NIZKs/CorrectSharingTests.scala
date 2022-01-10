@@ -6,8 +6,9 @@ import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.common.commitment.PedersenCommitment
 import io.iohk.protocol.common.math.Polynomial
 import io.iohk.protocol.keygen_him.DKGenerator.{encryptShares, getShares}
-import io.iohk.protocol.keygen_him.NIZKs.CorrectSharing.{Statement, Witness}
-import io.iohk.protocol.keygen_him.NIZKs.datastructures.ProofSerializer
+import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.CorrectSharing
+import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.datastructures.ProofSerializer
+import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.CorrectSharing.{Statement, Witness}
 import io.iohk.protocol.keygen_him.{IdPointMap, SharingParameters}
 import org.scalatest.FunSuite
 

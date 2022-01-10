@@ -1,4 +1,4 @@
-package io.iohk.protocol.keygen_him.NIZKs.datastructures
+package io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.datastructures
 
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup

@@ -7,7 +7,7 @@ import io.iohk.core.utils.HasSize
 import io.iohk.protocol.common.datastructures.{SecretShare, SecretShareSerializer}
 import io.iohk.protocol.common.utils.GroupElementSerializer
 import io.iohk.protocol.common.utils.Serialization.{parseSeq, serializeSeq}
-import io.iohk.protocol.keygen_him.NIZKs.datastructures.{Proof, ProofSerializer}
+import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.datastructures.{Proof, ProofSerializer}
 
 import scala.util.Try
 
