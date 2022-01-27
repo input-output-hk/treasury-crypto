@@ -8,9 +8,9 @@ import io.iohk.protocol.CommitteeIdentifier
 import io.iohk.protocol.common.datastructures.{SecretShare, Share}
 import io.iohk.protocol.common.encoding.BaseCodec
 import io.iohk.protocol.common.math.Polynomial
-import io.iohk.protocol.common.utils.DlogGroupArithmetics.{evaluateLiftedPoly, exp, mul}
+import io.iohk.protocol.common.utils.DlogGroupArithmetics.{combine, evaluateLiftedPoly, exp, mul}
 import io.iohk.protocol.keygen_him.IdPointMap
-import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.CorrectSharing.{CommitmentParams, Statement, Witness, combine, decodeLifted}
+import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.CorrectSharing.{CommitmentParams, Statement, Witness, decodeLifted}
 import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.datastructures.{Commitment, Proof, Response}
 
 case class CorrectSharing(h: GroupElement,
@@ -153,16 +153,6 @@ object CorrectSharing {
 
   case class Witness(s_r: Seq[(Share, Seq[BigInt])], randomnessCoeffs: Seq[BigInt])
   case class Statement(C: Seq[GroupElement], encShares: Seq[SecretShare])
-
-  def combine(scalars: Seq[BigInt], lambda: BigInt)
-             (implicit dlogGroup: DiscreteLogGroup): BigInt = {
-    Polynomial(dlogGroup, scalars.length - 1, scalars.head, scalars.tail).evaluate(lambda)
-  }
-
-  def combine(elements: Seq[GroupElement], lambda: BigInt)
-             (implicit dlogGroup: DiscreteLogGroup): GroupElement = {
-    evaluateLiftedPoly(elements, lambda)
-  }
 
   // Composes Dlog-encrypted lifted parts (fragments of c1 or c2) into a full lifted encrypted part (c1 or c2)
   private def decodeLifted(ctParts: Seq[GroupElement])

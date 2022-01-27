@@ -1,6 +1,7 @@
 package io.iohk.protocol.common.utils
 
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
+import io.iohk.protocol.common.math.Polynomial
 
 object DlogGroupArithmetics {
 
@@ -26,5 +27,15 @@ object DlogGroupArithmetics {
       case(product, (coeffLifted, i)) =>
         mul(product, exp(coeffLifted, evalPoint.modPow(BigInt(i), group.groupOrder)))
     }
+  }
+
+  def combine(elements: Seq[GroupElement], lambda: BigInt)
+             (implicit dlogGroup: DiscreteLogGroup): GroupElement = {
+    evaluateLiftedPoly(elements, lambda)
+  }
+
+  def combine(scalars: Seq[BigInt], lambda: BigInt)
+             (implicit dlogGroup: DiscreteLogGroup): BigInt = {
+    Polynomial(dlogGroup, scalars.length - 1, scalars.head, scalars.tail).evaluate(lambda)
   }
 }
