@@ -7,18 +7,18 @@ import io.iohk.protocol.common.utils.Serialization.serializationIsCorrect
 import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.ZeroOrOne
 import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.ZeroOrOne.{Statement, Witness}
 import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.datastructures.ProofSerializer
+import io.iohk.protocol.voting_2_0.preferential.BallotVoter.sumEncryptedUVsAndRand
 import org.scalatest.FunSuite
 
 import scala.util.Random
 
 class ZeroOrOneTests extends FunSuite {
-  private val crs = CryptoContext.generateRandomCRS
-  private val context = new CryptoContext(Option(crs))
+  private val context = new CryptoContext(None)
 
   import context.group
 
   test("ZeroOrOne"){
-    val vecSize = 2
+    val vecSize = 200
     val pubKey = encryption.createKeyPair(context.group).get._2
 
     val binaryVec = (0 until vecSize).map(_ => BigInt(Random.nextInt(2))) // random binary vector
@@ -32,16 +32,32 @@ class ZeroOrOneTests extends FunSuite {
     assert(ZeroOrOne(st).verify(proof))
   }
 
-//  test("ZeroOrOne"){
-//    val vecNum = 2
-//    val vecSize = 2
-//
-//    val pubKey = encryption.createKeyPair(context.group).get._2
-//
-//    val binaryVecs = (0 until vecNum).map(_ =>
-//      (0 until vecSize).map(_ => BigInt(Random.nextInt(2))) // random binary vector
-//    )
-//
-//    val encBinaryVecs = binaryVecs.map(_.map(LiftedElGamalEnc.encrypt(pubKey, _)))
-//  }
+  test("ZeroOrOneMultivec"){
+    val vecNum = 20
+    val vecSize = 20
+
+    val pubKey = encryption.createKeyPair(context.group).get._2
+
+    val binaryVecs = (0 until vecNum).map{
+      i =>
+        (0 until vecSize)map{
+          j =>
+            BigInt(if (i == j) Random.nextInt(2) else 0) // matrix of all zeroes except for randomized diagonal (0 or 1)
+      }
+    }
+    // Element-wise sum of binary vectors
+    val binaryVecsSum = binaryVecs.transpose.map(_.sum) // transpose to go through elements at the same position in vectors
+
+    // Encrypting binary vectors
+    val encBinaryVecs = binaryVecs.map(_.map(LiftedElGamalEnc.encrypt(pubKey, _).get))
+    // Element-wise sum of encrypted binary vectors
+    val encBinaryVecsSum = sumEncryptedUVsAndRand(encBinaryVecs)
+
+    val st = Statement(pubKey, encBinaryVecsSum.map(_._1))
+    val w = Witness(binaryVecsSum, encBinaryVecsSum.map(_._2))
+
+    val proof = ZeroOrOne(st).prove(w)
+    assert(serializationIsCorrect(Seq(proof), ProofSerializer))
+    assert(ZeroOrOne(st).verify(proof))
+  }
 }
