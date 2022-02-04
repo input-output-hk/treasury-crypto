@@ -8,7 +8,7 @@ import io.iohk.protocol.common.dlog_encryption.{DLogEncryption, DLogRandomness}
 import io.iohk.protocol.common.him.HIM
 import io.iohk.protocol.common.math.{LagrangeInterpolation, Polynomial}
 import io.iohk.protocol.common.utils.DlogGroupArithmetics.evaluateLiftedPoly
-import io.iohk.protocol.keygen_him.DKGenerator.{decryptShares, encryptShares, getShares}
+import io.iohk.protocol.keygen_him.DKGenerator.{shareIsValid, decryptShares, encryptShares, getShares}
 import io.iohk.protocol.keygen_him.NIZKs.CorrectDecryptionNIZK.CorrectDecryption
 import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.CorrectSharing
 import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.CorrectSharing.{Statement, Witness}
@@ -155,7 +155,7 @@ case class DKGenerator(context:    CryptoContext,
     val complaints = r2DataQual
       .flatMap{d =>
         val dealersShare = receivedShares.find(_.dealerID == d.senderID).get
-        if (!r2CoeffsCommitmentsAreValid(ownID, dealersShare, d.coeffsCommitments)){
+        if (!shareIsValid(context, ownID, params.t, dealersShare.openedShare, d.coeffsCommitments)){
           // Removing the misbehaving party from the QUAL set
           qualifiedSet = qualifiedSet - d.senderID
           // Creating complaint on the party
@@ -246,12 +246,6 @@ case class DKGenerator(context:    CryptoContext,
     R4Data(ownID, gpks)
   }
 
-  def r2CoeffsCommitmentsAreValid(shareReceiverId: Int, share: DealersShare, dealersCoeffsCommitments: Seq[GroupElement]): Boolean = {
-    dealersCoeffsCommitments.length == params.t &&
-      (evaluateLiftedPoly(dealersCoeffsCommitments, IdPointMap.toPoint(shareReceiverId))
-        == g.pow(share.openedShare).get)
-  }
-
   def createComplaint(share: DealersShare): Complaint = {
     val encShare =
       r1DataQual.find(_.senderID == share.dealerID).get // set of shares distributed by a specific dealer
@@ -272,7 +266,7 @@ case class DKGenerator(context:    CryptoContext,
     val st = CorrectDecryption.Statement(pk, complaint.share.openedShare, encShare.S)
     val dealersR2Data = r2DataQual.find(_.senderID == complaint.share.dealerID).get
 
-    !r2CoeffsCommitmentsAreValid(complaintSenderId, complaint.share, dealersR2Data.coeffsCommitments) &&
+    !shareIsValid(context, complaintSenderId, params.t, complaint.share.openedShare, dealersR2Data.coeffsCommitments) &&
       CorrectDecryption(st).verify(complaint.proof)
   }
 
@@ -417,5 +411,17 @@ object DKGenerator {
         val point = IdPointMap.toPoint(secretShare.receiverID)
         Share(point, share)
     }
+  }
+
+  def shareIsValid(context: CryptoContext,
+                   shareReceiverId: Int,  // ID of the share's receiver to get evaluation point for the share
+                   sharingThreshold: Int, // defines the number of committed polynomial coefficients needed for share validation
+                   share: BigInt,         // share to be validated
+                   dealersCoeffsCommitments: Seq[GroupElement] // coefficients commitments of the polynomial used to create the share
+                  ): Boolean = {
+    import context.group
+    dealersCoeffsCommitments.length == sharingThreshold &&
+      (evaluateLiftedPoly(dealersCoeffsCommitments, IdPointMap.toPoint(shareReceiverId))
+        == group.groupGenerator.pow(share).get)
   }
 }
