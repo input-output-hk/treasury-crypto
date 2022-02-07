@@ -7,9 +7,9 @@ import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.common.datastructures.Share
 import io.iohk.protocol.common.him.HIM
 import io.iohk.protocol.common.math.Polynomial
+import io.iohk.protocol.common.secret_sharing.ShamirSecretSharing.{IdPointMap, SharingParameters, decryptShares, encryptShares, getShares, reconstructSecret}
 import io.iohk.protocol.common.utils.Serialization.serializationIsCorrect
-import io.iohk.protocol.keygen_him.datastructures.R3Data.R3DataSerializer
-import io.iohk.protocol.keygen_him.datastructures.{R1DataSerializer, R2Data, R2DataSerializer, R4DataSerializer}
+import io.iohk.protocol.keygen_him.datastructures.{R1DataSerializer, R2Data, R2DataSerializer, R3DataSerializer, R4DataSerializer}
 import org.scalatest.FunSuite
 
 import scala.util.{Random, Try}
@@ -67,7 +67,7 @@ class KeyGenTests extends FunSuite {
     val sharesPerGSK = generators.map(
       g => g.getPartialSKs.map(Share(IdPointMap.toPoint(g.ownID), _)) // each party has a share per GSK; all it's shares are in the same point
     ).transpose // now each row contains a set of all shares per corresponding GSK
-    val gsks_reconstructed = sharesPerGSK.map(DKGenerator.reconstructSecret(context, _))
+    val gsks_reconstructed = sharesPerGSK.map(reconstructSecret(context, _))
 
     // Check that the reconstructed GSKs are the same as the GSKs computed directly from partial SKs via HIM multiplication
     val him = HIM(alphas, betas)
@@ -88,8 +88,8 @@ class KeyGenTests extends FunSuite {
     val secret = context.group.createRandomNumber
     val polynomial = Polynomial(context.group, params.t - 1, secret)
 
-    val shares = DKGenerator.getShares(polynomial, params.allIds.map(IdPointMap.toPoint))
-    val encShares = DKGenerator.encryptShares(context, shares, params.keyToIdMap).map(_._1)
+    val shares = getShares(polynomial, params.allIds.map(IdPointMap.toPoint))
+    val encShares = encryptShares(context, shares, params).map(_._1)
 
     val openedShares = allPartiesKeys.map{
       keyPair =>
@@ -97,7 +97,7 @@ class KeyGenTests extends FunSuite {
         val receiverID = params.keyToIdMap.getId(pubKey).get
 
         val secretSharesForId = encShares.filter(_.receiverID == receiverID)
-        val openedSharesForId = DKGenerator.decryptShares(context, secretSharesForId, privKey)
+        val openedSharesForId = decryptShares(context, secretSharesForId, privKey)
 
         assert(openedSharesForId.isSuccess && openedSharesForId.get.size == 1)
 
@@ -108,7 +108,7 @@ class KeyGenTests extends FunSuite {
     }
 
     assert(openedShares.size == shares.size)
-    assert(DKGenerator.reconstructSecret(context, openedShares.take(params.t)) == secret)
+    assert(reconstructSecret(context, openedShares.take(params.t)) == secret)
   }
 
   test("DKG_HIM_serialization"){
@@ -123,7 +123,7 @@ class KeyGenTests extends FunSuite {
     // Serialization tests (will pass only with 'plainS = None' in SecretShares)
     assert(serializationIsCorrect(r1Data, R1DataSerializer))
     assert(serializationIsCorrect(r2Data, R2DataSerializer))
-    assert(serializationIsCorrect(r3Data, R3DataSerializer))
+    assert(r3Data.nonEmpty && serializationIsCorrect(r3Data, R3DataSerializer))
     assert(serializationIsCorrect(r4Data, R4DataSerializer))
   }
 

@@ -1,4 +1,4 @@
-package io.iohk.protocol.keygen_him.NIZKs.CorrectDecryptionNIZK
+package io.iohk.protocol.common.dlog_encryption.NIZKs.CorrectDecryptionNIZK
 
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
@@ -6,8 +6,8 @@ import io.iohk.core.crypto.primitives.hash.{CryptographicHash, CryptographicHash
 import io.iohk.protocol.common.dlog_encryption.DLogCiphertext
 import io.iohk.protocol.common.encoding.BaseCodec
 import io.iohk.protocol.common.utils.DlogGroupArithmetics.{div, evaluateLiftedPoly, exp}
-import io.iohk.protocol.keygen_him.NIZKs.CorrectDecryptionNIZK.CorrectDecryption.{Statement, Witness}
-import io.iohk.protocol.keygen_him.NIZKs.CorrectDecryptionNIZK.datastructures.Proof
+import CorrectDecryption.{Statement, Witness}
+import io.iohk.protocol.common.dlog_encryption.NIZKs.CorrectDecryptionNIZK.datastructures.Proof
 import io.iohk.protocol.nizk.DLEQStandardNIZK
 
 case class CorrectDecryption(statement: Statement)

@@ -1,10 +1,11 @@
-package io.iohk.protocol.keygen_him.datastructures.R3Data
+package io.iohk.protocol.keygen_him.datastructures
 
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
 import io.iohk.core.utils.HasSize
 import io.iohk.protocol.common.utils.Serialization.{parseSeq, serializeSeq}
+import io.iohk.protocol.resharing.datastructures.{Complaint, ComplaintSerializer}
 
 import scala.util.Try
 

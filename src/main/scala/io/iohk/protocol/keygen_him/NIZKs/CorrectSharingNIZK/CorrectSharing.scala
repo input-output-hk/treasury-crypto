@@ -8,8 +8,8 @@ import io.iohk.protocol.CommitteeIdentifier
 import io.iohk.protocol.common.datastructures.{SecretShare, Share}
 import io.iohk.protocol.common.encoding.BaseCodec
 import io.iohk.protocol.common.math.Polynomial
+import io.iohk.protocol.common.secret_sharing.ShamirSecretSharing.IdPointMap
 import io.iohk.protocol.common.utils.DlogGroupArithmetics.{combine, evaluateLiftedPoly, exp, mul}
-import io.iohk.protocol.keygen_him.IdPointMap
 import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.CorrectSharing.{CommitmentParams, Statement, Witness, decodeLifted}
 import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.datastructures.{Commitment, Proof, Response}
 
@@ -20,11 +20,10 @@ case class CorrectSharing(h: GroupElement,
   private val g = dlogGroup.groupGenerator
   private val n = pubKeysIn.size
   private val modulus = dlogGroup.groupOrder
+  private val sha = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
 
   val keyToIdMap = new CommitteeIdentifier(pubKeysIn)
   private val pubKeys = pubKeysIn.sortBy(pk => IdPointMap.toPoint(keyToIdMap.getId(pk).get))
-
-  private val sha = CryptographicHashFactory.constructHash(AvailableHashes.SHA3_256_Bc).get
 
   def getLambda(statement: Statement): BigInt = {
     BigInt(1,
@@ -34,7 +33,7 @@ case class CorrectSharing(h: GroupElement,
       )).mod(n)
   }
 
-  def getChallenge(commitment: Commitment): BigInt ={
+  def getChallenge(commitment: Commitment): BigInt = {
     BigInt(1,
       sha.hash(
         commitment.A.bytes ++

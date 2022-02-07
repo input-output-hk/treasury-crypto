@@ -5,11 +5,10 @@ import io.iohk.core.crypto.encryption.KeyPair
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.common.commitment.PedersenCommitment
 import io.iohk.protocol.common.math.Polynomial
-import io.iohk.protocol.keygen_him.DKGenerator.{encryptShares, getShares}
+import io.iohk.protocol.common.secret_sharing.ShamirSecretSharing.{encryptShares, getShares, IdPointMap, SharingParameters}
 import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.CorrectSharing
 import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.datastructures.ProofSerializer
 import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.CorrectSharing.{Statement, Witness}
-import io.iohk.protocol.keygen_him.{IdPointMap, SharingParameters}
 import org.scalatest.FunSuite
 
 class CorrectSharingTests extends FunSuite {
@@ -38,7 +37,7 @@ class CorrectSharingTests extends FunSuite {
     val coeffsCommitments = c_rand.map{ case(c, r) => commitment.get(c, r) }
 
     val shares = getShares(polynomial, params.allIds.map(IdPointMap.toPoint))
-    val encShares_rand = encryptShares(context, shares, params.keyToIdMap)
+    val encShares_rand = encryptShares(context, shares, params)
 
     val st = Statement(coeffsCommitments, encShares_rand.map(_._1))
     val w = Witness(shares.zip(encShares_rand.map(_._2.R)), c_rand.map(_._2))

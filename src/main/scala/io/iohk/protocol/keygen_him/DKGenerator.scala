@@ -1,36 +1,20 @@
 package io.iohk.protocol.keygen_him
 
-import io.iohk.core.crypto.encryption.{KeyPair, PrivKey, PubKey}
+import io.iohk.core.crypto.encryption.{KeyPair, PubKey}
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.protocol.common.commitment.PedersenCommitment
-import io.iohk.protocol.common.datastructures.{SecretShare, Share}
-import io.iohk.protocol.common.dlog_encryption.{DLogEncryption, DLogRandomness}
+import io.iohk.protocol.common.datastructures.Share
 import io.iohk.protocol.common.him.HIM
 import io.iohk.protocol.common.math.{LagrangeInterpolation, Polynomial}
-import io.iohk.protocol.common.utils.DlogGroupArithmetics.evaluateLiftedPoly
-import io.iohk.protocol.keygen_him.DKGenerator.{shareIsValid, decryptShares, encryptShares, getShares}
-import io.iohk.protocol.keygen_him.NIZKs.CorrectDecryptionNIZK.CorrectDecryption
+import io.iohk.protocol.common.secret_sharing.ShamirSecretSharing.{IdPointMap, SharingParameters, decryptShares, encryptShares, getShares, shareIsValid}
 import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.CorrectSharing
 import io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.CorrectSharing.{Statement, Witness}
-import io.iohk.protocol.keygen_him.datastructures.R3Data.{Complaint, DealersShare, R3Data}
-import io.iohk.protocol.keygen_him.datastructures.{R1Data, R2Data, R4Data}
-import io.iohk.protocol.{CommitteeIdentifier, CryptoContext}
+import io.iohk.protocol.keygen_him.datastructures.{R1Data, R2Data, R3Data, R4Data}
+import io.iohk.protocol.CryptoContext
+import io.iohk.protocol.common.dlog_encryption.NIZKs.CorrectDecryptionNIZK.CorrectDecryption
+import io.iohk.protocol.resharing.datastructures.{Complaint, DealersShare}
 
 import scala.collection.mutable.ArrayBuffer
-import scala.util.Try
-
-case class SharingParameters(pubKeys: Seq[PubKey]){
-  val n: Int = pubKeys.size
-  val t: Int = n / 2 + 1
-  val keyToIdMap = new CommitteeIdentifier(pubKeys)
-  val allIds: Seq[Int] = pubKeys.flatMap(keyToIdMap.getId)
-}
-
-object IdPointMap{
-  val emptyPoint: Int = -1
-  def toPoint(id: Int): Int = { id + 1 }
-  def toId(point: Int): Int = { point - 1 }
-}
 
 case class DKGenerator(context:    CryptoContext,
                        crs:        Seq[GroupElement],
@@ -42,9 +26,9 @@ case class DKGenerator(context:    CryptoContext,
   assert(allPubKeys.nonEmpty)
   assert(alphas.length == allPubKeys.length) // number of alphas is the same as the total number of parties
   // The number of betas implicitly defines the number of global public keys to be generated
-  // It also should be (n - t); thus for the threshold t = n/2 - 1, the maximal number of generated keys is n/2 + 1
+  // It also should be (n - t); thus for the adversarial threshold t = n/2 - 1, the maximal number of generated keys is n/2 + 1
   assert(betas.nonEmpty && (betas.length == alphas.length / 2 + 1))
-  assert(allPubKeys.contains(ownKeyPair._2)) // own key-pair should be a one of a participating party
+  assert(allPubKeys.contains(ownKeyPair._2)) // own key-pair should be among the participating parties keys
 
   private val params = SharingParameters(allPubKeys)
   val partialSK = context.group.createRandomNumber
@@ -77,7 +61,7 @@ case class DKGenerator(context:    CryptoContext,
     val C = c_rand.map{ case(c, r) => commitment.get(c, r) }
 
     val shares = getShares(polynomial, params.allIds.map(IdPointMap.toPoint))
-    val encShares_rand = encryptShares(context, shares, params.keyToIdMap)
+    val encShares_rand = encryptShares(context, shares, params)
 
     val encShares = encShares_rand.map(_._1)
     val sharesRandomness = encShares_rand.map(_._2)
@@ -155,7 +139,7 @@ case class DKGenerator(context:    CryptoContext,
     val complaints = r2DataQual
       .flatMap{d =>
         val dealersShare = receivedShares.find(_.dealerID == d.senderID).get
-        if (!shareIsValid(context, ownID, params.t, dealersShare.openedShare, d.coeffsCommitments)){
+        if (!shareIsValid(context, params.t, Share(ownEvalPoint.toInt, dealersShare.openedShare), d.coeffsCommitments)){
           // Removing the misbehaving party from the QUAL set
           qualifiedSet = qualifiedSet - d.senderID
           // Creating complaint on the party
@@ -266,162 +250,7 @@ case class DKGenerator(context:    CryptoContext,
     val st = CorrectDecryption.Statement(pk, complaint.share.openedShare, encShare.S)
     val dealersR2Data = r2DataQual.find(_.senderID == complaint.share.dealerID).get
 
-    !shareIsValid(context, complaintSenderId, params.t, complaint.share.openedShare, dealersR2Data.coeffsCommitments) &&
+    !shareIsValid(context, params.t, Share(IdPointMap.toPoint(complaintSenderId), complaint.share.openedShare), dealersR2Data.coeffsCommitments) &&
       CorrectDecryption(st).verify(complaint.proof)
-  }
-
-//  // Round to validate the posted complaints (if any)
-//  //   and to post opened shares in response to the valid complaints
-//  def round4(r3DataAll: Seq[R3Data]): Option[R4Data] = {
-//    // Checking that all R3Data-messages are from different parties
-//    assert(r3DataAll.map(_.senderID).distinct.length == r3DataAll.length)
-//
-//    val r3DataQualified = r3DataAll
-//      .filter(d => qualifiedSet.contains(d.senderID)) // Filtering away the R3Data-messages from disqualified parties
-//      .filter{d =>                                    // Filtering away the parties who provided at least one invalid complaint
-//        val allComplaintsAreValid = d.complaints.forall(_.isValid)
-//        // Disqualifying the party that posted an invalid complaint
-//        if(!allComplaintsAreValid){ qualifiedSet = qualifiedSet - d.senderID }
-//        allComplaintsAreValid
-//      }
-//
-//    val dealersShares =
-//      r3DataQualified.flatMap(d =>
-//        d.complaints.flatMap{c =>
-//          qualifiedSet = qualifiedSet - c.share.dealerID
-//          Some(receivedShares.find(_.dealerID == c.share.dealerID).get)
-//        }
-//      ).distinct // removing the duplicated shares which have been put for different valid complaints on the same dealer
-//
-//    if (dealersShares.nonEmpty){
-//      Some(R4Data(ownID, dealersShares))
-//    } else {
-//      None
-//    }
-//  }
-//
-//  // Round to reconstruct partial secrets of disqualified dealers
-//  //   and to post a set of Global Public Keys
-//  //   (GPKs are generated by multiplying HIM by the vector of commitments of a_0 coefficients (g^a_0) of all parties qualified in round 2)
-//  def globalPubKeys(r4DataAll: Seq[R4Data]): Seq[GroupElement] = {
-//    val r4DataQualified = r4DataAll
-//      .filter(d => qualifiedSet.contains(d.senderID)) // Filtering away the R4Data-messages from disqualified parties
-//      .filter{d =>                                    // Filtering away the parties who provided at least one invalid share
-//        val allSharesAreValid = d.dealersShares.forall(_.isValid)
-//        // Disqualifying the party that posted an invalid share
-//        if(!allSharesAreValid){ qualifiedSet = qualifiedSet - d.senderID }
-//        allSharesAreValid
-//      }
-//
-//    val disqualifiedDealers = r4DataQualified.headOption match {
-//      case Some(head) => head.dealersShares.map(_.dealerID).distinct.sorted
-//      case None => Seq() // r4DataQualified is empty if no complaints and no corresponding shares where posted in rounds 3, 4
-//    }
-//
-//    assert(
-//      r4DataQualified.forall{d =>
-//        val dealersIds = d.dealersShares.map(_.dealerID)
-//        dealersIds.distinct.length == dealersIds.length && // shares provided by each party are all unique
-//          dealersIds.sorted == disqualifiedDealers   // each party has provided shares for the same set of disqualified dealers
-//      }
-//    )
-//
-//    // Shares grouped by the disqualified dealers' IDs
-//    val disqualifiedDealersShares = disqualifiedDealers.map(id =>
-//      (
-//        id, r4DataQualified.map{ d =>
-//          val share = d.dealersShares.filter(_.dealerID == id)
-//          assert(share.length == 1)
-//          Share(IdPointMap.toPoint(d.senderID), share.head.openedShare)
-//        }
-//      )
-//    )
-//
-//    // Reconstructed polynomials of disqualified dealers
-//    val disqualifiedDealersPolynomials = disqualifiedDealersShares.map{
-//      case(id, shares) =>
-//        val points_values = shares.map(share => (BigInt(share.point), share.value)).take(params.t)
-//        (id, LagrangeInterpolation.interpolate(points_values))
-//    }
-//
-//    // Lifting polynomials' coefficients (g^c_i) to obtain commitments
-//    val disqualifiedDealersCoeffsCommitments = disqualifiedDealersPolynomials.map{
-//      case(id, polynomial) => (id, polynomial.coeffs().map(c => commitment.get(c, BigInt(0))))
-//    }
-//
-//    // Adding reconstructed commitments to the overall list of commitments
-//    coeffsCommitments ++= disqualifiedDealersCoeffsCommitments
-//    // Sorting all commitments by sender's (dealer's) Id
-//    coeffsCommitments = coeffsCommitments.sortBy(_._1)
-//
-//    assert(coeffsCommitments.length == receivedShares.length)
-//
-//    // Computing the Global Public Keys
-//    val him = HIM(alphas.take(receivedShares.size), betas)
-//    him.mulLifted(coeffsCommitments.map(_._2.head)) // multiply HIM by a vector of a0-commitments of each party
-//  }
-}
-
-object DKGenerator {
-
-  def getShares(poly: Polynomial, evaluationPoints: Seq[Int]) : Seq[Share] = {
-    evaluationPoints.map{
-      point =>
-        assert(point != 0) // avoid disclosing a_0 coefficient
-        Share(point, poly.evaluate(point))
-    }
-  }
-
-  def reconstructSecret(context: CryptoContext,
-                        all_shares: Seq[Share]): BigInt = {
-    LagrangeInterpolation.restoreSecret(context.group, all_shares)
-  }
-
-  def encryptShares(context: CryptoContext,
-                    shares: Seq[Share],
-                    keyToIdMap: CommitteeIdentifier): Seq[(SecretShare, DLogRandomness)] = {
-    import context.group
-
-    shares.map{
-      share =>
-        val receiverId = IdPointMap.toId(share.point)
-        val receiverPubKey = keyToIdMap.getPubKey(receiverId).get
-        val encShare = DLogEncryption.encrypt(share.value, receiverPubKey).get
-        (
-          SecretShare(
-            receiverId,
-            encShare._1,
-            Some(share.value) // TODO: comment this line for real use
-          ),encShare._2
-        )
-    }
-  }
-
-  def decryptShares(context: CryptoContext,
-                    secretShares: Seq[SecretShare],
-                    privKey: PrivKey): Try[Seq[Share]] = Try {
-    import context.group
-
-    secretShares.map{
-      secretShare =>
-        val share = secretShare.plainS match {
-          case None => DLogEncryption.decrypt(secretShare.S, privKey).get
-          case Some(plainS) => plainS
-        }
-        val point = IdPointMap.toPoint(secretShare.receiverID)
-        Share(point, share)
-    }
-  }
-
-  def shareIsValid(context: CryptoContext,
-                   shareReceiverId: Int,  // ID of the share's receiver to get evaluation point for the share
-                   sharingThreshold: Int, // defines the number of committed polynomial coefficients needed for share validation
-                   share: BigInt,         // share to be validated
-                   dealersCoeffsCommitments: Seq[GroupElement] // coefficients commitments of the polynomial used to create the share
-                  ): Boolean = {
-    import context.group
-    dealersCoeffsCommitments.length == sharingThreshold &&
-      (evaluateLiftedPoly(dealersCoeffsCommitments, IdPointMap.toPoint(shareReceiverId))
-        == group.groupGenerator.pow(share).get)
   }
 }

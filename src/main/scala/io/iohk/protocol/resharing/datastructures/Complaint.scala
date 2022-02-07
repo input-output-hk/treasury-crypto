@@ -1,12 +1,15 @@
-package io.iohk.protocol.keygen_him.datastructures.R3Data
+package io.iohk.protocol.resharing.datastructures
 
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
-import io.iohk.protocol.keygen_him.NIZKs.CorrectDecryptionNIZK.datastructures.{Proof, ProofSerializer}
+import io.iohk.protocol.common.dlog_encryption.NIZKs.CorrectDecryptionNIZK.datastructures.{Proof, ProofSerializer}
 
 import scala.util.Try
 
+// Complaint on the wrong share (contains the decrypted share together with a NIZK-proof that the decryption is correct)
+// NOTE: the decrypted share should be validated against the posted by the dealer coefficients commitments (from a polynomial used to compute the share)
+//       and the decryption proof should be validated against the posted by the dealer encryption of the share
 case class Complaint(share: DealersShare, proof: Proof)
   extends BytesSerializable {
   override type M = Complaint

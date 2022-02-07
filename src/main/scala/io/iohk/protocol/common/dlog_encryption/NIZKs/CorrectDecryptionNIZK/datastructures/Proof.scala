@@ -1,4 +1,4 @@
-package io.iohk.protocol.keygen_him.NIZKs.CorrectDecryptionNIZK.datastructures
+package io.iohk.protocol.common.dlog_encryption.NIZKs.CorrectDecryptionNIZK.datastructures
 
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}

@@ -1,4 +1,4 @@
-package io.iohk.protocol.keygen_him.datastructures.R3Data
+package io.iohk.protocol.resharing.datastructures
 
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
@@ -7,8 +7,8 @@ import io.iohk.protocol.common.utils.BigIntSerializer
 
 import scala.util.Try
 
-case class DealersShare(dealerID: Int,
-                        openedShare: BigInt)
+case class DealersShare(dealerID: Int,       // ID of the party who created the share
+                        openedShare: BigInt) // value of the share
   extends BytesSerializable {
   override type M = DealersShare
   override type DECODER = DiscreteLogGroup

@@ -1,10 +1,10 @@
-package io.iohk.protocol.keygen_him.NIZKs
+package io.iohk.protocol.common.dlog_encryption.NIZK
 
 import io.iohk.core.crypto.encryption
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.common.dlog_encryption.DLogEncryption
-import io.iohk.protocol.keygen_him.NIZKs.CorrectDecryptionNIZK.CorrectDecryption.{Statement, Witness}
-import io.iohk.protocol.keygen_him.NIZKs.CorrectDecryptionNIZK.CorrectDecryption
+import io.iohk.protocol.common.dlog_encryption.NIZKs.CorrectDecryptionNIZK.CorrectDecryption.{Statement, Witness}
+import io.iohk.protocol.common.dlog_encryption.NIZKs.CorrectDecryptionNIZK.CorrectDecryption
 import org.scalatest.FunSuite
 
 class CorrectDecryptionTests extends FunSuite {

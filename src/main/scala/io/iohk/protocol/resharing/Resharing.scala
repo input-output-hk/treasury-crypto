@@ -1,32 +1,21 @@
 package io.iohk.protocol.resharing
 
 import io.iohk.core.crypto.encryption.{KeyPair, PubKey}
-import io.iohk.core.crypto.primitives.dlog.GroupElement
 import io.iohk.protocol.CryptoContext
-import io.iohk.protocol.common.datastructures.{SecretShare, Share}
+import io.iohk.protocol.common.datastructures.Share
+import io.iohk.protocol.common.dlog_encryption.NIZKs.CorrectDecryptionNIZK.CorrectDecryption
 import io.iohk.protocol.common.math.{LagrangeInterpolation, Polynomial}
 import io.iohk.protocol.common.utils.DlogGroupArithmetics.exp
-import io.iohk.protocol.keygen_him.DKGenerator.{decryptShares, encryptShares, getShares, shareIsValid}
-import io.iohk.protocol.keygen_him.NIZKs.CorrectDecryptionNIZK.CorrectDecryption
-import io.iohk.protocol.keygen_him.datastructures.R3Data.{Complaint, DealersShare}
-import io.iohk.protocol.keygen_him.{IdPointMap, SharingParameters}
+import io.iohk.protocol.common.secret_sharing.ShamirSecretSharing.{IdPointMap, SharingParameters, decryptShares, encryptShares, getShares, shareIsValid}
+import io.iohk.protocol.resharing.datastructures.{Complaint, DealersShare, IndexedComplaint, ResharingComplaints, ResharingData, SharedShare}
 
 import scala.collection.mutable.ArrayBuffer
 
-
-// Doesn't contain an evaluation point of the initial share, to avoid it's duplication for multiple resharings;
-// The evaluation point should be computed from a dealer's ID (it is assumed to be in the structure which aggregates the SharedShares)
-case class SharedShare(encShares: Seq[SecretShare], // encrypted shares of the initial share
-                       coeffsCommitments: Seq[GroupElement]) // g^coeff commitments of coefficients of the polynomial used for shares creation
-
-case class ResharingData(senderID: Int, sharedShares: Seq[SharedShare])
-case class ResharingComplaints(senderID: Int, complaints: Seq[(Complaint, Int)])
-
 case class Resharing(context:    CryptoContext,
                      ownKeyPair: KeyPair,
-                     allPubKeys: Seq[PubKey]) // keys of resharings receivers
+                     allPubKeys: Seq[PubKey]) // keys of the resharings receivers
 {
-  assert(allPubKeys.contains(ownKeyPair._2))  // own key-pair should be a one of a participating party
+  assert(allPubKeys.contains(ownKeyPair._2))  // own key-pair should be among the participating parties keys
 
   private val params = SharingParameters(allPubKeys)
   private val (ownPrivKey, ownPubKey) = ownKeyPair
@@ -56,20 +45,25 @@ case class Resharing(context:    CryptoContext,
         assert(openedShares.isSuccess)
 
         // Validating each opened share and creating complaint if the share is not valid
-        openedShares.get.map(_.value)
+        openedShares.get
           .zip(encShares) // Seq[(openedShare, encryptedShare)]
           .zip(d.sharedShares.map(_.coeffsCommitments))
           .zipWithIndex
           .flatMap{
             // Checking an own share from each resharing
             case(((share, encShare), coeffsCommitments), i) =>
-              if (!shareIsValid(context, ownID, params.t, share, coeffsCommitments)){
+              if (!shareIsValid(context, params.t, share, coeffsCommitments)){
                 // Creating complaint on the current resharing of the current dealer
-                val st = CorrectDecryption.Statement(ownPubKey, share, encShare.S)
+                val st = CorrectDecryption.Statement(ownPubKey, share.value, encShare.S)
                 val w = CorrectDecryption.Witness(ownPrivKey)
-                Some((Complaint(DealersShare(d.senderID, share), CorrectDecryption(st).prove(w)), i))
+                Some(
+                  IndexedComplaint(
+                    Complaint(DealersShare(d.senderID, share.value), CorrectDecryption(st).prove(w)),
+                    i
+                  )
+                )
               } else {
-                receivedShares += ReceivedShare(d.senderID, share, i)
+                receivedShares += ReceivedShare(d.senderID, share.value, i)
                 None
               }
           }
@@ -90,7 +84,7 @@ case class Resharing(context:    CryptoContext,
       d.complaints.forall(complaintIsValid(d.senderID, _))
     }
 
-    val disqualifiedDealers = validComplaintsData.flatMap(_.complaints.map(_._1.share.dealerID)).distinct
+    val disqualifiedDealers = validComplaintsData.flatMap(_.complaints.map(_.complaint.share.dealerID)).distinct
     val qualShares = receivedShares.filter(s => !disqualifiedDealers.contains(s.dealerId))
 
     val allDealersPoints = qualShares.map(s => IdPointMap.toPoint(s.dealerId)).distinct
@@ -117,8 +111,8 @@ case class Resharing(context:    CryptoContext,
   }
 
   def complaintIsValid(complaintSenderId: Int,
-                       complaintWithIndex: (Complaint, Int)): Boolean = {
-    val (complaint, invalidShareIndex) = complaintWithIndex
+                       complaintIndexed: IndexedComplaint): Boolean = {
+    val (complaint, invalidShareIndex) = (complaintIndexed.complaint, complaintIndexed.index)
     val pk = params.keyToIdMap.getPubKey(complaintSenderId).get
 
     val invalidResharing = resharingsData
@@ -130,7 +124,7 @@ case class Resharing(context:    CryptoContext,
 
     val st = CorrectDecryption.Statement(pk, complaint.share.openedShare, encShare.S)
 
-    !shareIsValid(context, complaintSenderId, params.t, complaint.share.openedShare, invalidResharing.coeffsCommitments) &&
+    !shareIsValid(context, params.t, Share(IdPointMap.toPoint(complaintSenderId), complaint.share.openedShare), invalidResharing.coeffsCommitments) &&
       CorrectDecryption(st).verify(complaint.proof)
   }
 }
@@ -158,7 +152,7 @@ object Resharing {
     // Resharing the 'share' with the new polynomial
     val shares = getShares(polynomial, params.allIds.map(IdPointMap.toPoint))
     // Encrypting the shares of the 'share'
-    val encShares = encryptShares(context, shares, params.keyToIdMap).map(_._1)
+    val encShares = encryptShares(context, shares, params).map(_._1)
     val coeffsCommitments = polynomial.coeffs().map(exp(g, _)) // g^coeff
 
     SharedShare(encShares, coeffsCommitments)
