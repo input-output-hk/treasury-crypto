@@ -8,9 +8,9 @@ class PreferentialBallotPerformance {
   private val pubKey = ctx.group.createRandomGroupElement.get
 
   def run(): Unit = {
-    val numberOfExperts = List(20, 40, 80, 160) //(50 to 250).by(50)
-    val numberOfAllProjects = List(20, 40, 80, 160) //(50 to 250).by(50)
-    val sizeOfProjectsShortlist = List(4, 8, 16) //(10 to 50).by(10)
+    val numberOfExperts = List(20, 40, 80, 160)
+    val numberOfAllProjects = List(20, 40, 80, 160)
+    val sizeOfProjectsShortlist = List(4, 8, 16)
 
     for (expertsNum <- numberOfExperts) {
       for (projectsNum <- numberOfAllProjects) {

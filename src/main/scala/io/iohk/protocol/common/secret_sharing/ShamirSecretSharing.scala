@@ -53,7 +53,7 @@ object ShamirSecretSharing {
           SecretShare(
             receiverId,
             encShare._1,
-//            Some(share.value) // TODO: comment this line for real use
+            Some(share.value) // TODO: comment this line for real use
           ),encShare._2
         )
     }

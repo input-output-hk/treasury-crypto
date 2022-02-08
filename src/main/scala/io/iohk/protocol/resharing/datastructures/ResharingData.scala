@@ -10,7 +10,7 @@ import scala.util.Try
 
 // senderID - is an ID of the dealer who distributes the shares (in SharedShare) of it's own shares
 case class ResharingData(senderID: Int, sharedShares: Seq[SharedShare])
-  extends BytesSerializable  with HasSize {
+  extends BytesSerializable with HasSize {
 
   override type M = ResharingData
   override type DECODER = DiscreteLogGroup
