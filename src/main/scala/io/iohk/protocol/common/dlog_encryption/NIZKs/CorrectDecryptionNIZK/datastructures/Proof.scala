@@ -2,15 +2,17 @@ package io.iohk.protocol.common.dlog_encryption.NIZKs.CorrectDecryptionNIZK.data
 
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
+import io.iohk.core.utils.HasSize
 import io.iohk.protocol.nizk.{DLEQStandardNIZKProof, DLEQStandardNIZKProofSerializer}
 
 import scala.util.Try
 
 case class Proof(dlEqProof: DLEQStandardNIZKProof)
-  extends BytesSerializable {
+  extends BytesSerializable with HasSize {
   override type M = Proof
   override type DECODER = DiscreteLogGroup
   override val serializer: Serializer[M, DECODER] = ProofSerializer
+  def size: Int = bytes.length
 }
 
 object ProofSerializer extends Serializer[Proof, DiscreteLogGroup]{

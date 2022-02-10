@@ -5,8 +5,8 @@ import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalE
 import io.iohk.core.utils.HasSize
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKVerifier}
 import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK
-import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.ZeroOrOne
-import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.ZeroOrOne.{Statement, Witness}
+import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.BatchedZeroOrOne
+import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.BatchedZeroOrOne.{Statement, Witness}
 import io.iohk.protocol.voting_2_0.preferential.BallotVoter.sumEncryptedUVsAndRand
 
 import scala.collection.mutable.ArrayBuffer
@@ -57,7 +57,7 @@ object BallotExpert {
       encRankingUVsSum.map(_._2)       // summed randomnesses
     )
 
-    val proofForRankingUVsSum = ZeroOrOne(st).prove(w)
+    val proofForRankingUVsSum = BatchedZeroOrOne(st).prove(w)
 //    assert(ZeroOrOne(st).verify(proofForRankingUVsSum)) // TODO: comment for benchmarking
 
     val proofsForUVs = encRankingUVs.zip(ranks).map{

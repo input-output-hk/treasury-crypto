@@ -14,4 +14,13 @@ object SizeUtils {
 
     totalSize
   }
+
+  def getMaxSize[T <: HasSize](vector: Seq[T]): Int = {
+    if(vector.nonEmpty){ vector.maxBy(_.size).size } else { 0 }
+  }
+
+  def getAverageSize[T <: HasSize](vector: Seq[T]): Float = {
+    val totalSize = vector.foldLeft(0){(totalSize, currentElement) => totalSize + currentElement.size}
+    totalSize.toFloat / vector.length
+  }
 }

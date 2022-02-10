@@ -5,8 +5,8 @@ import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, LiftedElGamalE
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.nizk.shvzk.SHVZKVerifier
-import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.ZeroOrOne
-import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.ZeroOrOne.Statement
+import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.BatchedZeroOrOne
+import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.BatchedZeroOrOne.Statement
 import org.scalatest.FunSuite
 
 import scala.util.Try
@@ -21,7 +21,7 @@ class BallotTests extends FunSuite {
                         (implicit group: DiscreteLogGroup): Boolean = Try{
     ballots.forall{ballot =>
       val st = Statement(pubKey, BallotVoter.sumEncryptedUVs(ballot.rankingVectors))
-      val rankingVectorsAreValid = ZeroOrOne(st).verify(ballot.rankingVectorsProof)
+      val rankingVectorsAreValid = BatchedZeroOrOne(st).verify(ballot.rankingVectorsProof)
 
       assert(ballot.rankingVectors.size == ballot.unitVectorsProofs.size)
 
@@ -45,7 +45,7 @@ class BallotTests extends FunSuite {
                          (implicit group: DiscreteLogGroup): Boolean = Try{
     ballots.forall{ballot =>
       val st = Statement(pubKey, BallotVoter.sumEncryptedUVs(ballot.rankingVectors))
-      val rankingVectorsAreValid = ZeroOrOne(st).verify(ballot.rankingVectorsProof)
+      val rankingVectorsAreValid = BatchedZeroOrOne(st).verify(ballot.rankingVectorsProof)
 
       assert(ballot.rankingVectors.size == ballot.unitVectorsProofs.size)
 

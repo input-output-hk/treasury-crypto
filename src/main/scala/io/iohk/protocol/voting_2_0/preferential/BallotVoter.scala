@@ -7,8 +7,8 @@ import io.iohk.core.utils.HasSize
 import io.iohk.protocol.common.utils.DlogGroupArithmetics.mul
 import io.iohk.protocol.nizk.shvzk.{SHVZKGen, SHVZKProof, SHVZKVerifier}
 import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK
-import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.ZeroOrOne
-import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.ZeroOrOne.{Statement, Witness}
+import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.BatchedZeroOrOne
+import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.BatchedZeroOrOne.{Statement, Witness}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
@@ -110,7 +110,7 @@ object BallotVoter {
       encRankingUVsSum.map(_._2)       // summed randomnesses
     )
 
-    val proofForRankingUVsSum = ZeroOrOne(st).prove(w)
+    val proofForRankingUVsSum = BatchedZeroOrOne(st).prove(w)
 //    assert(ZeroOrOne(st).verify(proofForRankingUVsSum)) // TODO: comment for benchmarking
 
     val encDelegationUV = delegationUV.map(LiftedElGamalEnc.encrypt(pubKey, _).get)

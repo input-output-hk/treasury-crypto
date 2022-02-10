@@ -4,20 +4,20 @@ import io.iohk.core.crypto.encryption
 import io.iohk.core.crypto.encryption.elgamal.LiftedElGamalEnc
 import io.iohk.protocol.CryptoContext
 import io.iohk.protocol.common.utils.Serialization.serializationIsCorrect
-import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.ZeroOrOne
-import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.ZeroOrOne.{Statement, Witness}
+import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.BatchedZeroOrOne
+import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.BatchedZeroOrOne.{Statement, Witness}
 import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.datastructures.ProofSerializer
 import io.iohk.protocol.voting_2_0.preferential.BallotVoter.sumEncryptedUVsAndRand
 import org.scalatest.FunSuite
 
 import scala.util.Random
 
-class ZeroOrOneTests extends FunSuite {
+class BatchedZeroOrOneTests extends FunSuite {
   private val context = new CryptoContext(None)
 
   import context.group
 
-  test("ZeroOrOne"){
+  test("BatchedZeroOrOneTests"){
     val vecSize = 200
     val pubKey = encryption.createKeyPair(context.group).get._2
 
@@ -27,9 +27,9 @@ class ZeroOrOneTests extends FunSuite {
     val st = Statement(pubKey, encBinaryVec.map(_._1))
     val w = Witness(binaryVec, encBinaryVec.map(_._2))
 
-    val proof = ZeroOrOne(st).prove(w)
+    val proof = BatchedZeroOrOne(st).prove(w)
     assert(serializationIsCorrect(Seq(proof), ProofSerializer))
-    assert(ZeroOrOne(st).verify(proof))
+    assert(BatchedZeroOrOne(st).verify(proof))
   }
 
   test("ZeroOrOneMultivec"){
@@ -56,8 +56,8 @@ class ZeroOrOneTests extends FunSuite {
     val st = Statement(pubKey, encBinaryVecsSum.map(_._1))
     val w = Witness(binaryVecsSum, encBinaryVecsSum.map(_._2))
 
-    val proof = ZeroOrOne(st).prove(w)
+    val proof = BatchedZeroOrOne(st).prove(w)
     assert(serializationIsCorrect(Seq(proof), ProofSerializer))
-    assert(ZeroOrOne(st).verify(proof))
+    assert(BatchedZeroOrOne(st).verify(proof))
   }
 }

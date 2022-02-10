@@ -6,11 +6,11 @@ import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory
 import io.iohk.core.crypto.primitives.hash.CryptographicHashFactory.AvailableHashes
 import io.iohk.protocol.common.utils.DlogGroupArithmetics.{combine, exp, mul}
-import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.ZeroOrOne.{CommitmentParams, Statement, Witness}
+import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.BatchedZeroOrOne.{CommitmentParams, Statement, Witness}
 import io.iohk.protocol.voting_2_0.NIZKs.ZeroOrOneNIZK.datastructures.{Proof, Commitment, Response}
 
-case class ZeroOrOne(statement: Statement)
-                    (implicit dlogGroup: DiscreteLogGroup){
+case class BatchedZeroOrOne(statement: Statement)
+                           (implicit dlogGroup: DiscreteLogGroup){
   private val g = dlogGroup.groupGenerator
   private val n = statement.vec.size
   private val modulus = dlogGroup.groupOrder
@@ -135,7 +135,7 @@ case class ZeroOrOne(statement: Statement)
   }
 }
 
-object ZeroOrOne {
+object BatchedZeroOrOne {
   case class CommitmentParams(r: Seq[BigInt], m: Seq[BigInt], q: Seq[BigInt])
 
   case class Statement(pubKey: PubKey, vec: Seq[ElGamalCiphertext])

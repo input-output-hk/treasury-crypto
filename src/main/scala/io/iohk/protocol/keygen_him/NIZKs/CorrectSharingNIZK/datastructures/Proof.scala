@@ -3,12 +3,14 @@ package io.iohk.protocol.keygen_him.NIZKs.CorrectSharingNIZK.datastructures
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.core.crypto.primitives.dlog.DiscreteLogGroup
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
+import io.iohk.core.utils.HasSize
 
 case class Proof(commitment: Commitment, response: Response)
-  extends BytesSerializable {
+  extends BytesSerializable with HasSize {
   override type M = Proof
   override type DECODER = DiscreteLogGroup
   override val serializer: Serializer[M, DECODER] = ProofSerializer
+  def size: Int = bytes.length
 }
 
 object ProofSerializer extends Serializer[Proof, DiscreteLogGroup]{

@@ -4,6 +4,7 @@ import com.google.common.primitives.{Bytes, Shorts}
 import io.iohk.core.crypto.encryption.elgamal.{ElGamalCiphertext, ElGamalCiphertextSerializer}
 import io.iohk.core.crypto.primitives.dlog.{DiscreteLogGroup, GroupElement}
 import io.iohk.core.serialization.{BytesSerializable, Serializer}
+import io.iohk.core.utils.HasSize
 
 import scala.util.Try
 
@@ -12,7 +13,7 @@ case class SHVZKProof(
                        Dk: Seq[ElGamalCiphertext],
                        zwv: Seq[(BigInt, BigInt, BigInt)],
                        R: BigInt
-) extends BytesSerializable {
+) extends BytesSerializable with HasSize {
 
   override type M = SHVZKProof
   override type DECODER = DiscreteLogGroup

@@ -4,8 +4,8 @@ case class BaseEncoding(base: BigInt, seq: Seq[BigInt])
 
 object BaseCodec {
 
-//  val defaultBase: BigInt = BigInt(Math.pow(2, 8).toInt)
-  val defaultBase: BigInt = BigInt(Math.pow(2, 32).toInt)
+//  val defaultBase: BigInt = BigInt(Math.pow(2, 8).toInt) // segment size is 8 bits (all segments are modulo 2^8)
+  val defaultBase: BigInt = BigInt(Math.pow(2, 32).toLong) // segments size is 32 bits (all segments are modulo 2^32)
 
   def encode(value: BigInt, base: BigInt = defaultBase): BaseEncoding = {
     def encodeInternal(value: BigInt): Seq[BigInt] = {
