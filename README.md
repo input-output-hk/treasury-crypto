@@ -35,7 +35,7 @@ The library implements the following components:
 
 Current status
 -------------------
-Current implementation is a prototype. Even though an effort was made to design it carefully with the aim to use in production, at this point it cannot be considered to be ready for that.
+Current implementation is a prototype. Even though effort was made to design it carefully with the aim to use in production, at this point it cannot be considered to be ready for that.
 
 The old version of the library ([v0.1](https://github.com/input-output-hk/treasury-crypto/releases/tag/v0.1_treasury_coin)) was integrated into the full-fledged treasury prototype built on top of the Scorex framework ([TreasuryCoin](https://github.com/input-output-hk/TreasuryCoin))
 
